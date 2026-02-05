@@ -1,0 +1,17 @@
+{
+  "name": "quadbot",
+  "private": true,
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "worker": "turbo dev --filter=@quadbot/worker",
+    "db:migrate": "turbo db:migrate --filter=@quadbot/db",
+    "db:seed": "turbo db:seed --filter=@quadbot/db"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.0",
+    "typescript": "^5.7.0"
+  },
+  "packageManager": "pnpm@9.15.0"
+}

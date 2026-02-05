@@ -1,0 +1,12 @@
+{
+  "sources": [
+    { "name": "Google Trends", "category": "search_trends", "checked_at": "2025-01-15T08:00:00Z" },
+    { "name": "Reddit r/projectmanagement", "category": "community", "checked_at": "2025-01-15T08:00:00Z" },
+    { "name": "Hacker News", "category": "tech_news", "checked_at": "2025-01-15T08:00:00Z" }
+  ],
+  "trending_topics": [
+    { "topic": "AI-powered project management", "momentum": "rising", "relevance": 0.85 },
+    { "topic": "async-first teams", "momentum": "stable", "relevance": 0.72 },
+    { "topic": "project management certification", "momentum": "declining", "relevance": 0.45 }
+  ]
+}

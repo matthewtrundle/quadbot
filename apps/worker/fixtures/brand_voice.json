@@ -1,0 +1,14 @@
+{
+  "tone": "Professional, helpful, and approachable",
+  "values": ["transparency", "collaboration", "innovation"],
+  "do": [
+    "Use clear and concise language",
+    "Be supportive and encouraging",
+    "Share actionable insights"
+  ],
+  "dont": [
+    "Use aggressive or confrontational language",
+    "Dismiss user concerns",
+    "Make promises about specific outcomes"
+  ]
+}

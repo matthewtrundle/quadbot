@@ -1,0 +1,10 @@
+[
+  { "query": "best project management tools", "clicks": 132, "impressions": 3100, "ctr": 0.043, "position": 4.5 },
+  { "query": "project management software comparison", "clicks": 95, "impressions": 1750, "ctr": 0.054, "position": 5.8 },
+  { "query": "team collaboration tools 2025", "clicks": 71, "impressions": 2200, "ctr": 0.032, "position": 7.9 },
+  { "query": "agile project management", "clicks": 195, "impressions": 5400, "ctr": 0.036, "position": 3.4 },
+  { "query": "remote team management", "clicks": 52, "impressions": 1300, "ctr": 0.040, "position": 11.8 },
+  { "query": "kanban board software", "clicks": 72, "impressions": 1850, "ctr": 0.039, "position": 6.1 },
+  { "query": "sprint planning tools", "clicks": 38, "impressions": 920, "ctr": 0.041, "position": 8.9 },
+  { "query": "project timeline software", "clicks": 51, "impressions": 1350, "ctr": 0.038, "position": 7.5 }
+]

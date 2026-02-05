@@ -1,0 +1,23 @@
+# Render Blueprint - Quadbot Worker
+# Deploy via: Render Dashboard -> New Blueprint -> Connect GitHub repo
+# Or via Render API (see below)
+
+services:
+  - type: worker
+    name: quadbot-worker
+    runtime: node
+    region: oregon
+    plan: starter
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm turbo build --filter=@quadbot/worker...
+    startCommand: node apps/worker/dist/index.js
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ENCRYPTION_KEY
+        sync: false
+      - key: NODE_ENV
+        value: production

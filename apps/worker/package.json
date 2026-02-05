@@ -1,0 +1,28 @@
+{
+  "name": "@quadbot/worker",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "node --import tsx src/index.ts",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "@quadbot/db": "workspace:*",
+    "@quadbot/shared": "workspace:*",
+    "drizzle-orm": "^0.36.0",
+    "handlebars": "^4.7.8",
+    "ioredis": "^5.4.0",
+    "node-cron": "^3.0.3",
+    "pino": "^9.6.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/node-cron": "^3.0.11",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}

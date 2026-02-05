@@ -1,0 +1,9 @@
+{
+  "rules": [
+    { "id": 1, "name": "No spam", "description": "No promotional content, affiliate links, or repetitive posts." },
+    { "id": 2, "name": "Be respectful", "description": "No personal attacks, harassment, or hate speech." },
+    { "id": 3, "name": "Stay on topic", "description": "Posts must be related to project management, team collaboration, or productivity." },
+    { "id": 4, "name": "No self-promotion", "description": "No excessive self-promotion. Share tools only if directly relevant to a discussion." },
+    { "id": 5, "name": "Original content", "description": "Do not plagiarize or repost others' content without attribution." }
+  ]
+}
