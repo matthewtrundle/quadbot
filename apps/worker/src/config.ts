@@ -1,8 +1,8 @@
 import { z } from 'zod';
 
 const envSchema = z.object({
-  DATABASE_URL: z.string().url(),
-  REDIS_URL: z.string().default('redis://localhost:6379'),
+  DATABASE_URL: z.string().min(1),
+  REDIS_URL: z.string().min(1).default('redis://localhost:6379'),
   ANTHROPIC_API_KEY: z.string().startsWith('sk-ant-'),
   ENCRYPTION_KEY: z.string().min(64),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
