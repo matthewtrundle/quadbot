@@ -16,7 +16,4 @@ CREATE INDEX idx_api_keys_brand ON api_keys(brand_id);
 CREATE UNIQUE INDEX idx_api_keys_hash ON api_keys(key_hash);
 CREATE INDEX idx_api_keys_prefix ON api_keys(key_prefix);
 
--- RLS
-ALTER TABLE api_keys ENABLE ROW LEVEL SECURITY;
-CREATE POLICY api_keys_service_role ON api_keys
-  USING (current_setting('role') = 'service_role');
+-- Note: RLS disabled for Neon compatibility

@@ -17,7 +17,4 @@ CREATE TABLE artifacts (
 CREATE INDEX idx_artifacts_brand ON artifacts(brand_id, type, status);
 CREATE INDEX idx_artifacts_rec ON artifacts(recommendation_id);
 
--- RLS
-ALTER TABLE artifacts ENABLE ROW LEVEL SECURITY;
-CREATE POLICY artifacts_service_role ON artifacts
-  USING (current_setting('role') = 'service_role');
+-- Note: RLS disabled for Neon compatibility

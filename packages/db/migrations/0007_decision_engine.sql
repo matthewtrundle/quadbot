@@ -26,7 +26,4 @@ CREATE INDEX idx_playbooks_domain ON playbooks(domain, is_active);
 -- Time budget setting on brands
 ALTER TABLE brands ADD COLUMN time_budget_minutes_per_day integer DEFAULT 30;
 
--- RLS
-ALTER TABLE playbooks ENABLE ROW LEVEL SECURITY;
-CREATE POLICY playbooks_service_role ON playbooks
-  USING (current_setting('role') = 'service_role');
+-- Note: RLS disabled for Neon compatibility

@@ -32,11 +32,4 @@ CREATE TABLE signal_applications (
 CREATE INDEX idx_signal_applications_signal ON signal_applications(signal_id);
 CREATE INDEX idx_signal_applications_brand ON signal_applications(target_brand_id);
 
--- RLS
-ALTER TABLE signals ENABLE ROW LEVEL SECURITY;
-CREATE POLICY signals_service_role ON signals
-  USING (current_setting('role') = 'service_role');
-
-ALTER TABLE signal_applications ENABLE ROW LEVEL SECURITY;
-CREATE POLICY signal_applications_service_role ON signal_applications
-  USING (current_setting('role') = 'service_role');
+-- Note: RLS disabled for Neon compatibility

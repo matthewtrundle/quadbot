@@ -38,11 +38,4 @@ ALTER TABLE recommendations ADD COLUMN evaluation_score real;
 ALTER TABLE action_drafts ADD COLUMN predicted_impact real;
 ALTER TABLE action_drafts ADD COLUMN actual_impact real;
 
--- RLS
-ALTER TABLE metric_snapshots ENABLE ROW LEVEL SECURITY;
-CREATE POLICY metric_snapshots_service_role ON metric_snapshots
-  USING (current_setting('role') = 'service_role');
-
-ALTER TABLE evaluation_runs ENABLE ROW LEVEL SECURITY;
-CREATE POLICY evaluation_runs_service_role ON evaluation_runs
-  USING (current_setting('role') = 'service_role');
+-- Note: RLS disabled for Neon compatibility

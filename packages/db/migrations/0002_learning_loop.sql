@@ -32,17 +32,4 @@ CREATE INDEX IF NOT EXISTS idx_prompt_performance_version ON prompt_performance(
 CREATE INDEX IF NOT EXISTS idx_prompt_performance_period ON prompt_performance(period_start, period_end);
 CREATE INDEX IF NOT EXISTS idx_execution_rules_brand_id ON execution_rules(brand_id);
 
--- RLS
-ALTER TABLE prompt_performance ENABLE ROW LEVEL SECURITY;
-ALTER TABLE execution_rules ENABLE ROW LEVEL SECURITY;
-
-DO $$
-DECLARE
-  tbl text;
-BEGIN
-  FOR tbl IN SELECT unnest(ARRAY['prompt_performance', 'execution_rules'])
-  LOOP
-    EXECUTE format('DROP POLICY IF EXISTS service_role_all ON %I', tbl);
-    EXECUTE format('CREATE POLICY service_role_all ON %I FOR ALL TO service_role USING (true) WITH CHECK (true)', tbl);
-  END LOOP;
-END $$;
+-- Note: RLS disabled for Neon compatibility

@@ -137,24 +137,5 @@ CREATE INDEX IF NOT EXISTS idx_action_executions_action_draft_id ON action_execu
 CREATE INDEX IF NOT EXISTS idx_outcomes_recommendation_id ON outcomes(recommendation_id);
 CREATE INDEX IF NOT EXISTS idx_prompt_versions_name_active ON prompt_versions(name, is_active);
 
--- RLS Policies (service_role only)
-ALTER TABLE brands ENABLE ROW LEVEL SECURITY;
-ALTER TABLE brand_integrations ENABLE ROW LEVEL SECURITY;
-ALTER TABLE jobs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE recommendations ENABLE ROW LEVEL SECURITY;
-ALTER TABLE action_drafts ENABLE ROW LEVEL SECURITY;
-ALTER TABLE action_executions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE outcomes ENABLE ROW LEVEL SECURITY;
-ALTER TABLE prompt_versions ENABLE ROW LEVEL SECURITY;
-
--- Allow service_role full access
-DO $$
-DECLARE
-  tbl text;
-BEGIN
-  FOR tbl IN SELECT unnest(ARRAY['brands', 'brand_integrations', 'jobs', 'recommendations', 'action_drafts', 'action_executions', 'outcomes', 'prompt_versions'])
-  LOOP
-    EXECUTE format('DROP POLICY IF EXISTS service_role_all ON %I', tbl);
-    EXECUTE format('CREATE POLICY service_role_all ON %I FOR ALL TO service_role USING (true) WITH CHECK (true)', tbl);
-  END LOOP;
-END $$;
+-- Note: RLS disabled for Neon compatibility (no service_role)
+-- In production, configure RLS policies appropriate for your auth setup

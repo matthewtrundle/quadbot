@@ -34,11 +34,4 @@ CREATE TABLE event_rules (
 CREATE INDEX idx_event_rules_type ON event_rules(event_type, enabled);
 CREATE INDEX idx_event_rules_brand ON event_rules(brand_id);
 
--- RLS
-ALTER TABLE events ENABLE ROW LEVEL SECURITY;
-CREATE POLICY events_service_role ON events
-  USING (current_setting('role') = 'service_role');
-
-ALTER TABLE event_rules ENABLE ROW LEVEL SECURITY;
-CREATE POLICY event_rules_service_role ON event_rules
-  USING (current_setting('role') = 'service_role');
+-- Note: RLS disabled for Neon compatibility
