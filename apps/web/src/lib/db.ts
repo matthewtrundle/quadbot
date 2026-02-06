@@ -3,7 +3,7 @@ import postgres from 'postgres';
 import * as schema from '@quadbot/db';
 
 function createDb() {
-  const connectionString = process.env.DATABASE_URL!;
+  const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL!;
   const client = postgres(connectionString);
   return drizzle(client, { schema });
 }
