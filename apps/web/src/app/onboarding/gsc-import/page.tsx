@@ -34,22 +34,22 @@ const INTEGRATION_OPTIONS: IntegrationOption[] = [
     id: 'gsc',
     name: 'Google Search Console',
     description: 'Organic search performance, rankings, and click data',
-    scope: 'webmasters.readonly',
+    scope: 'https://www.googleapis.com/auth/webmasters.readonly',
     enabled: true,
   },
   {
     id: 'ads',
     name: 'Google Ads',
     description: 'Paid campaign performance, spend, and ROAS data',
-    scope: 'adwords',
-    enabled: false, // Requires additional setup
+    scope: 'https://www.googleapis.com/auth/adwords',
+    enabled: true,
   },
   {
     id: 'analytics',
     name: 'Google Analytics 4',
     description: 'User behavior, conversions, and traffic sources',
-    scope: 'analytics.readonly',
-    enabled: false, // Requires additional setup
+    scope: 'https://www.googleapis.com/auth/analytics.readonly',
+    enabled: true,
   },
 ];
 
@@ -123,7 +123,18 @@ function GscImportContent() {
   };
 
   const handleStartOAuth = () => {
-    window.location.href = '/api/oauth/google/import';
+    // Build OAuth URL with all selected scopes
+    const selectedScopes = INTEGRATION_OPTIONS
+      .filter((opt) => selectedIntegrations.includes(opt.id))
+      .map((opt) => opt.scope);
+
+    // Always include userinfo.email for account identification
+    const allScopes = [...selectedScopes, 'https://www.googleapis.com/auth/userinfo.email'];
+
+    // Pass selected integrations as state for the callback to know what was requested
+    const state = `import:${selectedIntegrations.join(',')}`;
+
+    window.location.href = `/api/oauth/google/import?scopes=${encodeURIComponent(allScopes.join(' '))}&integrations=${encodeURIComponent(selectedIntegrations.join(','))}`;
   };
 
   // Show import results
