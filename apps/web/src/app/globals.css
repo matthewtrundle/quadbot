@@ -1,30 +1,100 @@
 @import "tailwindcss";
 
 @theme {
-  --color-background: #ffffff;
-  --color-foreground: #0a0a0a;
-  --color-card: #ffffff;
-  --color-card-foreground: #0a0a0a;
-  --color-popover: #ffffff;
-  --color-popover-foreground: #0a0a0a;
-  --color-primary: #171717;
-  --color-primary-foreground: #fafafa;
-  --color-secondary: #f5f5f5;
-  --color-secondary-foreground: #171717;
-  --color-muted: #f5f5f5;
-  --color-muted-foreground: #737373;
-  --color-accent: #f5f5f5;
-  --color-accent-foreground: #171717;
-  --color-destructive: #ef4444;
-  --color-destructive-foreground: #fafafa;
-  --color-border: #e5e5e5;
-  --color-input: #e5e5e5;
-  --color-ring: #0a0a0a;
-  --radius: 0.5rem;
+  /* Core - Dark geometric base */
+  --color-background: #0f0f14;
+  --color-foreground: #e8eaed;
+
+  /* Cards - Subtle elevation */
+  --color-card: #1a1a24;
+  --color-card-foreground: #e8eaed;
+
+  /* Popover */
+  --color-popover: #1a1a24;
+  --color-popover-foreground: #e8eaed;
+
+  /* Primary - Holographic cyan/teal */
+  --color-primary: #22d3ee;
+  --color-primary-foreground: #0f0f14;
+
+  /* Secondary - Muted cube surfaces */
+  --color-secondary: #252535;
+  --color-secondary-foreground: #a8adb8;
+
+  /* Muted - Subtle backgrounds */
+  --color-muted: #1f1f2c;
+  --color-muted-foreground: #6b7280;
+
+  /* Accent - Glowing eye purple */
+  --color-accent: #8b5cf6;
+  --color-accent-foreground: #ffffff;
+
+  /* Semantic colors */
+  --color-destructive: #f43f5e;
+  --color-destructive-foreground: #ffffff;
+  --color-success: #10b981;
+  --color-success-foreground: #ffffff;
+  --color-warning: #f59e0b;
+  --color-warning-foreground: #0f0f14;
+
+  /* Borders - Geometric edges */
+  --color-border: #2a2a3c;
+  --color-input: #252535;
+  --color-ring: #22d3ee;
+
+  /* Radius - Sharp geometric feel */
+  --radius: 0.375rem;
+
+  /* QuadBot brand colors */
+  --color-quad-cyan: #22d3ee;
+  --color-quad-purple: #8b5cf6;
+  --color-quad-pink: #ec4899;
+  --color-quad-blue: #3b82f6;
 }
 
 @layer base {
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+  }
+
+  /* Subtle glow effect for interactive elements */
+  .glow-cyan {
+    box-shadow: 0 0 20px rgba(34, 211, 238, 0.15);
+  }
+
+  .glow-purple {
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.15);
+  }
+
+  /* Data particle animation */
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-4px); }
+  }
+
+  .float {
+    animation: float 3s ease-in-out infinite;
+  }
+
+  /* Holographic shimmer */
+  @keyframes shimmer {
+    0% { background-position: -200% center; }
+    100% { background-position: 200% center; }
+  }
+
+  .holographic {
+    background: linear-gradient(
+      90deg,
+      var(--color-quad-cyan) 0%,
+      var(--color-quad-purple) 25%,
+      var(--color-quad-pink) 50%,
+      var(--color-quad-purple) 75%,
+      var(--color-quad-cyan) 100%
+    );
+    background-size: 200% auto;
+    animation: shimmer 8s linear infinite;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
 }
