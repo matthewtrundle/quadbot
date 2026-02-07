@@ -24,6 +24,7 @@ export default async function BrandsPage() {
             name={brand.name}
             mode={brand.mode}
             modulesEnabled={(brand.modules_enabled as string[]) || []}
+            isActive={brand.is_active}
           />
         ))}
         {allBrands.length === 0 && (

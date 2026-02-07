@@ -38,6 +38,7 @@ export const brands = pgTable('brands', {
   id: uuid('id').defaultRandom().primaryKey(),
   name: varchar('name', { length: 255 }).notNull(),
   mode: modeEnum('mode').notNull().default('observe'),
+  is_active: boolean('is_active').notNull().default(true),
   modules_enabled: jsonb('modules_enabled').$type<string[]>().default([]),
   guardrails: jsonb('guardrails').$type<Record<string, unknown>>().default({}),
   time_budget_minutes_per_day: integer('time_budget_minutes_per_day').default(30),
