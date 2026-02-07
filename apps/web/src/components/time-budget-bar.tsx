@@ -1,4 +1,5 @@
 import { Card, CardContent } from '@/components/ui/card';
+import { Clock } from 'lucide-react';
 
 type BrandStat = {
   brand_id: string;
@@ -18,27 +19,35 @@ export function TimeBudgetBar({ brands }: { brands: BrandStat[] }) {
   const percentage = totalBudget > 0 ? Math.min(100, (totalUsed / totalBudget) * 100) : 0;
 
   return (
-    <Card>
-      <CardContent className="py-4">
-        <div className="flex items-center justify-between text-sm">
-          <span className="font-medium">Time Budget</span>
-          <span className="text-muted-foreground">
-            {totalUsed}/{totalBudget} min estimated today
-          </span>
+    <Card className="overflow-hidden">
+      <CardContent className="py-5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4 text-primary" />
+            <span className="text-sm font-semibold">Daily Time Budget</span>
+          </div>
+          <div className="text-right">
+            <span className="text-lg font-semibold tabular-nums">{totalUsed}</span>
+            <span className="text-sm text-muted-foreground">/{totalBudget} min</span>
+          </div>
         </div>
-        <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-secondary">
+        <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-secondary">
           <div
-            className={`h-full rounded-full transition-all ${
-              percentage > 80 ? 'bg-destructive' : percentage > 50 ? 'bg-yellow-500' : 'bg-primary'
+            className={`h-full rounded-full transition-all duration-500 ${
+              percentage > 80 ? 'bg-destructive' : percentage > 50 ? 'bg-warning' : 'bg-primary'
             }`}
-            style={{ width: `${percentage}%` }}
+            style={{ width: `${Math.max(percentage, 2)}%` }}
           />
         </div>
-        <div className="mt-2 flex gap-4 text-xs text-muted-foreground">
+        <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2">
           {brands.map((b) => (
-            <span key={b.brand_id}>
-              {b.brand_name}: {estimateMinutes(b.pending_actions)}/{b.time_budget}min
-            </span>
+            <div key={b.brand_id} className="flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-primary/40" />
+              <span className="text-sm text-foreground/80">{b.brand_name}</span>
+              <span className="text-sm tabular-nums text-muted-foreground">
+                {estimateMinutes(b.pending_actions)}/{b.time_budget}m
+              </span>
+            </div>
           ))}
         </div>
       </CardContent>
