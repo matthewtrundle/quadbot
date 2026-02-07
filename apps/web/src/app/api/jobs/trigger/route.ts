@@ -3,7 +3,7 @@ import { db } from '@/lib/db';
 import { jobs, brands } from '@quadbot/db';
 import { eq } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
-import Redis from 'ioredis';
+import { enqueueJob } from '@/lib/queue';
 import { z } from 'zod';
 
 const triggerSchema = z.object({
@@ -51,25 +51,20 @@ export async function POST(req: NextRequest) {
       payload: {},
     });
 
-    // Enqueue to Redis
-    const redisUrl = process.env.REDIS_URL;
-    if (!redisUrl) {
-      return NextResponse.json(
-        { error: 'REDIS_URL not configured', jobId, status: 'created_not_queued' },
-        { status: 200 },
-      );
-    }
-
-    const redis = new Redis(redisUrl);
-    await redis.lpush(
-      'quadbot:jobs',
-      JSON.stringify({
+    // Enqueue to Redis via Upstash
+    try {
+      await enqueueJob({
         jobId,
         type: jobType,
         payload: { brand_id: brandId },
-      }),
-    );
-    await redis.quit();
+      });
+    } catch (queueError) {
+      console.error('Failed to enqueue job:', queueError);
+      return NextResponse.json(
+        { error: 'Job created but failed to queue', jobId, status: 'created_not_queued' },
+        { status: 200 },
+      );
+    }
 
     return NextResponse.json({
       success: true,
