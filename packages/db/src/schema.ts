@@ -23,6 +23,17 @@ export const actionDraftStatusEnum = pgEnum('action_draft_status', [
 ]);
 export const riskEnum = pgEnum('risk', ['low', 'medium', 'high']);
 
+// GSC Auto-Import: Shared Credentials
+export const sharedCredentials = pgTable('shared_credentials', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  type: varchar('type', { length: 100 }).notNull(),
+  name: varchar('name', { length: 255 }).notNull(),
+  credentials_encrypted: text('credentials_encrypted').notNull(),
+  config: jsonb('config').$type<Record<string, unknown>>().default({}),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
 export const brands = pgTable('brands', {
   id: uuid('id').defaultRandom().primaryKey(),
   name: varchar('name', { length: 255 }).notNull(),
@@ -41,6 +52,7 @@ export const brandIntegrations = pgTable('brand_integrations', {
     .references(() => brands.id, { onDelete: 'cascade' }),
   type: varchar('type', { length: 100 }).notNull(),
   credentials_encrypted: text('credentials_encrypted'),
+  shared_credential_id: uuid('shared_credential_id').references(() => sharedCredentials.id),
   config: jsonb('config').$type<Record<string, unknown>>().default({}),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
@@ -303,4 +315,39 @@ export const executionRules = pgTable('execution_rules', {
   auto_execute: boolean('auto_execute').notNull().default(false),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// Self-Improvement Engine
+
+export const improvementSuggestions = pgTable('improvement_suggestions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  brand_id: uuid('brand_id').references(() => brands.id, { onDelete: 'cascade' }),
+  category: varchar('category', { length: 100 }).notNull(),
+  title: text('title').notNull(),
+  description: text('description').notNull(),
+  rationale: text('rationale').notNull(),
+  expected_impact: text('expected_impact').notNull(),
+  implementation_effort: varchar('implementation_effort', { length: 20 }).notNull(),
+  priority: varchar('priority', { length: 20 }).notNull().default('medium'),
+  status: varchar('status', { length: 50 }).notNull().default('pending'),
+  context: jsonb('context').$type<Record<string, unknown>>().default({}),
+  user_feedback: text('user_feedback'),
+  votes: integer('votes').notNull().default(0),
+  source_job_id: uuid('source_job_id').references(() => jobs.id, { onDelete: 'set null' }),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const improvementOutcomes = pgTable('improvement_outcomes', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  suggestion_id: uuid('suggestion_id')
+    .notNull()
+    .references(() => improvementSuggestions.id, { onDelete: 'cascade' }),
+  implemented_at: timestamp('implemented_at', { withTimezone: true }).notNull(),
+  before_metrics: jsonb('before_metrics').$type<Record<string, unknown>>().notNull(),
+  after_metrics: jsonb('after_metrics').$type<Record<string, unknown>>(),
+  measured_at: timestamp('measured_at', { withTimezone: true }),
+  improvement_delta: jsonb('improvement_delta').$type<Record<string, unknown>>(),
+  notes: text('notes'),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });

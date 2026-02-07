@@ -33,6 +33,9 @@ export default async function BrandLayout({
         <Link href={`/brands/${id}/actions`} className="text-sm font-medium hover:text-primary">
           Actions
         </Link>
+        <Link href={`/brands/${id}/artifacts`} className="text-sm font-medium hover:text-primary">
+          Artifacts
+        </Link>
         <Link href={`/brands/${id}/evaluation`} className="text-sm font-medium hover:text-primary">
           Evaluation
         </Link>

@@ -24,6 +24,14 @@ import { evaluationScorer } from './jobs/evaluation-scorer.js';
 import { signalExtractor } from './jobs/signal-extractor.js';
 // Phase 5: Decision Engine
 import { strategicPrioritizer } from './jobs/strategic-prioritizer.js';
+// Phase 6: Content Generation
+import { contentOptimizer } from './jobs/content-optimizer.js';
+// Phase 7: Multi-Source Intelligence
+import { adsPerformanceDigest } from './jobs/ads-performance-digest.js';
+import { analyticsInsights } from './jobs/analytics-insights.js';
+import { crossChannelCorrelator } from './jobs/cross-channel-correlator.js';
+// Phase 8: Self-Improvement Engine
+import { capabilityGapAnalyzer } from './jobs/capability-gap-analyzer.js';
 
 // Register job handlers
 registerHandler(JobType.COMMUNITY_MODERATE_POST, communityModeratePost);
@@ -40,6 +48,14 @@ registerHandler(JobType.EVALUATION_SCORER, evaluationScorer);
 registerHandler(JobType.SIGNAL_EXTRACTOR, signalExtractor);
 // Phase 5: Decision Engine handlers
 registerHandler(JobType.STRATEGIC_PRIORITIZER, strategicPrioritizer);
+// Phase 6: Content Generation handlers
+registerHandler(JobType.CONTENT_OPTIMIZER, contentOptimizer);
+// Phase 7: Multi-Source Intelligence handlers
+registerHandler(JobType.ADS_PERFORMANCE_DIGEST, adsPerformanceDigest);
+registerHandler(JobType.ANALYTICS_INSIGHTS, analyticsInsights);
+registerHandler(JobType.CROSS_CHANNEL_CORRELATOR, crossChannelCorrelator);
+// Phase 8: Self-Improvement Engine handlers
+registerHandler(JobType.CAPABILITY_GAP_ANALYZER, capabilityGapAnalyzer);
 
 async function handleMessage(message: string): Promise<void> {
   let parsed;

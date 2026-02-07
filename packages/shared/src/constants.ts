@@ -18,6 +18,14 @@ export const JobType = {
   SIGNAL_EXTRACTOR: 'signal_extractor',
   // Phase 5: Decision Engine
   STRATEGIC_PRIORITIZER: 'strategic_prioritizer',
+  // Phase 6: Content Generation
+  CONTENT_OPTIMIZER: 'content_optimizer',
+  // Phase 7: Multi-Source Intelligence
+  ADS_PERFORMANCE_DIGEST: 'ads_performance_digest',
+  ANALYTICS_INSIGHTS: 'analytics_insights',
+  CROSS_CHANNEL_CORRELATOR: 'cross_channel_correlator',
+  // Phase 8: Self-Improvement Engine
+  CAPABILITY_GAP_ANALYZER: 'capability_gap_analyzer',
 } as const;
 export type JobType = (typeof JobType)[keyof typeof JobType];
 
@@ -48,6 +56,9 @@ export type RecommendationPriority = (typeof RecommendationPriority)[keyof typeo
 
 export const IntegrationType = {
   GOOGLE_SEARCH_CONSOLE: 'google_search_console',
+  GOOGLE_ADS: 'google_ads',
+  GOOGLE_ANALYTICS: 'google_analytics',
+  GOOGLE_BUSINESS_PROFILE: 'google_business_profile',
   COMMUNITY_WEBHOOK: 'community_webhook',
 } as const;
 export type IntegrationType = (typeof IntegrationType)[keyof typeof IntegrationType];

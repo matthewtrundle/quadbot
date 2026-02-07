@@ -14,6 +14,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <Link href="/dashboard/daily-diff" className="text-sm font-medium hover:text-primary">
           Daily Diff
         </Link>
+        <Link href="/dashboard/improvements" className="text-sm font-medium hover:text-primary">
+          Improvements
+        </Link>
+        <Link href="/dashboard/usage" className="text-sm font-medium hover:text-primary">
+          Usage & Costs
+        </Link>
       </nav>
 
       {children}

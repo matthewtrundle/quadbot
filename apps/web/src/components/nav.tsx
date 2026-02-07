@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Bot, Building2, LayoutDashboard, CalendarClock } from 'lucide-react';
+import { Bot, Building2, LayoutDashboard, CalendarClock, Download, DollarSign } from 'lucide-react';
 
 export function Nav() {
   return (
@@ -30,6 +30,20 @@ export function Nav() {
           >
             <Building2 className="h-4 w-4" />
             Brands
+          </Link>
+          <Link
+            href="/onboarding/gsc-import"
+            className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium pl-10 text-muted-foreground hover:bg-accent hover:text-foreground"
+          >
+            <Download className="h-4 w-4" />
+            Google Import
+          </Link>
+          <Link
+            href="/dashboard/usage"
+            className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent"
+          >
+            <DollarSign className="h-4 w-4" />
+            Usage & Costs
           </Link>
         </nav>
         <div className="border-t p-4">
