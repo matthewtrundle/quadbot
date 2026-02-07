@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
           .values({
             name: site.brandName,
             mode: 'observe',
-            modules_enabled: ['gsc'],
+            modules_enabled: ['gsc_digest', 'trend_scan', 'community_moderation'],
           })
           .returning();
 
@@ -75,7 +75,8 @@ export async function POST(req: NextRequest) {
           shared_credential_id: sharedCredentialId,
           credentials_encrypted: null, // Using shared credential instead
           config: {
-            siteUrl: site.siteUrl,
+            site_url: site.siteUrl, // Used by GSC executors
+            siteUrl: site.siteUrl,  // Legacy alias
             scopes: ['webmasters.readonly'],
           },
         });

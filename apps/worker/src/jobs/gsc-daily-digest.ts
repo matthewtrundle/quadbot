@@ -77,6 +77,13 @@ export async function gscDailyDigest(ctx: JobContext): Promise<void> {
   const brand = await db.select().from(brands).where(eq(brands.id, brandId)).limit(1);
   if (brand.length === 0) throw new Error(`Brand ${brandId} not found`);
 
+  // Check if GSC digest module is enabled for this brand
+  const modulesEnabled = (brand[0].modules_enabled as string[]) || [];
+  if (!modulesEnabled.includes('gsc_digest')) {
+    logger.info({ jobId, brandId }, 'GSC digest module not enabled, skipping');
+    return;
+  }
+
   // Load GSC credentials (supports both shared and direct)
   const credentials = await loadGscCredentials(db, brandId);
   if (credentials) {

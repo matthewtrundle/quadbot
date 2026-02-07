@@ -1,7 +1,7 @@
 import cron from 'node-cron';
 import { db } from '@quadbot/db';
 import { brands, jobs } from '@quadbot/db';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import type Redis from 'ioredis';
 import { enqueue } from './queue.js';
 import { JobType, QUEUE_KEY } from '@quadbot/shared';
@@ -87,7 +87,10 @@ export function startCronScheduler(redis: Redis): void {
 
 async function enqueueForAllBrands(redis: Redis, jobType: string): Promise<void> {
   try {
-    const allBrands = await db.select({ id: brands.id }).from(brands);
+    const allBrands = await db
+      .select({ id: brands.id })
+      .from(brands)
+      .where(eq(brands.is_active, true));
 
     for (const brand of allBrands) {
       const jobId = randomUUID();

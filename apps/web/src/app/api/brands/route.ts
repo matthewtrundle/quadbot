@@ -6,7 +6,7 @@ import { brandCreateSchema, brandUpdateSchema } from '@quadbot/shared';
 
 export async function GET() {
   const allBrands = await db.select().from(brands).orderBy(brands.created_at);
-  return NextResponse.json(allBrands);
+  return NextResponse.json({ brands: allBrands });
 }
 
 export async function POST(req: NextRequest) {

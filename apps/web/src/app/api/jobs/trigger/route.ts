@@ -1,0 +1,108 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { db } from '@/lib/db';
+import { jobs, brands } from '@quadbot/db';
+import { eq } from 'drizzle-orm';
+import { randomUUID } from 'node:crypto';
+import Redis from 'ioredis';
+import { z } from 'zod';
+
+const triggerSchema = z.object({
+  brandId: z.string().uuid(),
+  jobType: z.enum([
+    'gsc_daily_digest',
+    'trend_scan_industry',
+    'metric_snapshot',
+    'evaluation_scorer',
+    'strategic_prioritizer',
+    'content_optimizer',
+    'ads_performance_digest',
+    'analytics_insights',
+    'cross_channel_correlator',
+  ]),
+});
+
+/**
+ * POST /api/jobs/trigger
+ * Manually trigger a job for testing purposes
+ */
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { brandId, jobType } = triggerSchema.parse(body);
+
+    // Verify brand exists
+    const [brand] = await db
+      .select()
+      .from(brands)
+      .where(eq(brands.id, brandId))
+      .limit(1);
+
+    if (!brand) {
+      return NextResponse.json({ error: 'Brand not found' }, { status: 404 });
+    }
+
+    // Create job record
+    const jobId = randomUUID();
+    await db.insert(jobs).values({
+      id: jobId,
+      brand_id: brandId,
+      type: jobType,
+      status: 'queued',
+      payload: {},
+    });
+
+    // Enqueue to Redis
+    const redisUrl = process.env.REDIS_URL;
+    if (!redisUrl) {
+      return NextResponse.json(
+        { error: 'REDIS_URL not configured', jobId, status: 'created_not_queued' },
+        { status: 200 },
+      );
+    }
+
+    const redis = new Redis(redisUrl);
+    await redis.lpush(
+      'quadbot:jobs',
+      JSON.stringify({
+        jobId,
+        type: jobType,
+        payload: { brand_id: brandId },
+      }),
+    );
+    await redis.quit();
+
+    return NextResponse.json({
+      success: true,
+      jobId,
+      jobType,
+      brandId,
+      message: `Job ${jobType} queued for brand ${brand.name}`,
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: 'Invalid request', details: error.errors }, { status: 400 });
+    }
+    console.error('Job trigger error:', error);
+    return NextResponse.json({ error: 'Failed to trigger job' }, { status: 500 });
+  }
+}
+
+/**
+ * GET /api/jobs/trigger
+ * List available job types
+ */
+export async function GET() {
+  return NextResponse.json({
+    availableJobTypes: [
+      { type: 'gsc_daily_digest', description: 'GSC Daily Digest - Analyze search console data' },
+      { type: 'trend_scan_industry', description: 'Trend Scan - Check industry trends' },
+      { type: 'metric_snapshot', description: 'Metric Snapshot - Capture current metrics' },
+      { type: 'evaluation_scorer', description: 'Evaluation Scorer - Score recommendations' },
+      { type: 'strategic_prioritizer', description: 'Strategic Prioritizer - Prioritize recommendations' },
+      { type: 'content_optimizer', description: 'Content Optimizer - Generate content suggestions' },
+      { type: 'ads_performance_digest', description: 'Ads Performance - Analyze ad campaigns' },
+      { type: 'analytics_insights', description: 'Analytics Insights - Analyze GA4 data' },
+      { type: 'cross_channel_correlator', description: 'Cross-Channel - Find correlations' },
+    ],
+  });
+}

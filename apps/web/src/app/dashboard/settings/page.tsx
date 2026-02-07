@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Check, ExternalLink, AlertCircle } from 'lucide-react';
+import { ManualJobTrigger } from '@/components/manual-job-trigger';
 
 type Credential = {
   id: string;
@@ -98,7 +99,7 @@ function SettingsContent() {
               <div className="space-y-2 text-sm">
                 <p className="text-muted-foreground">{gscCredential.name}</p>
                 <p className="text-muted-foreground">
-                  {(gscCredential.config as any)?.sites_count || 0} sites available
+                  {(gscCredential.config as any)?.gsc_sites_count || 0} sites available
                 </p>
               </div>
             ) : (
@@ -184,6 +185,12 @@ function SettingsContent() {
       {loading && (
         <p className="text-center text-muted-foreground">Loading credentials...</p>
       )}
+
+      {/* Testing Tools */}
+      <div className="mt-8 border-t pt-8">
+        <h2 className="mb-4 text-xl font-semibold">Testing Tools</h2>
+        <ManualJobTrigger />
+      </div>
     </div>
   );
 }

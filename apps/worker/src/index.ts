@@ -10,6 +10,7 @@ import { startExecutionLoop } from './execution-loop.js';
 import { startCronScheduler } from './cron.js';
 import { startEventProcessor } from './event-processor.js';
 import { seedPrompts } from './seed-prompts.js';
+import { registerAllExecutors } from './executors/index.js';
 import { communityModeratePost } from './jobs/community-moderate.js';
 import { gscDailyDigest } from './jobs/gsc-daily-digest.js';
 import { trendScanIndustry } from './jobs/trend-scan.js';
@@ -138,6 +139,9 @@ async function main(): Promise<void> {
 
   // Seed prompt versions on startup (idempotent)
   await seedPrompts();
+
+  // Register all executors for the execution loop
+  registerAllExecutors();
 
   const redis = getRedis(config.REDIS_URL);
 

@@ -14,6 +14,13 @@ export async function communityModeratePost(ctx: JobContext): Promise<void> {
   const brand = await db.select().from(brands).where(eq(brands.id, brandId)).limit(1);
   if (brand.length === 0) throw new Error(`Brand ${brandId} not found`);
 
+  // Check if community moderation module is enabled for this brand
+  const modulesEnabled = (brand[0].modules_enabled as string[]) || [];
+  if (!modulesEnabled.includes('community_moderation')) {
+    logger.info({ jobId, brandId }, 'Community moderation module not enabled, skipping');
+    return;
+  }
+
   const prompt = await loadActivePrompt('community_moderation_classifier_v1');
 
   const result = await callClaude(
