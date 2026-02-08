@@ -105,17 +105,26 @@ export async function startConsumer(
         processed = true;
       }
 
-      // If nothing was processed, wait briefly before polling again
+      // If nothing was processed, wait before polling again to conserve Redis requests
+      // With 18 brands, each cycle is ~20 Redis commands. At 5s idle interval:
+      // ~345,600 requests/day idle vs 1.7M at 1s interval
       if (!processed) {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        await new Promise((resolve) => setTimeout(resolve, 5000));
       }
     } catch (err) {
       if ((err as Error).message?.includes('Connection is closed')) {
         logger.error('Redis connection closed, stopping consumer');
         break;
       }
-      logger.error({ err }, 'Queue consumer error');
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Check for rate limit errors and back off aggressively
+      const errMsg = (err as Error).message || '';
+      if (errMsg.includes('max requests limit exceeded')) {
+        logger.error('Upstash request limit exceeded, backing off 60s');
+        await new Promise((resolve) => setTimeout(resolve, 60000));
+      } else {
+        logger.error({ err }, 'Queue consumer error');
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+      }
     }
   }
 }
