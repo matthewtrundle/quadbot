@@ -30,19 +30,22 @@ export function BrandHealthGrid({ brands }: { brands: BrandStat[] }) {
               <Link
                 key={brand.brand_id}
                 href={`/brands/${brand.brand_id}/inbox`}
-                className="group flex items-center justify-between rounded-lg border border-border/50 bg-secondary/30 p-3 transition-all hover:border-primary/30 hover:bg-secondary/50"
+                className="group flex items-center justify-between rounded-lg border border-border/50 bg-secondary/30 p-3 transition-all hover:border-primary/30 hover:bg-secondary/50 hover:glow-cyan"
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="truncate text-sm font-medium text-foreground">
                       {brand.brand_name}
                     </span>
-                    <Badge
-                      variant={brand.mode === 'assist' ? 'default' : 'outline'}
-                      className="shrink-0 text-[10px] uppercase tracking-wide"
-                    >
-                      {brand.mode}
-                    </Badge>
+                    <div className="flex items-center gap-1.5">
+                      <span className={`h-2 w-2 rounded-full ${brand.mode === 'assist' ? 'bg-success' : 'bg-warning'}`} />
+                      <Badge
+                        variant={brand.mode === 'assist' ? 'default' : 'outline'}
+                        className="shrink-0 text-[10px] uppercase tracking-wide"
+                      >
+                        {brand.mode}
+                      </Badge>
+                    </div>
                   </div>
                   <div className="mt-1.5 flex items-center gap-4 text-xs">
                     <span className="text-foreground/70">

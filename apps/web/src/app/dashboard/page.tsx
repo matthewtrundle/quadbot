@@ -87,15 +87,31 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <TimeBudgetBar brands={brandStats} />
+      {/* Welcome header */}
+      <div className="animate-fade-in-up">
+        <h1 className="text-2xl font-bold">
+          Welcome back{session.user.name ? `, ${session.user.name.split(' ')[0]}` : ''}
+        </h1>
+        <p className="mt-1 text-muted-foreground">
+          Here&apos;s what QuadBot has been working on for you.
+        </p>
+      </div>
+
+      <div className="animate-fade-in-up" style={{ animationDelay: '100ms' }}>
+        <TimeBudgetBar brands={brandStats} />
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 animate-fade-in-up" style={{ animationDelay: '200ms' }}>
           <PriorityQueue recommendations={priorityRecs} />
         </div>
         <div className="space-y-6">
-          <BrandHealthGrid brands={brandStats} />
-          <SignalFeed signals={recentSignals} />
+          <div className="animate-fade-in-up" style={{ animationDelay: '300ms' }}>
+            <BrandHealthGrid brands={brandStats} />
+          </div>
+          <div className="animate-fade-in-up" style={{ animationDelay: '400ms' }}>
+            <SignalFeed signals={recentSignals} />
+          </div>
         </div>
       </div>
     </div>

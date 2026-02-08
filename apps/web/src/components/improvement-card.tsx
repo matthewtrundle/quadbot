@@ -20,18 +20,18 @@ type Suggestion = {
 };
 
 const categoryColors: Record<string, string> = {
-  integration: 'bg-purple-100 text-purple-800',
-  data_source: 'bg-blue-100 text-blue-800',
-  feature: 'bg-green-100 text-green-800',
-  analysis: 'bg-orange-100 text-orange-800',
-  automation: 'bg-cyan-100 text-cyan-800',
+  integration: 'bg-quad-purple/15 text-quad-purple',
+  data_source: 'bg-quad-blue/15 text-quad-blue',
+  feature: 'bg-success/15 text-success',
+  analysis: 'bg-warning/15 text-warning',
+  automation: 'bg-quad-cyan/15 text-quad-cyan',
 };
 
 const priorityColors: Record<string, string> = {
-  critical: 'bg-red-100 text-red-800',
-  high: 'bg-orange-100 text-orange-800',
-  medium: 'bg-yellow-100 text-yellow-800',
-  low: 'bg-gray-100 text-gray-800',
+  critical: 'bg-destructive/15 text-destructive',
+  high: 'bg-warning/15 text-warning',
+  medium: 'bg-warning/15 text-warning',
+  low: 'bg-secondary text-muted-foreground',
 };
 
 const effortLabels: Record<string, string> = {
@@ -90,20 +90,20 @@ export function ImprovementCard({ suggestion }: { suggestion: Suggestion }) {
   };
 
   return (
-    <div className="border rounded-lg p-4 bg-white shadow-sm hover:shadow-md transition-shadow">
+    <div className="border border-border/50 rounded-lg p-4 bg-card transition-all hover:border-primary/30 hover:shadow-md">
       <div className="flex justify-between items-start mb-2">
         <div className="flex gap-2 flex-wrap">
           <span
-            className={`text-xs px-2 py-0.5 rounded-full ${categoryColors[suggestion.category] || 'bg-gray-100 text-gray-800'}`}
+            className={`text-xs px-2 py-0.5 rounded-full ${categoryColors[suggestion.category] || 'bg-secondary text-muted-foreground'}`}
           >
             {suggestion.category}
           </span>
           <span
-            className={`text-xs px-2 py-0.5 rounded-full ${priorityColors[suggestion.priority] || 'bg-gray-100 text-gray-800'}`}
+            className={`text-xs px-2 py-0.5 rounded-full ${priorityColors[suggestion.priority] || 'bg-secondary text-muted-foreground'}`}
           >
             {suggestion.priority}
           </span>
-          <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
+          <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">
             {effortLabels[suggestion.implementation_effort] || suggestion.implementation_effort}
           </span>
         </div>
@@ -113,10 +113,10 @@ export function ImprovementCard({ suggestion }: { suggestion: Suggestion }) {
           <button
             onClick={() => handleVote(1)}
             disabled={isLoading || status !== 'pending'}
-            className="p-1 hover:bg-green-50 rounded disabled:opacity-50"
+            className="p-1 hover:bg-success/10 rounded disabled:opacity-50"
             title="Upvote"
           >
-            <svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-4 h-4 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
             </svg>
           </button>
@@ -124,10 +124,10 @@ export function ImprovementCard({ suggestion }: { suggestion: Suggestion }) {
           <button
             onClick={() => handleVote(-1)}
             disabled={isLoading || status !== 'pending'}
-            className="p-1 hover:bg-red-50 rounded disabled:opacity-50"
+            className="p-1 hover:bg-destructive/10 rounded disabled:opacity-50"
             title="Downvote"
           >
-            <svg className="w-4 h-4 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-4 h-4 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
           </button>
@@ -139,7 +139,7 @@ export function ImprovementCard({ suggestion }: { suggestion: Suggestion }) {
 
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="text-xs text-blue-600 hover:underline mb-2"
+        className="text-xs text-quad-cyan hover:underline mb-2"
       >
         {isExpanded ? 'Show less' : 'Show more'}
       </button>
@@ -181,14 +181,14 @@ export function ImprovementCard({ suggestion }: { suggestion: Suggestion }) {
           <button
             onClick={() => handleStatusChange('approved')}
             disabled={isLoading}
-            className="flex-1 text-xs py-1.5 px-3 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+            className="flex-1 text-xs py-1.5 px-3 bg-success text-success-foreground rounded hover:bg-success/90 disabled:opacity-50"
           >
             Approve
           </button>
           <button
             onClick={() => handleStatusChange('dismissed')}
             disabled={isLoading}
-            className="flex-1 text-xs py-1.5 px-3 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 disabled:opacity-50"
+            className="flex-1 text-xs py-1.5 px-3 bg-secondary text-secondary-foreground rounded hover:bg-secondary/80 disabled:opacity-50"
           >
             Dismiss
           </button>
@@ -200,7 +200,7 @@ export function ImprovementCard({ suggestion }: { suggestion: Suggestion }) {
           <button
             onClick={() => handleStatusChange('implemented')}
             disabled={isLoading}
-            className="flex-1 text-xs py-1.5 px-3 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+            className="flex-1 text-xs py-1.5 px-3 bg-quad-blue text-white rounded hover:bg-quad-blue/90 disabled:opacity-50"
           >
             Mark Implemented
           </button>

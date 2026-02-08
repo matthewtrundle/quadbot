@@ -80,7 +80,8 @@ export function Nav() {
             <NavLink key={item.href} item={item} pathname={pathname} />
           ))}
 
-          <p className="mb-2 mt-6 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <div className="my-4 mx-3 border-t border-border/30" />
+          <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Setup
           </p>
           {setupItems.map((item) => (
@@ -91,16 +92,16 @@ export function Nav() {
         {/* Footer with user + version */}
         <div className="border-t border-border/50 p-4 space-y-3">
           {session?.user && (
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between rounded-lg p-2 -mx-2 transition-colors hover:bg-secondary/50">
               <div className="flex items-center gap-2 min-w-0">
                 {session.user.image ? (
                   <img
                     src={session.user.image}
                     alt=""
-                    className="h-6 w-6 rounded-full flex-shrink-0"
+                    className="h-7 w-7 rounded-full flex-shrink-0 ring-1 ring-border/50"
                   />
                 ) : (
-                  <div className="h-6 w-6 rounded-full bg-quad-cyan/20 flex items-center justify-center flex-shrink-0">
+                  <div className="h-7 w-7 rounded-full bg-quad-cyan/20 flex items-center justify-center flex-shrink-0 ring-1 ring-border/50">
                     <span className="text-xs font-medium text-quad-cyan">
                       {session.user.name?.charAt(0) || '?'}
                     </span>

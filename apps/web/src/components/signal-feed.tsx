@@ -34,7 +34,7 @@ export function SignalFeed({ signals }: { signals: Signal[] }) {
             {signals.map((signal) => (
               <div
                 key={signal.id}
-                className="rounded-lg border border-border/50 bg-secondary/30 p-3 transition-all hover:border-primary/30 hover:bg-secondary/50"
+                className="rounded-lg border border-border/50 border-l-2 border-l-quad-purple bg-secondary/30 p-3 transition-all hover:border-primary/30 hover:bg-secondary/50"
               >
                 <div className="flex items-start justify-between gap-2">
                   <span className="text-sm font-medium text-foreground">{signal.title}</span>
@@ -47,10 +47,15 @@ export function SignalFeed({ signals }: { signals: Signal[] }) {
                 </p>
                 <div className="mt-2 flex items-center gap-3 text-xs">
                   <span className="text-muted-foreground">{signal.signal_type}</span>
-                  <span className="flex items-center gap-1 text-primary">
-                    <span className="font-medium">{(signal.confidence * 100).toFixed(0)}%</span>
-                    <span className="text-muted-foreground">confidence</span>
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <div className="h-1.5 w-16 overflow-hidden rounded-full bg-secondary">
+                      <div
+                        className="h-full rounded-full bg-primary"
+                        style={{ width: `${signal.confidence * 100}%` }}
+                      />
+                    </div>
+                    <span className="font-medium text-primary">{(signal.confidence * 100).toFixed(0)}%</span>
+                  </div>
                 </div>
               </div>
             ))}

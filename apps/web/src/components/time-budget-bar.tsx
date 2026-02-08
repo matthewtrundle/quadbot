@@ -19,7 +19,7 @@ export function TimeBudgetBar({ brands }: { brands: BrandStat[] }) {
   const percentage = totalBudget > 0 ? Math.min(100, (totalUsed / totalBudget) * 100) : 0;
 
   return (
-    <Card className="overflow-hidden">
+    <Card className={`overflow-hidden ${percentage > 80 ? 'pulse-glow' : ''}`}>
       <CardContent className="py-5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -31,12 +31,15 @@ export function TimeBudgetBar({ brands }: { brands: BrandStat[] }) {
             <span className="text-sm text-muted-foreground">/{totalBudget} min</span>
           </div>
         </div>
-        <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-secondary">
+        <div className="mt-4 h-2.5 w-full overflow-hidden rounded-full bg-secondary">
           <div
             className={`h-full rounded-full transition-all duration-500 ${
-              percentage > 80 ? 'bg-destructive' : percentage > 50 ? 'bg-warning' : 'bg-primary'
+              percentage > 80 ? 'bg-destructive' : ''
             }`}
-            style={{ width: `${Math.max(percentage, 2)}%` }}
+            style={{
+              width: `${Math.max(percentage, 2)}%`,
+              ...(percentage <= 80 ? { background: 'linear-gradient(90deg, var(--color-quad-cyan), var(--color-quad-purple))' } : {}),
+            }}
           />
         </div>
         <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2">

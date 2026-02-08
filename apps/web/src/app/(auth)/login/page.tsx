@@ -6,21 +6,24 @@ export default function LoginPage() {
   return (
     <div className="flex flex-col items-center gap-8">
       {/* Logo */}
-      <div className="flex items-center gap-3">
-        <div className="grid grid-cols-2 gap-0.5">
-          <div className="h-3 w-3 rounded-sm bg-quad-cyan" />
-          <div className="h-3 w-3 rounded-sm bg-quad-purple" />
-          <div className="h-3 w-3 rounded-sm bg-quad-blue" />
-          <div className="h-3 w-3 rounded-sm bg-quad-pink" />
+      <div className="flex flex-col items-center gap-3">
+        <div className="flex items-center gap-3">
+          <div className="grid grid-cols-2 gap-1 float">
+            <div className="h-4 w-4 rounded-sm bg-quad-cyan" />
+            <div className="h-4 w-4 rounded-sm bg-quad-purple" />
+            <div className="h-4 w-4 rounded-sm bg-quad-blue" />
+            <div className="h-4 w-4 rounded-sm bg-quad-pink" />
+          </div>
+          <span className="text-3xl font-bold tracking-tight holographic">QuadBot</span>
         </div>
-        <span className="text-2xl font-bold tracking-tight holographic">QuadBot</span>
+        <p className="text-sm text-muted-foreground tracking-wide">AI-Powered Brand Intelligence</p>
       </div>
 
-      <div className="w-80 rounded-lg border border-border/50 bg-card p-6 space-y-4">
+      <div className="w-80 rounded-lg border border-border/50 bg-card/80 backdrop-blur-sm p-8 space-y-5 glow-cyan">
         <h1 className="text-center text-lg font-semibold">Sign in to continue</h1>
         <button
           onClick={() => signIn.social({ provider: 'google', callbackURL: '/dashboard' })}
-          className="flex w-full items-center justify-center gap-3 rounded-md border border-border bg-background px-4 py-2.5 text-sm font-medium transition-colors hover:bg-secondary"
+          className="flex w-full items-center justify-center gap-3 rounded-md border border-border bg-background px-4 py-2.5 text-sm font-medium transition-all hover:bg-secondary hover:glow-cyan hover:border-primary/30"
         >
           <svg className="h-5 w-5" viewBox="0 0 24 24">
             <path
@@ -43,6 +46,9 @@ export default function LoginPage() {
           Sign in with Google
         </button>
       </div>
+
+      {/* Footer */}
+      <p className="text-xs text-muted-foreground/50">Powered by QuadBot v2</p>
     </div>
   );
 }

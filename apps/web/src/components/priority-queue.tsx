@@ -51,10 +51,16 @@ export function PriorityQueue({ recommendations }: { recommendations: PriorityRe
               <Link
                 href={`/recommendations/${rec.id}`}
                 key={rec.id}
-                className="group flex items-center justify-between rounded-lg border border-border/50 bg-secondary/30 p-3 transition-all hover:border-primary/30 hover:bg-secondary/50"
+                className={`group flex items-center justify-between rounded-lg border bg-secondary/30 p-3 transition-all hover:border-primary/30 hover:bg-secondary/50 hover:glow-cyan ${
+                  rec.priority === 'critical'
+                    ? 'border-l-2 border-l-quad-pink border-border/50'
+                    : rec.priority === 'high'
+                      ? 'border-l-2 border-l-warning border-border/50'
+                      : 'border-l-2 border-l-quad-cyan/50 border-border/50'
+                }`}
               >
                 <div className="flex items-center gap-3">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/20 text-xs font-bold text-primary">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/20 text-sm font-bold text-primary">
                     {rec.priority_rank || i + 1}
                   </span>
                   <div>
