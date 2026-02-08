@@ -14,5 +14,20 @@ export const brandUpdateSchema = z.object({
   guardrails: z.record(z.unknown()).optional(),
 });
 
+// Brand Profile / Guardrails schema (stored in brands.guardrails jsonb column)
+export const brandGuardrailsSchema = z.object({
+  industry: z.string().optional(),
+  description: z.string().optional(),
+  target_audience: z.string().optional(),
+  keywords: z.array(z.string()).default([]),
+  competitors: z.array(z.string()).default([]),
+  content_policies: z.array(z.string()).default([
+    'No tragedy/disaster exploitation',
+    'No crime/violence references',
+  ]),
+});
+
+export type BrandGuardrails = z.infer<typeof brandGuardrailsSchema>;
+
 export type BrandCreate = z.infer<typeof brandCreateSchema>;
 export type BrandUpdate = z.infer<typeof brandUpdateSchema>;

@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "quadbot": {
+      "command": "node",
+      "args": ["--import", "tsx", "packages/mcp-server/src/index.ts"],
+      "cwd": "/Users/matthewrundle/Documents/quadbot"
+    }
+  }
+}

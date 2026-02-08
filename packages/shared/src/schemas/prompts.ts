@@ -172,6 +172,88 @@ export const capabilityGapOutputSchema = z.object({
   })),
 });
 
+// Brand Profile auto-detection output
+export const brandProfileOutputSchema = z.object({
+  industry: z.string(),
+  description: z.string(),
+  target_audience: z.string(),
+  keywords: z.array(z.string()),
+  competitors: z.array(z.string()),
+});
+
+// Trend relevance + sensitivity filter output
+export const trendFilterItemSchema = z.object({
+  index: z.number(),
+  relevant: z.boolean(),
+  sensitive: z.boolean(),
+  relevance_reason: z.string(),
+  sensitivity_flag: z.string().optional(),
+  suggested_angle: z.string().optional(),
+  priority: z.enum(['low', 'medium', 'high', 'critical']),
+});
+
+export const trendFilterOutputSchema = z.object({
+  filtered_trends: z.array(trendFilterItemSchema),
+});
+
+export type BrandProfileOutput = z.infer<typeof brandProfileOutputSchema>;
+export type TrendFilterOutput = z.infer<typeof trendFilterOutputSchema>;
+export type TrendFilterItem = z.infer<typeof trendFilterItemSchema>;
+
+// Trend Content Brief (multi-platform enrichment for trend scan recommendations)
+export const trendContentBriefSchema = z.object({
+  headline_options: z.array(z.object({
+    headline: z.string(),
+    platform: z.enum(['blog', 'twitter', 'linkedin', 'email', 'general']),
+    hook_type: z.enum(['question', 'statistic', 'bold_claim', 'how_to', 'news_peg', 'contrarian']),
+  })).min(2).max(5),
+
+  content_outline: z.array(z.object({
+    heading: z.string(),
+    key_points: z.array(z.string()),
+    estimated_word_count: z.number(),
+  })),
+
+  platform_angles: z.object({
+    blog: z.object({
+      format: z.string(),
+      word_count: z.number(),
+      seo_title: z.string(),
+      meta_description: z.string(),
+    }).optional(),
+    social: z.object({
+      twitter_hook: z.string(),
+      linkedin_angle: z.string(),
+      instagram_caption: z.string().optional(),
+    }).optional(),
+    email: z.object({
+      subject_lines: z.array(z.string()).min(1).max(3),
+      preview_text: z.string(),
+      newsletter_angle: z.string(),
+    }).optional(),
+  }),
+
+  suggested_keywords: z.array(z.object({
+    keyword: z.string(),
+    intent: z.enum(['informational', 'navigational', 'transactional', 'commercial']),
+    priority: z.enum(['primary', 'secondary', 'long_tail']),
+  })),
+
+  tone_guidance: z.object({
+    recommended_tone: z.string(),
+    voice_notes: z.string(),
+    things_to_avoid: z.array(z.string()),
+  }),
+
+  timeliness: z.object({
+    urgency: z.enum(['immediate', 'this_week', 'this_month', 'evergreen']),
+    publish_window: z.string(),
+    trend_lifecycle_stage: z.enum(['emerging', 'peaking', 'sustained', 'declining']),
+  }),
+});
+
+export type TrendContentBrief = z.infer<typeof trendContentBriefSchema>;
+
 export type ContentOptimizerOutput = z.infer<typeof contentOptimizerOutputSchema>;
 export type AdsPerformanceOutput = z.infer<typeof adsPerformanceOutputSchema>;
 export type AnalyticsInsightsOutput = z.infer<typeof analyticsInsightsOutputSchema>;

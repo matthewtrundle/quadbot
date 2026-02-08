@@ -34,6 +34,8 @@ import { analyticsInsights } from './jobs/analytics-insights.js';
 import { crossChannelCorrelator } from './jobs/cross-channel-correlator.js';
 // Phase 8: Self-Improvement Engine
 import { capabilityGapAnalyzer } from './jobs/capability-gap-analyzer.js';
+// Brand Profiler (on-demand)
+import { brandProfiler } from './jobs/brand-profiler.js';
 
 // Register job handlers
 registerHandler(JobType.COMMUNITY_MODERATE_POST, communityModeratePost);
@@ -58,6 +60,8 @@ registerHandler(JobType.ANALYTICS_INSIGHTS, analyticsInsights);
 registerHandler(JobType.CROSS_CHANNEL_CORRELATOR, crossChannelCorrelator);
 // Phase 8: Self-Improvement Engine handlers
 registerHandler(JobType.CAPABILITY_GAP_ANALYZER, capabilityGapAnalyzer);
+// Brand Profiler (on-demand)
+registerHandler(JobType.BRAND_PROFILER, brandProfiler);
 
 async function handleMessage(message: string): Promise<void> {
   let parsed;

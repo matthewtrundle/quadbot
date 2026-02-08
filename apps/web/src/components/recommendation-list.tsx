@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
@@ -25,7 +26,8 @@ export function RecommendationList({ recommendations }: { recommendations: Recom
   return (
     <div className="space-y-4">
       {recommendations.map((rec) => (
-        <Card key={rec.id}>
+        <Link key={rec.id} href={`/recommendations/${rec.id}`} className="block">
+        <Card className="hover:border-primary/30 transition-all">
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="text-base">{rec.title}</CardTitle>
@@ -40,6 +42,7 @@ export function RecommendationList({ recommendations }: { recommendations: Recom
             <p className="text-sm">{rec.body}</p>
           </CardContent>
         </Card>
+        </Link>
       ))}
     </div>
   );

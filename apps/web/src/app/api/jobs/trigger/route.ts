@@ -18,6 +18,7 @@ const triggerSchema = z.object({
     'ads_performance_digest',
     'analytics_insights',
     'cross_channel_correlator',
+    'brand_profiler',
   ]),
 });
 
@@ -98,6 +99,7 @@ export async function GET() {
       { type: 'ads_performance_digest', description: 'Ads Performance - Analyze ad campaigns' },
       { type: 'analytics_insights', description: 'Analytics Insights - Analyze GA4 data' },
       { type: 'cross_channel_correlator', description: 'Cross-Channel - Find correlations' },
+      { type: 'brand_profiler', description: 'Brand Profiler - Auto-detect brand profile from website' },
     ],
   });
 }

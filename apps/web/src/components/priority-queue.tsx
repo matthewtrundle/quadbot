@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ListOrdered, Inbox } from 'lucide-react';
@@ -44,7 +45,8 @@ export function PriorityQueue({ recommendations }: { recommendations: PriorityRe
         ) : (
           <div className="space-y-2">
             {recommendations.map((rec, i) => (
-              <div
+              <Link
+                href={`/recommendations/${rec.id}`}
                 key={rec.id}
                 className="group flex items-center justify-between rounded-lg border border-border/50 bg-secondary/30 p-3 transition-all hover:border-primary/30 hover:bg-secondary/50"
               >
@@ -81,7 +83,7 @@ export function PriorityQueue({ recommendations }: { recommendations: PriorityRe
                     </span>
                   )}
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         )}

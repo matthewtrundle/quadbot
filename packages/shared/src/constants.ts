@@ -26,6 +26,8 @@ export const JobType = {
   CROSS_CHANNEL_CORRELATOR: 'cross_channel_correlator',
   // Phase 8: Self-Improvement Engine
   CAPABILITY_GAP_ANALYZER: 'capability_gap_analyzer',
+  // Brand profiler (on-demand)
+  BRAND_PROFILER: 'brand_profiler',
 } as const;
 export type JobType = (typeof JobType)[keyof typeof JobType];
 

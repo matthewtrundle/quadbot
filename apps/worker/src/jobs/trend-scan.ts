@@ -1,9 +1,13 @@
-import { recommendations, brands, brandIntegrations } from '@quadbot/db';
+import { recommendations, brands, brandIntegrations, artifacts } from '@quadbot/db';
 import { eq, and } from 'drizzle-orm';
+import { trendFilterOutputSchema, trendContentBriefSchema, type BrandGuardrails, type TrendFilterItem } from '@quadbot/shared';
 import type { JobContext } from '../registry.js';
+import { callClaude } from '../claude.js';
+import { loadActivePrompt } from '../prompt-loader.js';
 import { logger } from '../logger.js';
 import { searchNews, getTopHeadlines, searchBrandMentions, type NewsArticle } from '../lib/news-api.js';
 import { getTrendingFromSubreddits, searchReddit, INDUSTRY_SUBREDDITS, type RedditPost } from '../lib/reddit-api.js';
+import { brandProfiler } from './brand-profiler.js';
 
 type BrandConfig = {
   industry?: string;
@@ -13,11 +17,12 @@ type BrandConfig = {
 };
 
 /**
- * Get brand configuration from integration config or defaults
+ * Get brand configuration from guardrails + integration config
  */
-async function getBrandConfig(ctx: JobContext): Promise<BrandConfig> {
+async function getBrandConfig(ctx: JobContext, guardrails: BrandGuardrails | null): Promise<BrandConfig> {
   const { db, brandId } = ctx;
 
+  // First check for explicit integration config
   const [integration] = await db
     .select()
     .from(brandIntegrations)
@@ -33,7 +38,17 @@ async function getBrandConfig(ctx: JobContext): Promise<BrandConfig> {
     return integration.config as BrandConfig;
   }
 
-  // Default config based on brand name
+  // Use guardrails to build config if available
+  if (guardrails?.industry && guardrails.industry !== 'unknown') {
+    return {
+      industry: guardrails.industry,
+      keywords: guardrails.keywords?.length ? guardrails.keywords : [],
+      competitors: guardrails.competitors?.length ? guardrails.competitors : [],
+      subreddits: [],
+    };
+  }
+
+  // Default config
   return {
     industry: 'default',
     keywords: [],
@@ -124,6 +139,166 @@ function analyzeBrandMentions(
   return mentions;
 }
 
+/**
+ * Run the LLM relevance + sensitivity filter on collected trends.
+ * Returns only relevant, non-sensitive trends. Falls back to unfiltered on error.
+ */
+async function filterTrendsWithLLM(
+  allRecommendations: Array<{ title: string; body: string; priority: 'low' | 'medium' | 'high' | 'critical'; data: Record<string, unknown> }>,
+  guardrails: BrandGuardrails,
+  brandName: string,
+  jobId: string,
+): Promise<{
+  filtered: typeof allRecommendations;
+  filterApplied: boolean;
+  filterMeta: Record<string, unknown> | null;
+}> {
+  if (allRecommendations.length === 0) {
+    return { filtered: allRecommendations, filterApplied: false, filterMeta: null };
+  }
+
+  try {
+    const prompt = await loadActivePrompt('trend_relevance_filter_v1');
+
+    // Build a compact JSON of trends for the LLM
+    const trendsJson = allRecommendations.map((rec, i) => ({
+      index: i,
+      title: rec.title,
+      body: rec.body.slice(0, 200),
+      priority: rec.priority,
+      source: rec.data.source || rec.data.type,
+    }));
+
+    const result = await callClaude(
+      prompt,
+      {
+        brand_name: brandName,
+        brand_industry: guardrails.industry || 'unknown',
+        brand_description: guardrails.description || '',
+        brand_audience: guardrails.target_audience || 'general',
+        brand_keywords: (guardrails.keywords || []).join(', '),
+        brand_policies: (guardrails.content_policies || []).join(', '),
+        trends_json: JSON.stringify(trendsJson, null, 2),
+      },
+      trendFilterOutputSchema,
+    );
+
+    // Build a lookup of filter results by index
+    const filterMap = new Map<number, TrendFilterItem>();
+    for (const item of result.data.filtered_trends) {
+      filterMap.set(item.index, item);
+    }
+
+    // Keep only relevant + non-sensitive trends
+    const filtered = allRecommendations.filter((_, i) => {
+      const verdict = filterMap.get(i);
+      if (!verdict) return true; // If LLM didn't evaluate, keep it
+      return verdict.relevant && !verdict.sensitive;
+    });
+
+    // Update priorities based on LLM assessment
+    for (const rec of filtered) {
+      const idx = allRecommendations.indexOf(rec);
+      const verdict = filterMap.get(idx);
+      if (verdict) {
+        rec.priority = verdict.priority;
+        if (verdict.suggested_angle) {
+          rec.body += `\n\nSuggested angle: ${verdict.suggested_angle}`;
+        }
+      }
+    }
+
+    const removedCount = allRecommendations.length - filtered.length;
+    const sensitiveCount = result.data.filtered_trends.filter((t) => t.sensitive).length;
+    const irrelevantCount = result.data.filtered_trends.filter((t) => !t.relevant).length;
+
+    logger.info(
+      { jobId, total: allRecommendations.length, kept: filtered.length, removed: removedCount, sensitive: sensitiveCount, irrelevant: irrelevantCount },
+      'LLM trend filter applied',
+    );
+
+    return {
+      filtered,
+      filterApplied: true,
+      filterMeta: {
+        ...result.model_meta,
+        total: allRecommendations.length,
+        kept: filtered.length,
+        removed: removedCount,
+        sensitive: sensitiveCount,
+        irrelevant: irrelevantCount,
+      },
+    };
+  } catch (err) {
+    logger.warn({ err, jobId }, 'LLM trend filter failed — falling back to unfiltered');
+    return { filtered: allRecommendations, filterApplied: false, filterMeta: null };
+  }
+}
+
+/**
+ * Ensure guardrails are populated, running brand profiler if needed (lazy auto-detect).
+ */
+async function ensureGuardrails(ctx: JobContext, brand: { id: string; name: string; guardrails: Record<string, unknown> | null }): Promise<BrandGuardrails | null> {
+  const guardrails = brand.guardrails as Partial<BrandGuardrails> | null;
+
+  // Check if guardrails are already populated with meaningful data
+  if (guardrails?.industry && guardrails.industry !== 'unknown') {
+    return guardrails as BrandGuardrails;
+  }
+
+  // Run brand profiler inline (lazy auto-detect)
+  logger.info({ brandId: brand.id }, 'Guardrails empty — running lazy brand profiler');
+  try {
+    await brandProfiler(ctx);
+
+    // Re-read the brand to get updated guardrails
+    const [updated] = await ctx.db.select().from(brands).where(eq(brands.id, brand.id)).limit(1);
+    if (updated?.guardrails) {
+      return updated.guardrails as BrandGuardrails;
+    }
+  } catch (err) {
+    logger.warn({ err, brandId: brand.id }, 'Lazy brand profiler failed — continuing without guardrails');
+  }
+
+  return null;
+}
+
+/**
+ * Enrich a content_opportunity recommendation with a structured multi-platform content brief.
+ * Returns the brief content or null if enrichment fails.
+ */
+async function enrichTrendWithBrief(
+  rec: { title: string; body: string; data: Record<string, unknown> },
+  guardrails: BrandGuardrails,
+  brandName: string,
+  jobId: string,
+): Promise<Record<string, unknown> | null> {
+  try {
+    const prompt = await loadActivePrompt('trend_brief_enricher_v1');
+
+    const result = await callClaude(
+      prompt,
+      {
+        trend_title: rec.title,
+        trend_body: rec.body,
+        trend_source: String(rec.data.source || 'unknown'),
+        brand_name: brandName,
+        brand_industry: guardrails.industry || 'unknown',
+        brand_description: guardrails.description || '',
+        brand_audience: guardrails.target_audience || 'general',
+        brand_keywords: (guardrails.keywords || []).join(', '),
+      },
+      trendContentBriefSchema,
+    );
+
+    logger.info({ jobId, recTitle: rec.title }, 'Generated content brief for trend');
+    return result.data as unknown as Record<string, unknown>;
+  } catch (err) {
+    logger.warn({ err, jobId, recTitle: rec.title }, 'Content brief enrichment failed — skipping');
+    return null;
+  }
+}
+
 export async function trendScanIndustry(ctx: JobContext): Promise<void> {
   const { db, jobId, brandId } = ctx;
 
@@ -138,15 +313,19 @@ export async function trendScanIndustry(ctx: JobContext): Promise<void> {
   }
 
   const brandName = brand[0].name;
-  const config = await getBrandConfig(ctx);
+
+  // Ensure guardrails are populated (lazy auto-detect if needed)
+  const guardrails = await ensureGuardrails(ctx, brand[0]);
+
+  const config = await getBrandConfig(ctx, guardrails);
   const industry = config.industry || 'default';
-  const keywords = config.keywords || [brandName];
+  const keywords = config.keywords?.length ? config.keywords : [brandName];
   const competitors = config.competitors || [];
   const subreddits = config.subreddits?.length
     ? config.subreddits
     : INDUSTRY_SUBREDDITS[industry] || INDUSTRY_SUBREDDITS.default;
 
-  logger.info({ jobId, brandId, industry, subreddits }, 'Starting trend scan');
+  logger.info({ jobId, brandId, industry, subreddits, hasGuardrails: !!guardrails }, 'Starting trend scan');
 
   // Collect all recommendations
   const allRecommendations: Array<{
@@ -232,17 +411,27 @@ export async function trendScanIndustry(ctx: JobContext): Promise<void> {
     }
   }
 
-  // 5. Insert recommendations (or summary if none found)
-  if (allRecommendations.length === 0) {
+  // 5. Apply LLM relevance + sensitivity filter
+  let finalRecommendations = allRecommendations;
+  let filterMeta: Record<string, unknown> | null = null;
+
+  if (guardrails && allRecommendations.length > 0) {
+    const filterResult = await filterTrendsWithLLM(allRecommendations, guardrails, brandName, jobId);
+    finalRecommendations = filterResult.filtered;
+    filterMeta = filterResult.filterMeta;
+  }
+
+  // 6. Insert recommendations (or summary if none found)
+  if (finalRecommendations.length === 0) {
     await db.insert(recommendations).values({
       brand_id: brandId,
       job_id: jobId,
       source: 'trend_scan',
       priority: 'low',
       title: 'Trend Scan Complete',
-      body: `Scanned industry news and Reddit for ${brandName}. No significant trending topics detected requiring immediate action.`,
-      data: { subreddits_scanned: subreddits, industry, has_news_api: !!process.env.NEWS_API_KEY, has_reddit_api: !!process.env.REDDIT_CLIENT_ID },
-      model_meta: null,
+      body: `Scanned industry news and Reddit for ${brandName}. ${allRecommendations.length > 0 ? `Found ${allRecommendations.length} trends but none were relevant to your brand profile.` : 'No significant trending topics detected requiring immediate action.'}`,
+      data: { subreddits_scanned: subreddits, industry, has_news_api: !!process.env.NEWS_API_KEY, has_reddit_api: !!process.env.REDDIT_CLIENT_ID, filter_applied: !!filterMeta, raw_count: allRecommendations.length },
+      model_meta: filterMeta,
     });
   } else {
     // Insert summary
@@ -251,36 +440,63 @@ export async function trendScanIndustry(ctx: JobContext): Promise<void> {
       job_id: jobId,
       source: 'trend_scan',
       priority: 'medium',
-      title: `Trend Scan: ${allRecommendations.length} items found`,
-      body: `Discovered ${allRecommendations.length} trending topics and mentions across news and Reddit for ${brandName}.`,
+      title: `Trend Scan: ${finalRecommendations.length} relevant items found`,
+      body: `Discovered ${finalRecommendations.length} relevant trending topics for ${brandName}${allRecommendations.length > finalRecommendations.length ? ` (filtered from ${allRecommendations.length} raw trends)` : ''}.`,
       data: {
-        total_items: allRecommendations.length,
+        total_items: finalRecommendations.length,
+        raw_items: allRecommendations.length,
+        filter_applied: !!filterMeta,
         by_type: {
-          content_opportunities: allRecommendations.filter((r) => r.data.type === 'content_opportunity').length,
-          industry_awareness: allRecommendations.filter((r) => r.data.type === 'industry_awareness').length,
-          brand_monitoring: allRecommendations.filter((r) => r.data.type === 'brand_monitoring').length,
+          content_opportunities: finalRecommendations.filter((r) => r.data.type === 'content_opportunity').length,
+          industry_awareness: finalRecommendations.filter((r) => r.data.type === 'industry_awareness').length,
+          brand_monitoring: finalRecommendations.filter((r) => r.data.type === 'brand_monitoring').length,
         },
       },
-      model_meta: null,
+      model_meta: filterMeta,
     });
 
-    // Insert individual recommendations
-    for (const rec of allRecommendations) {
-      await db.insert(recommendations).values({
+    // Insert individual recommendations and enrich content opportunities with briefs
+    for (const rec of finalRecommendations) {
+      const isContentOpportunity = rec.data.type === 'content_opportunity';
+
+      // Enrich content opportunities with briefs (only if guardrails available)
+      let briefContent: Record<string, unknown> | null = null;
+      if (isContentOpportunity && guardrails) {
+        briefContent = await enrichTrendWithBrief(rec, guardrails, brandName, jobId);
+      }
+
+      const [inserted] = await db.insert(recommendations).values({
         brand_id: brandId,
         job_id: jobId,
         source: 'trend_scan',
         priority: rec.priority,
         title: rec.title,
         body: rec.body,
-        data: rec.data,
-        model_meta: null,
-      });
+        data: { ...rec.data, has_content_brief: !!briefContent },
+        model_meta: filterMeta,
+      }).returning({ id: recommendations.id });
+
+      // Store brief as an artifact linked to the recommendation
+      if (briefContent && inserted) {
+        try {
+          await db.insert(artifacts).values({
+            brand_id: brandId,
+            recommendation_id: inserted.id,
+            type: 'trend_content_brief',
+            title: `Content Brief: ${rec.title}`,
+            content: briefContent,
+            status: 'draft',
+          });
+          logger.info({ jobId, recommendationId: inserted.id }, 'Stored trend content brief artifact');
+        } catch (err) {
+          logger.warn({ err, jobId, recommendationId: inserted.id }, 'Failed to store content brief artifact');
+        }
+      }
     }
   }
 
   logger.info(
-    { jobId, recommendationsCount: allRecommendations.length },
+    { jobId, rawCount: allRecommendations.length, filteredCount: finalRecommendations.length, filterApplied: !!filterMeta },
     'Trend scan complete',
   );
 }
