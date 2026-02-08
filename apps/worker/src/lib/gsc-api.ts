@@ -94,7 +94,7 @@ export async function refreshAccessToken(refreshToken: string): Promise<GscToken
 }
 
 /**
- * Get a valid access token, refreshing if needed
+ * Get a valid access token, refreshing and persisting if needed
  */
 export async function getValidAccessToken(
   db: Database,
@@ -118,7 +118,11 @@ export async function getValidAccessToken(
   logger.info({ brandId }, 'Refreshing expired GSC access token');
   try {
     const newTokens = await refreshAccessToken(credentials.refresh_token);
-    // Note: In production, you'd want to save the new tokens back to the database
+
+    // Persist refreshed tokens back to database
+    const { persistRefreshedTokens } = await import('./token-persistence.js');
+    await persistRefreshedTokens(db, brandId, 'google_search_console', newTokens);
+
     return newTokens.access_token;
   } catch (error) {
     logger.error({ brandId, error }, 'Failed to refresh access token');
@@ -211,6 +215,63 @@ export async function inspectUrl(
   }
 
   return response.json() as Promise<UrlInspectionResponse>;
+}
+
+/**
+ * Fetch search analytics data from Google Search Console API.
+ * Returns an array of query-level metrics matching the fixture data format.
+ */
+export type GscQueryRow = {
+  query: string;
+  clicks: number;
+  impressions: number;
+  ctr: number;
+  position: number;
+};
+
+export async function fetchGscSearchAnalytics(
+  accessToken: string,
+  siteUrl: string,
+  startDate: string,
+  endDate: string,
+): Promise<GscQueryRow[]> {
+  const response = await fetch(
+    `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        startDate,
+        endDate,
+        dimensions: ['query'],
+        rowLimit: 500,
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`GSC Search Analytics API failed: ${error}`);
+  }
+
+  const data = await response.json() as {
+    rows?: Array<{ keys: string[]; clicks: number; impressions: number; ctr: number; position: number }>;
+  };
+
+  if (!data.rows || data.rows.length === 0) {
+    return [];
+  }
+
+  return data.rows.map((row) => ({
+    query: row.keys[0],
+    clicks: row.clicks,
+    impressions: row.impressions,
+    ctr: row.ctr,
+    position: row.position,
+  }));
 }
 
 /**

@@ -433,6 +433,13 @@ export async function getValidGa4AccessToken(
 
   try {
     const freshTokens = await refreshGa4TokenIfNeeded(credentials.tokens);
+
+    // Persist refreshed tokens if they changed
+    if (freshTokens.access_token !== credentials.tokens.access_token) {
+      const { persistRefreshedTokens } = await import('./token-persistence.js');
+      await persistRefreshedTokens(db, brandId, IntegrationType.GOOGLE_ANALYTICS, freshTokens);
+    }
+
     return {
       accessToken: freshTokens.access_token,
       propertyId: credentials.propertyId,

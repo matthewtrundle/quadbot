@@ -4,11 +4,12 @@ import { eq } from 'drizzle-orm';
 import { queuePayloadSchema, MAX_ATTEMPTS, JobType } from '@quadbot/shared';
 import { config } from './config.js';
 import { logger } from './logger.js';
-import { getRedis, startConsumer, moveToDeadLetter, closeRedis } from './queue.js';
+import { getRedis, startConsumer, moveToDeadLetter, enqueue, closeRedis } from './queue.js';
 import { registerHandler, getHandler } from './registry.js';
 import { startExecutionLoop } from './execution-loop.js';
 import { startCronScheduler } from './cron.js';
 import { startEventProcessor } from './event-processor.js';
+import { startJobReaper } from './job-reaper.js';
 import { seedPrompts } from './seed-prompts.js';
 import { registerAllExecutors } from './executors/index.js';
 import { communityModeratePost } from './jobs/community-moderate.js';
@@ -63,7 +64,23 @@ async function handleMessage(message: string): Promise<void> {
   try {
     parsed = queuePayloadSchema.parse(JSON.parse(message));
   } catch (err) {
-    logger.error({ err, message }, 'Failed to parse queue message');
+    logger.error({ err, message: message.slice(0, 500) }, 'Failed to parse queue message');
+
+    // Attempt to extract jobId from malformed message to mark it failed
+    try {
+      const raw = JSON.parse(message);
+      if (raw?.jobId) {
+        await db
+          .update(jobs)
+          .set({ status: 'failed', error: 'Queue message failed schema validation', updated_at: new Date() })
+          .where(eq(jobs.id, raw.jobId));
+        logger.info({ jobId: raw.jobId }, 'Marked malformed job as failed');
+      }
+    } catch {
+      // Can't even extract jobId — move to DLQ
+      const redis = getRedis(config.REDIS_URL);
+      await moveToDeadLetter(redis, message);
+    }
     return;
   }
 
@@ -71,33 +88,41 @@ async function handleMessage(message: string): Promise<void> {
   const handler = getHandler(type);
 
   if (!handler) {
-    logger.error({ type }, 'No handler registered for job type');
+    logger.error({ type, jobId }, 'No handler registered for job type');
+    // Mark the job as failed instead of silently dropping it
+    await db
+      .update(jobs)
+      .set({ status: 'failed', error: `No handler registered for job type: ${type}`, updated_at: new Date() })
+      .where(eq(jobs.id, jobId));
     return;
   }
 
   try {
-    // Increment attempts and set running
-    await db
-      .update(jobs)
-      .set({ status: 'running', attempts: (payload as any).attempts ?? 1, updated_at: new Date() })
-      .where(eq(jobs.id, jobId));
-
-    // Get job to check attempts
+    // Get current job state and increment attempts
     const [job] = await db.select().from(jobs).where(eq(jobs.id, jobId)).limit(1);
     if (!job) {
       logger.error({ jobId }, 'Job not found in DB');
       return;
     }
 
-    if (job.attempts > MAX_ATTEMPTS) {
+    const attempts = job.attempts + 1;
+
+    // Check if max attempts exceeded
+    if (attempts > MAX_ATTEMPTS) {
       const redis = getRedis(config.REDIS_URL);
       await moveToDeadLetter(redis, message);
       await db
         .update(jobs)
-        .set({ status: 'failed', error: 'Max attempts exceeded', updated_at: new Date() })
+        .set({ status: 'failed', error: 'Max attempts exceeded', attempts, updated_at: new Date() })
         .where(eq(jobs.id, jobId));
       return;
     }
+
+    // Set running with incremented attempts
+    await db
+      .update(jobs)
+      .set({ status: 'running', attempts, updated_at: new Date() })
+      .where(eq(jobs.id, jobId));
 
     const brandId = (payload.brand_id as string) || job.brand_id;
     const redis = getRedis(config.REDIS_URL);
@@ -109,27 +134,41 @@ async function handleMessage(message: string): Promise<void> {
       .set({ status: 'succeeded', updated_at: new Date() })
       .where(eq(jobs.id, jobId));
 
-    logger.info({ jobId, type }, 'Job completed successfully');
+    logger.info({ jobId, type, attempts }, 'Job completed successfully');
   } catch (err) {
     logger.error({ err, jobId, type }, 'Job handler failed');
 
-    // Increment attempts
+    // Get current attempts from DB
     const [job] = await db.select().from(jobs).where(eq(jobs.id, jobId)).limit(1);
-    const attempts = (job?.attempts || 0) + 1;
-
-    await db
-      .update(jobs)
-      .set({
-        status: attempts >= MAX_ATTEMPTS ? 'failed' : 'queued',
-        attempts,
-        error: (err as Error).message,
-        updated_at: new Date(),
-      })
-      .where(eq(jobs.id, jobId));
+    const attempts = job?.attempts || 1;
 
     if (attempts >= MAX_ATTEMPTS) {
+      // Max attempts reached — fail permanently and move to DLQ
+      await db
+        .update(jobs)
+        .set({
+          status: 'failed',
+          error: (err as Error).message,
+          updated_at: new Date(),
+        })
+        .where(eq(jobs.id, jobId));
+
       const redis = getRedis(config.REDIS_URL);
       await moveToDeadLetter(redis, message);
+    } else {
+      // Re-enqueue for retry — mark queued AND push back to Redis
+      await db
+        .update(jobs)
+        .set({
+          status: 'queued',
+          error: (err as Error).message,
+          updated_at: new Date(),
+        })
+        .where(eq(jobs.id, jobId));
+
+      const redis = getRedis(config.REDIS_URL);
+      await enqueue(redis, { jobId, type, payload });
+      logger.info({ jobId, type, attempts }, 'Re-enqueued job for retry');
     }
   }
 }
@@ -154,11 +193,15 @@ async function main(): Promise<void> {
   // Start event processor
   const eventTimer = startEventProcessor();
 
+  // Start job reaper (catches stuck/orphaned jobs)
+  const reaperTimer = startJobReaper();
+
   // Graceful shutdown
   const shutdown = async () => {
     logger.info('Shutting down worker...');
     clearInterval(executionTimer);
     clearInterval(eventTimer);
+    clearInterval(reaperTimer);
     await closeRedis();
     process.exit(0);
   };

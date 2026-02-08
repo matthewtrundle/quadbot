@@ -86,13 +86,22 @@ export function startCronScheduler(redis: Redis): void {
 }
 
 async function enqueueForAllBrands(redis: Redis, jobType: string): Promise<void> {
+  let allBrands;
   try {
-    const allBrands = await db
+    allBrands = await db
       .select({ id: brands.id })
       .from(brands)
       .where(eq(brands.is_active, true));
+  } catch (err) {
+    logger.error({ err, jobType }, 'Failed to fetch brands for cron enqueue');
+    return;
+  }
 
-    for (const brand of allBrands) {
+  let succeeded = 0;
+  let failed = 0;
+
+  for (const brand of allBrands) {
+    try {
       const jobId = randomUUID();
 
       await db.insert(jobs).values({
@@ -109,10 +118,16 @@ async function enqueueForAllBrands(redis: Redis, jobType: string): Promise<void>
         payload: { brand_id: brand.id },
       });
 
+      succeeded++;
       logger.info({ brandId: brand.id, jobType, jobId }, 'Enqueued cron job');
+    } catch (err) {
+      failed++;
+      logger.error({ err, brandId: brand.id, jobType }, 'Failed to enqueue cron job for brand');
     }
-  } catch (err) {
-    logger.error({ err, jobType }, 'Failed to enqueue cron jobs');
+  }
+
+  if (failed > 0) {
+    logger.warn({ jobType, succeeded, failed, total: allBrands.length }, 'Cron enqueue completed with failures');
   }
 }
 

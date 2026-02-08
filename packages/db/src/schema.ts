@@ -9,6 +9,8 @@ import {
   boolean,
   real,
   pgEnum,
+  index,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core';
 
 export const modeEnum = pgEnum('mode', ['observe', 'assist']);
@@ -57,7 +59,9 @@ export const brandIntegrations = pgTable('brand_integrations', {
   config: jsonb('config').$type<Record<string, unknown>>().default({}),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-});
+}, (table) => [
+  index('idx_brand_integrations_brand_type').on(table.brand_id, table.type),
+]);
 
 export const jobs = pgTable('jobs', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -72,7 +76,11 @@ export const jobs = pgTable('jobs', {
   error: text('error'),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-});
+}, (table) => [
+  index('idx_jobs_status').on(table.status),
+  index('idx_jobs_brand_status').on(table.brand_id, table.status),
+  index('idx_jobs_brand_created').on(table.brand_id, table.created_at),
+]);
 
 export const recommendations = pgTable('recommendations', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -97,7 +105,10 @@ export const recommendations = pgTable('recommendations', {
   base_score: real('base_score'),
   claude_delta: real('claude_delta'),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-});
+}, (table) => [
+  index('idx_recommendations_brand_created').on(table.brand_id, table.created_at),
+  index('idx_recommendations_brand_source').on(table.brand_id, table.source),
+]);
 
 export const actionDrafts = pgTable('action_drafts', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -117,7 +128,10 @@ export const actionDrafts = pgTable('action_drafts', {
   status: actionDraftStatusEnum('status').notNull().default('pending'),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-});
+}, (table) => [
+  index('idx_action_drafts_status').on(table.status),
+  index('idx_action_drafts_brand_status').on(table.brand_id, table.status),
+]);
 
 export const actionExecutions = pgTable('action_executions', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -183,7 +197,11 @@ export const events = pgTable('events', {
   last_error: text('last_error'),
   processed_at: timestamp('processed_at', { withTimezone: true }),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-});
+}, (table) => [
+  index('idx_events_status').on(table.status),
+  index('idx_events_brand_type').on(table.brand_id, table.type),
+  uniqueIndex('idx_events_dedupe').on(table.brand_id, table.type, table.dedupe_key),
+]);
 
 export const eventRules = pgTable('event_rules', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -270,7 +288,10 @@ export const metricSnapshots = pgTable('metric_snapshots', {
   value: real('value').notNull(),
   dimensions: jsonb('dimensions').$type<Record<string, unknown>>().default({}),
   captured_at: timestamp('captured_at', { withTimezone: true }).defaultNow().notNull(),
-});
+}, (table) => [
+  index('idx_metric_snapshots_brand_source').on(table.brand_id, table.source),
+  index('idx_metric_snapshots_brand_captured').on(table.brand_id, table.captured_at),
+]);
 
 export const evaluationRuns = pgTable('evaluation_runs', {
   id: uuid('id').defaultRandom().primaryKey(),

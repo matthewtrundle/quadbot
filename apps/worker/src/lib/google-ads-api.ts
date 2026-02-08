@@ -260,7 +260,7 @@ export async function getAdsPerformance(
 }
 
 /**
- * Get a valid access token, refreshing if needed
+ * Get a valid access token, refreshing and persisting if needed
  */
 export async function getValidAdsAccessToken(
   db: Database,
@@ -273,6 +273,13 @@ export async function getValidAdsAccessToken(
 
   try {
     const freshTokens = await refreshAdsTokenIfNeeded(credentials.tokens);
+
+    // Persist refreshed tokens if they changed
+    if (freshTokens.access_token !== credentials.tokens.access_token) {
+      const { persistRefreshedTokens } = await import('./token-persistence.js');
+      await persistRefreshedTokens(db, brandId, IntegrationType.GOOGLE_ADS, freshTokens);
+    }
+
     return {
       accessToken: freshTokens.access_token,
       customerId: credentials.customerId,

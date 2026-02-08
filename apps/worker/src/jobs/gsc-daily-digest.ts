@@ -1,5 +1,5 @@
 import { gscDigestOutputSchema } from '@quadbot/shared';
-import { recommendations, brands, brandIntegrations, sharedCredentials, decrypt } from '@quadbot/db';
+import { recommendations, brands, brandIntegrations } from '@quadbot/db';
 import { eq, and } from 'drizzle-orm';
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -10,6 +10,13 @@ import { loadActivePrompt } from '../prompt-loader.js';
 import { logger } from '../logger.js';
 import { emitEvent } from '../event-emitter.js';
 import { EventType } from '@quadbot/shared';
+import {
+  loadGscCredentials,
+  refreshAccessToken,
+  fetchGscSearchAnalytics,
+  type GscTokens,
+} from '../lib/gsc-api.js';
+import { persistRefreshedTokens } from '../lib/token-persistence.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -21,22 +28,39 @@ function loadFixture(name: string): string {
   }
 }
 
-type GscTokens = {
-  access_token: string;
-  refresh_token: string;
-  expires_at: string;
-};
-
 /**
- * Load GSC credentials for a brand integration.
- * Supports both direct credentials and shared credentials.
+ * Get a valid GSC access token, refreshing and persisting if expired.
  */
-async function loadGscCredentials(
+async function getValidGscToken(
   db: JobContext['db'],
   brandId: string,
-): Promise<GscTokens | null> {
+  credentials: GscTokens,
+): Promise<string> {
+  const expiresAt = new Date(credentials.expires_at);
+  const bufferMs = 5 * 60 * 1000;
+
+  if (expiresAt.getTime() - bufferMs > Date.now()) {
+    return credentials.access_token;
+  }
+
+  logger.info({ brandId }, 'Refreshing expired GSC access token');
+  const freshTokens = await refreshAccessToken(credentials.refresh_token);
+
+  // Persist refreshed tokens back to database
+  await persistRefreshedTokens(db, brandId, 'google_search_console', freshTokens);
+
+  return freshTokens.access_token;
+}
+
+/**
+ * Get the GSC site URL from brand integration config.
+ */
+async function getGscSiteUrl(
+  db: JobContext['db'],
+  brandId: string,
+): Promise<string | null> {
   const [integration] = await db
-    .select()
+    .select({ config: brandIntegrations.config })
     .from(brandIntegrations)
     .where(
       and(
@@ -46,29 +70,7 @@ async function loadGscCredentials(
     )
     .limit(1);
 
-  if (!integration) {
-    return null;
-  }
-
-  // Check for shared credentials first
-  if (integration.shared_credential_id) {
-    const [shared] = await db
-      .select()
-      .from(sharedCredentials)
-      .where(eq(sharedCredentials.id, integration.shared_credential_id))
-      .limit(1);
-
-    if (shared) {
-      return JSON.parse(decrypt(shared.credentials_encrypted)) as GscTokens;
-    }
-  }
-
-  // Fall back to direct credentials
-  if (integration.credentials_encrypted) {
-    return JSON.parse(decrypt(integration.credentials_encrypted)) as GscTokens;
-  }
-
-  return null;
+  return (integration?.config as { site_url?: string })?.site_url || null;
 }
 
 export async function gscDailyDigest(ctx: JobContext): Promise<void> {
@@ -84,20 +86,47 @@ export async function gscDailyDigest(ctx: JobContext): Promise<void> {
     return;
   }
 
-  // Load GSC credentials (supports both shared and direct)
-  const credentials = await loadGscCredentials(db, brandId);
-  if (credentials) {
-    logger.info({ jobId, brandId }, 'GSC credentials loaded successfully');
-    // In production, use credentials.access_token to fetch real GSC data
-    // For now, we continue using fixture data
-  } else {
-    logger.info({ jobId, brandId }, 'No GSC credentials found, using fixture data');
-  }
-
   const prompt = await loadActivePrompt('gsc_digest_recommender_v1');
 
-  const gscToday = loadFixture('gsc_today.json');
-  const gscYesterday = loadFixture('gsc_yesterday.json');
+  // Attempt to fetch real GSC data; fall back to fixtures if no credentials
+  let gscToday: string;
+  let gscYesterday: string;
+
+  const credentials = await loadGscCredentials(db, brandId);
+  const siteUrl = await getGscSiteUrl(db, brandId);
+
+  if (credentials && siteUrl) {
+    try {
+      const accessToken = await getValidGscToken(db, brandId, credentials);
+
+      const today = new Date();
+      // GSC data typically has 2-day lag
+      const endDate = new Date(today);
+      endDate.setDate(endDate.getDate() - 2);
+      const startDate = new Date(endDate);
+      startDate.setDate(startDate.getDate() - 1);
+
+      const todayStr = endDate.toISOString().split('T')[0];
+      const yesterdayStr = startDate.toISOString().split('T')[0];
+
+      const [todayData, yesterdayData] = await Promise.all([
+        fetchGscSearchAnalytics(accessToken, siteUrl, todayStr, todayStr),
+        fetchGscSearchAnalytics(accessToken, siteUrl, yesterdayStr, yesterdayStr),
+      ]);
+
+      gscToday = JSON.stringify(todayData);
+      gscYesterday = JSON.stringify(yesterdayData);
+      logger.info({ jobId, brandId, siteUrl, todayRows: todayData.length, yesterdayRows: yesterdayData.length }, 'Fetched real GSC data');
+    } catch (err) {
+      logger.warn({ jobId, brandId, err: (err as Error).message }, 'Failed to fetch real GSC data, falling back to fixtures');
+      gscToday = loadFixture('gsc_today.json');
+      gscYesterday = loadFixture('gsc_yesterday.json');
+    }
+  } else {
+    logger.info({ jobId, brandId, hasCredentials: !!credentials, hasSiteUrl: !!siteUrl }, 'No GSC credentials or site URL, using fixture data');
+    gscToday = loadFixture('gsc_today.json');
+    gscYesterday = loadFixture('gsc_yesterday.json');
+  }
 
   const result = await callClaude(
     prompt,
