@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
     })),
     actionDrafts: actions.map((a) => ({
       id: a.id,
-      action_type: a.action_type,
+      type: a.type,
       status: a.status,
       created_at: a.created_at,
     })),
