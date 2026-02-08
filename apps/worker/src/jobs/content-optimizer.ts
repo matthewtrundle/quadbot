@@ -156,8 +156,8 @@ export async function contentOptimizer(ctx: JobContext): Promise<void> {
 
 /**
  * Get underperforming pages to optimize.
- * In production, this would query real GSC data.
- * For now, returns simulated data based on criteria:
+ * Requires pages to be passed in payload from GSC digest job.
+ * Criteria for underperforming:
  * - High impressions but low CTR
  * - Position 5-20 (opportunity zone)
  */
@@ -166,38 +166,11 @@ async function getUnderperformingPages(
   brandId: string,
   payload: Record<string, unknown>,
 ): Promise<GscPageData[]> {
-  // Check if specific pages passed in payload
+  // Pages must be passed in payload from GSC digest job or event trigger
   if (payload.pages && Array.isArray(payload.pages)) {
     return payload.pages as GscPageData[];
   }
 
-  // Simulate underperforming pages
-  // In production, this would:
-  // 1. Load GSC credentials
-  // 2. Query GSC API for pages with high impressions, low CTR, position 5-20
-  // 3. Return actual data
-
-  return [
-    {
-      page: 'https://example.com/blog/getting-started',
-      clicks: 45,
-      impressions: 2500,
-      ctr: 0.018, // 1.8% - below average
-      position: 8.3,
-    },
-    {
-      page: 'https://example.com/features/analytics',
-      clicks: 120,
-      impressions: 5000,
-      ctr: 0.024, // 2.4% - could be better
-      position: 6.1,
-    },
-    {
-      page: 'https://example.com/pricing',
-      clicks: 200,
-      impressions: 8000,
-      ctr: 0.025, // 2.5% - high volume, worth optimizing
-      position: 4.8,
-    },
-  ];
+  // No pages provided - cannot proceed without real data
+  return [];
 }

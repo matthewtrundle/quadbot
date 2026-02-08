@@ -9,7 +9,7 @@ import { EventType } from '@quadbot/shared';
  * Phase 5: Learning Loop Enhancement (upgraded in Phase 3)
  * Outcome Collector - runs daily, measures deltas for accepted recommendations
  * older than 7 days that don't yet have outcomes.
- * Now uses metric_snapshots for delta computation instead of simulated values.
+ * Uses metric_snapshots for delta computation from real API data.
  */
 export async function outcomeCollector(ctx: JobContext): Promise<void> {
   const { db, jobId, brandId } = ctx;

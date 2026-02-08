@@ -69,10 +69,16 @@ export async function crossChannelCorrelator(ctx: JobContext): Promise<void> {
   const adsRecs = recentRecs.filter((r) => r.source.includes('ads'));
   const analyticsRecs = recentRecs.filter((r) => r.source.includes('analytics'));
 
-  // Compile data summaries (in production, would use actual API data)
-  const gscData = hasGsc ? getSimulatedGscSummary(gscRecs) : null;
-  const adsData = hasAds ? getSimulatedAdsSummary(adsRecs) : null;
-  const analyticsData = hasAnalytics ? getSimulatedAnalyticsSummary(analyticsRecs) : null;
+  // Compile data summaries from actual recommendations
+  const gscData = hasGsc && gscRecs.length > 0 ? getGscSummary(gscRecs) : null;
+  const adsData = hasAds && adsRecs.length > 0 ? getAdsSummary(adsRecs) : null;
+  const analyticsData = hasAnalytics && analyticsRecs.length > 0 ? getAnalyticsSummary(analyticsRecs) : null;
+
+  // Need at least some data to correlate
+  if (!gscData && !adsData && !analyticsData) {
+    logger.info({ jobId, brandId }, 'No recent recommendation data available for cross-channel analysis, skipping');
+    return;
+  }
 
   const result = await callClaude(
     prompt,
@@ -145,58 +151,57 @@ export async function crossChannelCorrelator(ctx: JobContext): Promise<void> {
   );
 }
 
-function getSimulatedGscSummary(recs: any[]) {
+function getGscSummary(recs: any[]) {
+  // Extract metrics from recommendation data if available
+  const summaryRec = recs.find((r) => r.source === 'gsc_daily_digest' && r.data);
+  const metrics = summaryRec?.data || {};
+
   return {
     source: 'Google Search Console',
     period: 'last_7_days',
-    total_clicks: 4500,
-    total_impressions: 150000,
-    avg_ctr: 0.03,
-    avg_position: 8.5,
-    top_queries: [
-      { query: 'brand name', clicks: 800, position: 1.2 },
-      { query: 'product category', clicks: 350, position: 6.5 },
-      { query: 'how to use product', clicks: 280, position: 4.2 },
-    ],
-    recent_recommendations: recs.slice(0, 3).map((r) => r.title),
+    metrics_available: !!summaryRec,
+    top_queries: metrics.top_queries || [],
+    recent_recommendations: recs.slice(0, 5).map((r) => ({
+      title: r.title,
+      priority: r.priority,
+      created_at: r.created_at,
+    })),
   };
 }
 
-function getSimulatedAdsSummary(recs: any[]) {
+function getAdsSummary(recs: any[]) {
+  // Extract metrics from recommendation data if available
+  const summaryRec = recs.find((r) => r.source === 'ads_performance_digest' && r.data);
+  const metrics = summaryRec?.data || {};
+
   return {
     source: 'Google Ads',
     period: 'last_7_days',
-    total_spend: 5250.50,
-    total_conversions: 225,
-    avg_cpc: 0.60,
-    avg_roas: 3.8,
-    top_keywords: [
-      { keyword: 'buy product', spend: 1200, conversions: 45, cpc: 0.85 },
-      { keyword: 'product reviews', spend: 800, conversions: 28, cpc: 0.55 },
-      { keyword: 'best product 2024', spend: 600, conversions: 22, cpc: 0.72 },
-    ],
-    recent_recommendations: recs.slice(0, 3).map((r) => r.title),
+    metrics_available: !!summaryRec,
+    top_campaigns: metrics.top_campaigns || [],
+    recent_recommendations: recs.slice(0, 5).map((r) => ({
+      title: r.title,
+      priority: r.priority,
+      created_at: r.created_at,
+    })),
   };
 }
 
-function getSimulatedAnalyticsSummary(recs: any[]) {
+function getAnalyticsSummary(recs: any[]) {
+  // Extract metrics from recommendation data if available
+  const summaryRec = recs.find((r) => r.source === 'analytics_insights' && r.data);
+  const metrics = summaryRec?.data || {};
+
   return {
     source: 'Google Analytics',
     period: 'last_7_days',
-    total_sessions: 12500,
-    total_users: 8500,
-    conversion_rate: 0.036,
-    bounce_rate: 0.42,
-    top_landing_pages: [
-      { page: '/', sessions: 4200, bounce_rate: 0.40 },
-      { page: '/pricing', sessions: 1800, bounce_rate: 0.25 },
-      { page: '/blog/guide', sessions: 1200, bounce_rate: 0.35 },
-    ],
-    traffic_sources: {
-      organic: 4500,
-      paid: 3200,
-      direct: 2800,
-    },
-    recent_recommendations: recs.slice(0, 3).map((r) => r.title),
+    metrics_available: !!summaryRec,
+    key_metrics: metrics.key_metrics || {},
+    top_pages: metrics.top_pages || [],
+    recent_recommendations: recs.slice(0, 5).map((r) => ({
+      title: r.title,
+      priority: r.priority,
+      created_at: r.created_at,
+    })),
   };
 }

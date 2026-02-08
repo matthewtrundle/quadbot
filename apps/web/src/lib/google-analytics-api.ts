@@ -167,16 +167,8 @@ export async function getGA4Metrics(
   );
 
   if (!response.ok) {
-    // Return simulated data for development/errors
-    return {
-      sessions: 12500,
-      users: 8500,
-      newUsers: 6200,
-      bounceRate: 0.42,
-      avgSessionDuration: 185,
-      screenPageViews: 35000,
-      conversions: 450,
-    };
+    const error = await response.text();
+    throw new Error(`Failed to fetch GA4 metrics: ${error}`);
   }
 
   const data = await response.json();
@@ -230,33 +222,8 @@ export async function getGA4TopPages(
   );
 
   if (!response.ok) {
-    // Return simulated data for development/errors
-    return [
-      {
-        pagePath: '/',
-        pageTitle: 'Home',
-        pageviews: 8500,
-        avgTimeOnPage: 45,
-        exitRate: 0.35,
-        bounceRate: 0.40,
-      },
-      {
-        pagePath: '/pricing',
-        pageTitle: 'Pricing',
-        pageviews: 3200,
-        avgTimeOnPage: 120,
-        exitRate: 0.55,
-        bounceRate: 0.25,
-      },
-      {
-        pagePath: '/blog/getting-started',
-        pageTitle: 'Getting Started Guide',
-        pageviews: 2100,
-        avgTimeOnPage: 180,
-        exitRate: 0.30,
-        bounceRate: 0.35,
-      },
-    ];
+    const error = await response.text();
+    throw new Error(`Failed to fetch GA4 top pages: ${error}`);
   }
 
   const data = await response.json();

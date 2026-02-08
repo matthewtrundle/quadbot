@@ -1,5 +1,5 @@
 import { analyticsInsightsOutputSchema } from '@quadbot/shared';
-import { recommendations, brands, brandIntegrations, sharedCredentials, decrypt } from '@quadbot/db';
+import { recommendations, brands, brandIntegrations } from '@quadbot/db';
 import { eq, and } from 'drizzle-orm';
 import type { JobContext } from '../registry.js';
 import { callClaude } from '../claude.js';
@@ -7,12 +7,10 @@ import { loadActivePrompt } from '../prompt-loader.js';
 import { logger } from '../logger.js';
 import { emitEvent } from '../event-emitter.js';
 import { EventType, IntegrationType } from '@quadbot/shared';
-
-type AnalyticsCredentials = {
-  access_token: string;
-  refresh_token: string;
-  expires_at: string;
-};
+import {
+  getValidGa4AccessToken,
+  getGa4AnalyticsData,
+} from '../lib/google-analytics-api.js';
 
 /**
  * Analytics Insights Job
@@ -56,24 +54,45 @@ export async function analyticsInsights(ctx: JobContext): Promise<void> {
     return;
   }
 
-  // Load credentials (shared or direct)
-  let credentials: AnalyticsCredentials | null = null;
-  if (integration.shared_credential_id) {
-    const [shared] = await db
-      .select()
-      .from(sharedCredentials)
-      .where(eq(sharedCredentials.id, integration.shared_credential_id))
-      .limit(1);
-    if (shared) {
-      credentials = JSON.parse(decrypt(shared.credentials_encrypted));
-    }
-  } else if (integration.credentials_encrypted) {
-    credentials = JSON.parse(decrypt(integration.credentials_encrypted));
+  // Get real analytics data - skip if unavailable
+  const credentials = await getValidGa4AccessToken(db, brandId);
+
+  if (!credentials) {
+    logger.info({ jobId, brandId }, 'No Google Analytics credentials available, skipping');
+    return;
   }
 
-  // Get analytics data (simulated for now)
-  const analyticsData = getSimulatedAnalyticsData();
-  const analyticsPreviousData = getSimulatedAnalyticsPreviousData();
+  // Calculate date ranges
+  const today = new Date();
+  const endDate = new Date(today);
+  endDate.setDate(endDate.getDate() - 1); // Yesterday
+  const startDate = new Date(endDate);
+  startDate.setDate(startDate.getDate() - 6); // 7 days ago
+
+  const previousEndDate = new Date(startDate);
+  previousEndDate.setDate(previousEndDate.getDate() - 1);
+  const previousStartDate = new Date(previousEndDate);
+  previousStartDate.setDate(previousStartDate.getDate() - 6);
+
+  const formatDate = (d: Date) => d.toISOString().split('T')[0];
+
+  const [analyticsData, analyticsPreviousData] = await Promise.all([
+    getGa4AnalyticsData(credentials.accessToken, credentials.propertyId, {
+      start: formatDate(startDate),
+      end: formatDate(endDate),
+    }),
+    getGa4AnalyticsData(credentials.accessToken, credentials.propertyId, {
+      start: formatDate(previousStartDate),
+      end: formatDate(previousEndDate),
+    }),
+  ]);
+
+  if (!analyticsData || !analyticsPreviousData) {
+    logger.error({ jobId, brandId }, 'Google Analytics API failed, skipping job');
+    return;
+  }
+
+  logger.info({ jobId, brandId }, 'Retrieved real Google Analytics data');
 
   const result = await callClaude(
     prompt,
@@ -141,72 +160,3 @@ export async function analyticsInsights(ctx: JobContext): Promise<void> {
   );
 }
 
-function getSimulatedAnalyticsData() {
-  return {
-    period: 'last_7_days',
-    sessions: 12500,
-    users: 8500,
-    new_users: 6200,
-    bounce_rate: 0.42,
-    avg_session_duration: 185,
-    pages_per_session: 2.8,
-    conversions: {
-      sign_up: 450,
-      demo_request: 85,
-      newsletter_subscribe: 320,
-    },
-    top_pages: [
-      { path: '/', views: 8500, avg_time: 45, bounce_rate: 0.40 },
-      { path: '/pricing', views: 3200, avg_time: 120, bounce_rate: 0.25 },
-      { path: '/features', views: 2800, avg_time: 90, bounce_rate: 0.35 },
-      { path: '/blog/getting-started', views: 2100, avg_time: 180, bounce_rate: 0.30 },
-      { path: '/contact', views: 1500, avg_time: 60, bounce_rate: 0.55 },
-    ],
-    traffic_sources: {
-      organic: 4500,
-      paid: 3200,
-      direct: 2800,
-      referral: 1200,
-      social: 800,
-    },
-    device_breakdown: {
-      desktop: 0.62,
-      mobile: 0.32,
-      tablet: 0.06,
-    },
-  };
-}
-
-function getSimulatedAnalyticsPreviousData() {
-  return {
-    period: 'prior_7_days',
-    sessions: 11800,
-    users: 8100,
-    new_users: 5900,
-    bounce_rate: 0.45,
-    avg_session_duration: 175,
-    pages_per_session: 2.6,
-    conversions: {
-      sign_up: 410,
-      demo_request: 75,
-      newsletter_subscribe: 290,
-    },
-    top_pages: [
-      { path: '/', views: 8000, avg_time: 42, bounce_rate: 0.42 },
-      { path: '/pricing', views: 2900, avg_time: 115, bounce_rate: 0.28 },
-      { path: '/features', views: 2600, avg_time: 85, bounce_rate: 0.38 },
-    ],
-    traffic_sources: {
-      organic: 4200,
-      paid: 3000,
-      direct: 2700,
-      referral: 1100,
-      social: 800,
-    },
-    device_breakdown: {
-      desktop: 0.65,
-      mobile: 0.30,
-      tablet: 0.05,
-    },
-  };
-}

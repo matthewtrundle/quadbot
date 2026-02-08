@@ -1,5 +1,5 @@
 import { adsPerformanceOutputSchema } from '@quadbot/shared';
-import { recommendations, brands, brandIntegrations, sharedCredentials, decrypt } from '@quadbot/db';
+import { recommendations, brands, brandIntegrations } from '@quadbot/db';
 import { eq, and } from 'drizzle-orm';
 import type { JobContext } from '../registry.js';
 import { callClaude } from '../claude.js';
@@ -7,12 +7,10 @@ import { loadActivePrompt } from '../prompt-loader.js';
 import { logger } from '../logger.js';
 import { emitEvent } from '../event-emitter.js';
 import { EventType, IntegrationType } from '@quadbot/shared';
-
-type AdsCredentials = {
-  access_token: string;
-  refresh_token: string;
-  expires_at: string;
-};
+import {
+  getValidAdsAccessToken,
+  getAdsPerformance,
+} from '../lib/google-ads-api.js';
 
 /**
  * Ads Performance Digest Job
@@ -56,24 +54,45 @@ export async function adsPerformanceDigest(ctx: JobContext): Promise<void> {
     return;
   }
 
-  // Load credentials (shared or direct)
-  let credentials: AdsCredentials | null = null;
-  if (integration.shared_credential_id) {
-    const [shared] = await db
-      .select()
-      .from(sharedCredentials)
-      .where(eq(sharedCredentials.id, integration.shared_credential_id))
-      .limit(1);
-    if (shared) {
-      credentials = JSON.parse(decrypt(shared.credentials_encrypted));
-    }
-  } else if (integration.credentials_encrypted) {
-    credentials = JSON.parse(decrypt(integration.credentials_encrypted));
+  // Get real ads data - skip if unavailable
+  const credentials = await getValidAdsAccessToken(db, brandId);
+
+  if (!credentials) {
+    logger.info({ jobId, brandId }, 'No Google Ads credentials available, skipping');
+    return;
   }
 
-  // Get ads data (simulated for now)
-  const adsData = getSimulatedAdsData();
-  const adsPreviousData = getSimulatedAdsPreviousData();
+  // Calculate date ranges
+  const today = new Date();
+  const endDate = new Date(today);
+  endDate.setDate(endDate.getDate() - 1); // Yesterday
+  const startDate = new Date(endDate);
+  startDate.setDate(startDate.getDate() - 6); // 7 days ago
+
+  const previousEndDate = new Date(startDate);
+  previousEndDate.setDate(previousEndDate.getDate() - 1);
+  const previousStartDate = new Date(previousEndDate);
+  previousStartDate.setDate(previousStartDate.getDate() - 6);
+
+  const formatDate = (d: Date) => d.toISOString().split('T')[0];
+
+  const [adsData, adsPreviousData] = await Promise.all([
+    getAdsPerformance(credentials.accessToken, credentials.customerId, {
+      start: formatDate(startDate),
+      end: formatDate(endDate),
+    }),
+    getAdsPerformance(credentials.accessToken, credentials.customerId, {
+      start: formatDate(previousStartDate),
+      end: formatDate(previousEndDate),
+    }),
+  ]);
+
+  if (!adsData || !adsPreviousData) {
+    logger.error({ jobId, brandId }, 'Google Ads API failed, skipping job');
+    return;
+  }
+
+  logger.info({ jobId, brandId }, 'Retrieved real Google Ads data');
 
   const result = await callClaude(
     prompt,
@@ -137,36 +156,3 @@ export async function adsPerformanceDigest(ctx: JobContext): Promise<void> {
   );
 }
 
-function getSimulatedAdsData() {
-  return {
-    period: 'last_7_days',
-    total_spend: 5250.50,
-    total_impressions: 245000,
-    total_clicks: 8700,
-    total_conversions: 225,
-    avg_cpc: 0.60,
-    avg_roas: 3.8,
-    campaigns: [
-      { name: 'Brand Campaign', spend: 1250, clicks: 1800, conversions: 45, roas: 4.2 },
-      { name: 'Performance Max', spend: 3200, clicks: 4500, conversions: 120, roas: 3.5 },
-      { name: 'Remarketing', spend: 800, clicks: 2400, conversions: 60, roas: 4.8 },
-    ],
-  };
-}
-
-function getSimulatedAdsPreviousData() {
-  return {
-    period: 'prior_7_days',
-    total_spend: 4800.00,
-    total_impressions: 220000,
-    total_clicks: 7800,
-    total_conversions: 195,
-    avg_cpc: 0.62,
-    avg_roas: 3.6,
-    campaigns: [
-      { name: 'Brand Campaign', spend: 1200, clicks: 1700, conversions: 42, roas: 4.0 },
-      { name: 'Performance Max', spend: 2900, clicks: 4000, conversions: 100, roas: 3.3 },
-      { name: 'Remarketing', spend: 700, clicks: 2100, conversions: 53, roas: 4.5 },
-    ],
-  };
-}

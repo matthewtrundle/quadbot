@@ -108,14 +108,7 @@ export async function listAdsAccounts(accessToken: string): Promise<AdsAccountSu
   const developerToken = process.env.GOOGLE_ADS_DEVELOPER_TOKEN;
 
   if (!developerToken) {
-    // Return simulated data for development
-    return [
-      {
-        customerId: '123-456-7890',
-        descriptiveName: 'Main Ads Account',
-        campaigns: [],
-      },
-    ];
+    throw new Error('GOOGLE_ADS_DEVELOPER_TOKEN is required to access Google Ads API');
   }
 
   const response = await fetch(
@@ -154,39 +147,7 @@ export async function getCampaignPerformance(
   const developerToken = process.env.GOOGLE_ADS_DEVELOPER_TOKEN;
 
   if (!developerToken) {
-    // Return simulated data for development
-    return [
-      {
-        id: '1',
-        name: 'Brand Campaign',
-        status: 'ENABLED',
-        spend: 1250.50,
-        impressions: 45000,
-        clicks: 1800,
-        conversions: 45,
-        cost_per_conversion: 27.79,
-      },
-      {
-        id: '2',
-        name: 'Performance Max',
-        status: 'ENABLED',
-        spend: 3200.00,
-        impressions: 120000,
-        clicks: 4500,
-        conversions: 120,
-        cost_per_conversion: 26.67,
-      },
-      {
-        id: '3',
-        name: 'Remarketing',
-        status: 'ENABLED',
-        spend: 800.00,
-        impressions: 80000,
-        clicks: 2400,
-        conversions: 60,
-        cost_per_conversion: 13.33,
-      },
-    ];
+    throw new Error('GOOGLE_ADS_DEVELOPER_TOKEN is required to access Google Ads API');
   }
 
   // GAQL query for campaign performance
