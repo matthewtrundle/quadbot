@@ -1,3 +1,5 @@
+import { redirect } from 'next/navigation';
+import { getSession, isAdmin } from '@/lib/auth-session';
 import { db } from '@/lib/db';
 import { recommendations, outcomes, actionDrafts, signals, brands } from '@quadbot/db';
 import { desc, gte, eq, and } from 'drizzle-orm';
@@ -6,7 +8,16 @@ import { DailyDiffSummary } from '@/components/daily-diff-summary';
 export const dynamic = 'force-dynamic';
 
 export default async function DailyDiffPage() {
+  const session = await getSession();
+  if (!session) redirect('/login');
+  const userBrandId = (session.user as any).brandId as string | null;
+  const admin = isAdmin(session);
+
   const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+  const brandFilter = !admin && userBrandId
+    ? eq(recommendations.brand_id, userBrandId)
+    : undefined;
 
   // Biggest wins: outcomes with largest positive delta since yesterday
   const wins = await db
@@ -22,7 +33,7 @@ export default async function DailyDiffPage() {
     .from(outcomes)
     .innerJoin(recommendations, eq(outcomes.recommendation_id, recommendations.id))
     .innerJoin(brands, eq(recommendations.brand_id, brands.id))
-    .where(gte(outcomes.measured_at, yesterday))
+    .where(brandFilter ? and(gte(outcomes.measured_at, yesterday), brandFilter) : gte(outcomes.measured_at, yesterday))
     .orderBy(desc(outcomes.delta))
     .limit(5);
 
@@ -40,7 +51,7 @@ export default async function DailyDiffPage() {
     .from(outcomes)
     .innerJoin(recommendations, eq(outcomes.recommendation_id, recommendations.id))
     .innerJoin(brands, eq(recommendations.brand_id, brands.id))
-    .where(gte(outcomes.measured_at, yesterday))
+    .where(brandFilter ? and(gte(outcomes.measured_at, yesterday), brandFilter) : gte(outcomes.measured_at, yesterday))
     .orderBy(outcomes.delta)
     .limit(5);
 
@@ -60,6 +71,7 @@ export default async function DailyDiffPage() {
       and(
         gte(recommendations.created_at, yesterday),
         eq(recommendations.priority, 'high'),
+        ...(brandFilter ? [brandFilter] : []),
       ),
     )
     .orderBy(desc(recommendations.created_at))
@@ -78,7 +90,7 @@ export default async function DailyDiffPage() {
     .from(actionDrafts)
     .innerJoin(recommendations, eq(actionDrafts.recommendation_id, recommendations.id))
     .innerJoin(brands, eq(recommendations.brand_id, brands.id))
-    .where(eq(actionDrafts.status, 'pending'))
+    .where(brandFilter ? and(eq(actionDrafts.status, 'pending'), brandFilter) : eq(actionDrafts.status, 'pending'))
     .orderBy(desc(actionDrafts.created_at))
     .limit(10);
 

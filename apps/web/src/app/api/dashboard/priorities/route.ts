@@ -1,9 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getSession, isAdmin } from '@/lib/auth-session';
 import { db } from '@/lib/db';
 import { recommendations, brands } from '@quadbot/db';
-import { desc, isNotNull, eq } from 'drizzle-orm';
+import { desc, isNotNull, eq, and } from 'drizzle-orm';
 
 export async function GET(req: NextRequest) {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const userBrandId = (session.user as any).brandId as string | null;
+  const admin = isAdmin(session);
+
+  const whereConditions = !admin && userBrandId
+    ? and(isNotNull(recommendations.priority_rank), eq(recommendations.brand_id, userBrandId))
+    : isNotNull(recommendations.priority_rank);
+
   // Get top 20 ranked recommendations across all brands
   const ranked = await db
     .select({
@@ -22,7 +32,7 @@ export async function GET(req: NextRequest) {
     })
     .from(recommendations)
     .innerJoin(brands, eq(recommendations.brand_id, brands.id))
-    .where(isNotNull(recommendations.priority_rank))
+    .where(whereConditions)
     .orderBy(recommendations.priority_rank)
     .limit(20);
 

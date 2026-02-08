@@ -3,7 +3,7 @@ import { db } from '@/lib/db';
 import { jobs } from '@quadbot/db';
 import { jobCreateSchema } from '@quadbot/shared';
 import { enqueueJob } from '@/lib/queue';
-import { authenticateRequest } from '@/lib/auth';
+import { authenticateRequest } from '@/lib/auth-api-keys';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { randomUUID } from 'node:crypto';
 

@@ -1,3 +1,5 @@
+import { redirect } from 'next/navigation';
+import { getSession, isAdmin } from '@/lib/auth-session';
 import { db } from '@/lib/db';
 import { improvementSuggestions, brands } from '@quadbot/db';
 import { desc, eq, isNull, or } from 'drizzle-orm';
@@ -6,6 +8,11 @@ import { ImprovementCard } from '@/components/improvement-card';
 export const dynamic = 'force-dynamic';
 
 export default async function ImprovementsPage() {
+  const session = await getSession();
+  if (!session) redirect('/login');
+  const userBrandId = (session.user as any).brandId as string | null;
+  const admin = isAdmin(session);
+
   // Get all improvement suggestions ordered by priority and votes
   const suggestions = await db
     .select({
@@ -25,6 +32,7 @@ export default async function ImprovementsPage() {
       created_at: improvementSuggestions.created_at,
     })
     .from(improvementSuggestions)
+    .where(!admin && userBrandId ? eq(improvementSuggestions.brand_id, userBrandId) : undefined)
     .orderBy(
       desc(improvementSuggestions.votes),
       desc(improvementSuggestions.priority),

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { actionDrafts } from '@quadbot/db';
 import { eq } from 'drizzle-orm';
-import { requireActionDraftAccess } from '@/lib/auth';
+import { requireActionDraftAccess } from '@/lib/auth-api-keys';
 import { emitEvent } from '@/lib/events';
 import { EventType } from '@quadbot/shared';
 

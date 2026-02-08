@@ -1,6 +1,6 @@
 import { actionDraftGeneratorOutputSchema } from '@quadbot/shared';
-import { actionDrafts, recommendations, brands } from '@quadbot/db';
-import { eq } from 'drizzle-orm';
+import { actionDrafts, recommendations, brands, executionRules } from '@quadbot/db';
+import { eq, and } from 'drizzle-orm';
 import type { JobContext } from '../registry.js';
 import { callClaude } from '../claude.js';
 import { loadActivePrompt } from '../prompt-loader.js';
@@ -209,6 +209,45 @@ export async function actionDraftGenerator(ctx: JobContext): Promise<void> {
     `draft:${draft.id}`,
     'action_draft_generator',
   );
+
+  // Check execution rules for auto-approval
+  const [rules] = await db
+    .select()
+    .from(executionRules)
+    .where(eq(executionRules.brand_id, brandId))
+    .limit(1);
+
+  if (rules?.auto_execute) {
+    const riskLevels: Record<string, number> = { low: 1, medium: 2, high: 3 };
+    const draftRiskLevel = riskLevels[actionRisk] ?? 3;
+    const maxRiskLevel = riskLevels[rules.max_risk] ?? 1;
+    const confidence = recommendation.confidence ?? 0;
+    const allowedTypes = (rules.allowed_action_types as string[]) || [];
+
+    const meetsConfidence = confidence >= rules.min_confidence;
+    const meetsRisk = draftRiskLevel <= maxRiskLevel;
+    const meetsType = allowedTypes.length === 0 || allowedTypes.includes(actionType);
+
+    if (meetsConfidence && meetsRisk && meetsType) {
+      await db
+        .update(actionDrafts)
+        .set({ status: 'approved', updated_at: new Date() })
+        .where(eq(actionDrafts.id, draft.id));
+
+      await emitEvent(
+        EventType.ACTION_DRAFT_APPROVED,
+        brandId,
+        { action_draft_id: draft.id, recommendation_id: recommendationId, auto_approved: true },
+        `auto-approved:${draft.id}`,
+        'action_draft_generator',
+      );
+
+      logger.info(
+        { jobId, draftId: draft.id, type: actionType, risk: actionRisk },
+        'Action draft auto-approved by execution rules',
+      );
+    }
+  }
 
   logger.info(
     { jobId, type: actionType, risk: actionRisk },

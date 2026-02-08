@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server';
+import { getSession } from '@/lib/auth-session';
 import { db } from '@/lib/db';
 import { recommendations, outcomes, actionDrafts, signals, brands } from '@quadbot/db';
 import { desc, gte, eq, and } from 'drizzle-orm';
 
 export async function GET() {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
   const [wins, regressions, newRisks, pendingApprovals, newSignals] = await Promise.all([

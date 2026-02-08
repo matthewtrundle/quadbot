@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getSession, isAdmin } from '@/lib/auth-session';
 import { db } from '@/lib/db';
 import { apiKeys, generateApiKey } from '@quadbot/db';
 import { eq, and } from 'drizzle-orm';
@@ -9,8 +10,21 @@ const createKeySchema = z.object({
   expires_at: z.string().datetime().optional(),
 });
 
+async function verifyBrandAccess(brandId: string): Promise<NextResponse | null> {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const userBrandId = (session.user as any).brandId as string | null;
+  const admin = isAdmin(session);
+  if (!admin && userBrandId && userBrandId !== brandId) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+  return null;
+}
+
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: brandId } = await params;
+  const denied = await verifyBrandAccess(brandId);
+  if (denied) return denied;
 
   const keys = await db
     .select({
@@ -29,6 +43,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: brandId } = await params;
+  const denied = await verifyBrandAccess(brandId);
+  if (denied) return denied;
   const body = await req.json();
   const parsed = createKeySchema.safeParse(body);
 
@@ -65,6 +81,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: brandId } = await params;
+  const denied = await verifyBrandAccess(brandId);
+  if (denied) return denied;
   const { searchParams } = new URL(req.url);
   const keyId = searchParams.get('keyId');
 

@@ -1,10 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getSession, isAdmin } from '@/lib/auth-session';
 import { db } from '@/lib/db';
 import { brands, recommendations, actionDrafts, evaluationRuns } from '@quadbot/db';
 import { eq, and, gte, desc } from 'drizzle-orm';
 
 export async function GET(req: NextRequest) {
-  const allBrands = await db.select().from(brands);
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const userBrandId = (session.user as any).brandId as string | null;
+  const admin = isAdmin(session);
+
+  const allBrands = !admin && userBrandId
+    ? await db.select().from(brands).where(eq(brands.id, userBrandId))
+    : await db.select().from(brands);
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
   const health = await Promise.all(

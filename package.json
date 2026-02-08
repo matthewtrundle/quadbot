@@ -12,6 +12,8 @@
     "worker": "turbo dev --filter=@quadbot/worker",
     "db:migrate": "turbo db:migrate --filter=@quadbot/db",
     "db:seed": "turbo db:seed --filter=@quadbot/db",
+    "test": "vitest",
+    "test:run": "vitest run",
     "ops:check": "node --import tsx scripts/ops-check/check-all.ts",
     "ops:check:infra": "node --import tsx scripts/ops-check/check-all.ts infra",
     "ops:check:flow": "node --import tsx scripts/ops-check/check-all.ts flow",
@@ -25,7 +27,8 @@
     "ioredis": "^5.4.0",
     "tsx": "^4.19.0",
     "turbo": "^2.3.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vitest": "^4.0.18"
   },
   "packageManager": "pnpm@9.15.0"
 }

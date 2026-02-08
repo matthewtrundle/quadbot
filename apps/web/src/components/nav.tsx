@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Building2, LayoutDashboard, CalendarClock, Download, DollarSign, Settings, Sparkles } from 'lucide-react';
+import { Building2, LayoutDashboard, CalendarClock, Download, DollarSign, Settings, Sparkles, LogOut } from 'lucide-react';
+import { useSession, signOut } from '@/lib/auth-client';
 
 type NavItem = {
   href: string;
@@ -52,6 +53,7 @@ function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
 
 export function Nav() {
   const pathname = usePathname();
+  const { data: session } = useSession();
 
   return (
     <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r border-border/50 bg-card/80 backdrop-blur-sm">
@@ -86,8 +88,37 @@ export function Nav() {
           ))}
         </nav>
 
-        {/* Footer with version */}
-        <div className="border-t border-border/50 p-4">
+        {/* Footer with user + version */}
+        <div className="border-t border-border/50 p-4 space-y-3">
+          {session?.user && (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 min-w-0">
+                {session.user.image ? (
+                  <img
+                    src={session.user.image}
+                    alt=""
+                    className="h-6 w-6 rounded-full flex-shrink-0"
+                  />
+                ) : (
+                  <div className="h-6 w-6 rounded-full bg-quad-cyan/20 flex items-center justify-center flex-shrink-0">
+                    <span className="text-xs font-medium text-quad-cyan">
+                      {session.user.name?.charAt(0) || '?'}
+                    </span>
+                  </div>
+                )}
+                <span className="text-xs text-muted-foreground truncate">
+                  {session.user.name || session.user.email}
+                </span>
+              </div>
+              <button
+                onClick={() => signOut({ fetchOptions: { onSuccess: () => { window.location.href = '/login'; } } })}
+                className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+                title="Sign out"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Sparkles className="h-3 w-3 text-quad-cyan" />
             <span>QuadBot v2 — Intelligence Layer</span>

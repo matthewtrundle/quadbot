@@ -1,12 +1,22 @@
+import { redirect } from 'next/navigation';
+import { getSession, isAdmin } from '@/lib/auth-session';
 import { db } from '@/lib/db';
 import { brands } from '@quadbot/db';
+import { eq } from 'drizzle-orm';
 import { BrandCard } from '@/components/brand-card';
 import { CreateBrandForm } from './create-brand-form';
 
 export const dynamic = 'force-dynamic';
 
 export default async function BrandsPage() {
-  const allBrands = await db.select().from(brands).orderBy(brands.created_at);
+  const session = await getSession();
+  if (!session) redirect('/login');
+  const userBrandId = (session.user as any).brandId as string | null;
+  const admin = isAdmin(session);
+
+  const allBrands = !admin && userBrandId
+    ? await db.select().from(brands).where(eq(brands.id, userBrandId)).orderBy(brands.created_at)
+    : await db.select().from(brands).orderBy(brands.created_at);
 
   return (
     <div className="space-y-8">

@@ -17,11 +17,19 @@ import {
   SelectItem,
 } from '@/components/ui/select';
 
+type ExecutionRulesConfig = {
+  auto_execute: boolean;
+  min_confidence: number;
+  max_risk: string;
+  allowed_action_types: string[];
+};
+
 type SettingsFormProps = {
   brandId: string;
   mode: string;
   modulesEnabled: string[];
   guardrails: Record<string, unknown>;
+  executionRules?: ExecutionRulesConfig;
 };
 
 const AVAILABLE_MODULES = ['community_moderation', 'gsc_digest', 'trend_scan'];
@@ -74,16 +82,22 @@ function parseGuardrails(guardrails: Record<string, unknown>): BrandProfile {
   };
 }
 
-export function SettingsForm({ brandId, mode, modulesEnabled, guardrails }: SettingsFormProps) {
+export function SettingsForm({ brandId, mode, modulesEnabled, guardrails, executionRules: initialRules }: SettingsFormProps) {
   const router = useRouter();
   const [currentMode, setCurrentMode] = useState(mode);
   const [modules, setModules] = useState<string[]>(modulesEnabled);
   const [saving, setSaving] = useState(false);
   const [reanalyzing, setReanalyzing] = useState(false);
+  const [savingRules, setSavingRules] = useState(false);
 
   // Brand profile state
   const [profile, setProfile] = useState<BrandProfile>(() => parseGuardrails(guardrails));
   const [customIndustry, setCustomIndustry] = useState('');
+
+  // Execution rules state
+  const [execRules, setExecRules] = useState<ExecutionRulesConfig>(
+    initialRules ?? { auto_execute: false, min_confidence: 0.9, max_risk: 'low', allowed_action_types: [] },
+  );
 
   async function handleSave() {
     setSaving(true);
@@ -141,6 +155,20 @@ export function SettingsForm({ brandId, mode, modulesEnabled, guardrails }: Sett
         ? prev.content_policies.filter((p) => p !== policy)
         : [...prev.content_policies, policy],
     }));
+  }
+
+  async function handleSaveExecutionRules() {
+    setSavingRules(true);
+    try {
+      await fetch(`/api/brands/${brandId}/execution-rules`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(execRules),
+      });
+      router.refresh();
+    } finally {
+      setSavingRules(false);
+    }
   }
 
   const hasProfile = !!profile.industry && profile.industry !== 'unknown';
@@ -303,6 +331,68 @@ export function SettingsForm({ brandId, mode, modulesEnabled, guardrails }: Sett
               </div>
             ))}
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Auto-Execution Rules</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <Label>Auto-Execute Actions</Label>
+              <p className="text-sm text-muted-foreground">
+                Automatically approve action drafts that meet confidence and risk thresholds.
+              </p>
+            </div>
+            <Switch
+              checked={execRules.auto_execute}
+              onCheckedChange={(checked) => setExecRules((prev) => ({ ...prev, auto_execute: checked }))}
+            />
+          </div>
+
+          {execRules.auto_execute && (
+            <>
+              <div className="space-y-2">
+                <Label>Minimum Confidence ({Math.round(execRules.min_confidence * 100)}%)</Label>
+                <input
+                  type="range"
+                  min={50}
+                  max={100}
+                  value={Math.round(execRules.min_confidence * 100)}
+                  onChange={(e) =>
+                    setExecRules((prev) => ({ ...prev, min_confidence: Number(e.target.value) / 100 }))
+                  }
+                  className="w-full accent-primary"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Only auto-approve actions where the recommendation confidence meets this threshold.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Maximum Risk</Label>
+                <Select
+                  value={execRules.max_risk}
+                  onValueChange={(value) => setExecRules((prev) => ({ ...prev, max_risk: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Low only</SelectItem>
+                    <SelectItem value="medium">Medium and below</SelectItem>
+                    <SelectItem value="high">All (including high)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </>
+          )}
+
+          <Button onClick={handleSaveExecutionRules} disabled={savingRules} variant="outline">
+            {savingRules ? 'Saving...' : 'Save Execution Rules'}
+          </Button>
         </CardContent>
       </Card>
 

@@ -233,20 +233,6 @@ export const artifacts = pgTable('artifacts', {
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
-// Phase 5: Decision Engine
-
-export const playbooks = pgTable('playbooks', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  domain: varchar('domain', { length: 100 }).notNull(),
-  trigger_conditions: jsonb('trigger_conditions').$type<Record<string, unknown>>().notNull(),
-  recommended_actions: jsonb('recommended_actions').$type<Record<string, unknown>[]>().notNull(),
-  examples: jsonb('examples').$type<Record<string, unknown>[]>().default([]),
-  version: integer('version').notNull().default(1),
-  is_active: boolean('is_active').notNull().default(true),
-  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-});
-
 // Phase 4: Brand Brain
 
 export const signals = pgTable('signals', {
@@ -360,6 +346,63 @@ export const improvementSuggestions = pgTable('improvement_suggestions', {
   source_job_id: uuid('source_job_id').references(() => jobs.id, { onDelete: 'set null' }),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// Better Auth tables
+
+export const users = pgTable('user', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  email: text('email').notNull().unique(),
+  emailVerified: boolean('email_verified').notNull().default(false),
+  image: text('image'),
+  brandId: uuid('brand_id').references(() => brands.id, { onDelete: 'set null' }),
+  role: varchar('role', { length: 20 }).notNull().default('user'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('idx_user_brand_id').on(table.brandId),
+]);
+
+export const sessions = pgTable('session', {
+  id: text('id').primaryKey(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  token: text('token').notNull().unique(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  ipAddress: text('ip_address'),
+  userAgent: text('user_agent'),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+}, (table) => [
+  index('idx_session_user_id').on(table.userId),
+  index('idx_session_token').on(table.token),
+]);
+
+export const accounts = pgTable('account', {
+  id: text('id').primaryKey(),
+  accountId: text('account_id').notNull(),
+  providerId: text('provider_id').notNull(),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  accessToken: text('access_token'),
+  refreshToken: text('refresh_token'),
+  idToken: text('id_token'),
+  accessTokenExpiresAt: timestamp('access_token_expires_at', { withTimezone: true }),
+  refreshTokenExpiresAt: timestamp('refresh_token_expires_at', { withTimezone: true }),
+  scope: text('scope'),
+  password: text('password'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('idx_account_user_id').on(table.userId),
+]);
+
+export const verifications = pgTable('verification', {
+  id: text('id').primaryKey(),
+  identifier: text('identifier').notNull(),
+  value: text('value').notNull(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }),
+  updatedAt: timestamp('updated_at', { withTimezone: true }),
 });
 
 export const improvementOutcomes = pgTable('improvement_outcomes', {

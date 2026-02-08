@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getSession, isAdmin } from '@/lib/auth-session';
 import { db } from '@/lib/db';
 import { recommendations, brands } from '@quadbot/db';
 import { eq, gte, desc, sql, and, isNotNull } from 'drizzle-orm';
@@ -39,11 +40,22 @@ function getPeriodStart(period: string): Date {
 }
 
 export async function GET(request: NextRequest) {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const userBrandId = (session.user as any).brandId as string | null;
+  const admin = isAdmin(session);
+
   const searchParams = request.nextUrl.searchParams;
   const period = searchParams.get('period') || '7d';
   const periodStart = getPeriodStart(period);
 
   try {
+    const whereConditions = [
+      gte(recommendations.created_at, periodStart),
+      isNotNull(recommendations.model_meta),
+      ...(!admin && userBrandId ? [eq(recommendations.brand_id, userBrandId)] : []),
+    ];
+
     // Get all recommendations with model_meta in the period
     const recsWithMeta = await db
       .select({
@@ -57,12 +69,7 @@ export async function GET(request: NextRequest) {
       })
       .from(recommendations)
       .innerJoin(brands, eq(recommendations.brand_id, brands.id))
-      .where(
-        and(
-          gte(recommendations.created_at, periodStart),
-          isNotNull(recommendations.model_meta),
-        ),
-      )
+      .where(and(...whereConditions))
       .orderBy(desc(recommendations.created_at));
 
     // Process the data

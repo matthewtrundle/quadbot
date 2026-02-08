@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Nav } from '@/components/nav';
+import { AppShell } from '@/components/app-shell';
 import { Toaster } from 'sonner';
 import './globals.css';
 
@@ -12,8 +12,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className="min-h-screen">
-        <Nav />
-        <main className="ml-64 min-h-screen p-8">{children}</main>
+        <AppShell>{children}</AppShell>
         <Toaster theme="dark" richColors position="bottom-right" />
       </body>
     </html>

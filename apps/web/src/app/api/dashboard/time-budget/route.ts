@@ -1,10 +1,18 @@
 import { NextResponse } from 'next/server';
+import { getSession, isAdmin } from '@/lib/auth-session';
 import { db } from '@/lib/db';
 import { brands, actionDrafts } from '@quadbot/db';
 import { eq, and } from 'drizzle-orm';
 
 export async function GET() {
-  const allBrands = await db.select().from(brands);
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const userBrandId = (session.user as any).brandId as string | null;
+  const admin = isAdmin(session);
+
+  const allBrands = !admin && userBrandId
+    ? await db.select().from(brands).where(eq(brands.id, userBrandId))
+    : await db.select().from(brands);
 
   const budgets = await Promise.all(
     allBrands.map(async (brand) => {

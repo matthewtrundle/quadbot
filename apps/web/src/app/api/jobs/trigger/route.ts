@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getSession } from '@/lib/auth-session';
 import { db } from '@/lib/db';
 import { jobs, brands } from '@quadbot/db';
 import { eq } from 'drizzle-orm';
@@ -27,6 +28,9 @@ const triggerSchema = z.object({
  * Manually trigger a job for testing purposes
  */
 export async function POST(req: NextRequest) {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   try {
     const body = await req.json();
     const { brandId, jobType } = triggerSchema.parse(body);
@@ -88,6 +92,8 @@ export async function POST(req: NextRequest) {
  * List available job types
  */
 export async function GET() {
+  const s = await getSession();
+  if (!s) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   return NextResponse.json({
     availableJobTypes: [
       { type: 'gsc_daily_digest', description: 'GSC Daily Digest - Analyze search console data' },

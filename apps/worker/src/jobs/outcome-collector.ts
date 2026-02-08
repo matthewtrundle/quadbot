@@ -82,19 +82,14 @@ export async function outcomeCollector(ctx: JobContext): Promise<void> {
       .orderBy(desc(metricSnapshots.captured_at))
       .limit(1);
 
-    let valueBefore: number;
-    let valueAfter: number;
-
-    if (beforeSnapshot.length > 0 && afterSnapshot.length > 0) {
-      // Use real metric snapshot data
-      valueBefore = beforeSnapshot[0].value;
-      valueAfter = afterSnapshot[0].value;
-    } else {
-      // Fallback: simulate metrics if no snapshots available
-      valueBefore = 50 + Math.random() * 50;
-      valueAfter = valueBefore + (Math.random() - 0.3) * 20;
+    if (beforeSnapshot.length === 0 || afterSnapshot.length === 0) {
+      logger.warn({ jobId, recommendationId: rec.id },
+        'Skipping outcome: missing metric snapshots');
+      continue;
     }
 
+    const valueBefore = beforeSnapshot[0].value;
+    const valueAfter = afterSnapshot[0].value;
     const delta = valueAfter - valueBefore;
     const metricName = rec.source === 'gsc_daily_digest' ? 'position_change' : 'engagement_score';
 

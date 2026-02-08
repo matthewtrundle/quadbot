@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation';
 import { db } from '@/lib/db';
 import { recommendations, brands, actionDrafts, signals } from '@quadbot/db';
 import { desc, eq, isNotNull, gte, and } from 'drizzle-orm';
@@ -5,11 +6,21 @@ import { PriorityQueue } from '@/components/priority-queue';
 import { BrandHealthGrid } from '@/components/brand-health-grid';
 import { SignalFeed } from '@/components/signal-feed';
 import { TimeBudgetBar } from '@/components/time-budget-bar';
+import { getSession, isAdmin } from '@/lib/auth-session';
 
 export const dynamic = 'force-dynamic';
 
 export default async function DashboardPage() {
-  // Get top 20 ranked recommendations across all brands
+  const session = await getSession();
+  if (!session) redirect('/login');
+  const userBrandId = (session.user as any).brandId as string | null;
+  const admin = isAdmin(session);
+
+  const brandFilter = !admin && userBrandId
+    ? eq(recommendations.brand_id, userBrandId)
+    : undefined;
+
+  // Get top 20 ranked recommendations
   const priorityRecs = await db
     .select({
       id: recommendations.id,
@@ -27,12 +38,16 @@ export default async function DashboardPage() {
     })
     .from(recommendations)
     .innerJoin(brands, eq(recommendations.brand_id, brands.id))
-    .where(and(isNotNull(recommendations.priority_rank), eq(recommendations.status, 'active')))
+    .where(and(isNotNull(recommendations.priority_rank), eq(recommendations.status, 'active'), brandFilter))
     .orderBy(recommendations.priority_rank)
     .limit(20);
 
-  // Get all brands for health grid
-  const allBrands = await db.select().from(brands);
+  // Get brands for health grid
+  const allBrands = admin
+    ? await db.select().from(brands)
+    : userBrandId
+      ? await db.select().from(brands).where(eq(brands.id, userBrandId))
+      : [];
 
   // Get brand-level stats
   const brandStats = await Promise.all(
