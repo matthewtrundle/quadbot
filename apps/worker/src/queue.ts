@@ -106,10 +106,10 @@ export async function startConsumer(
       }
 
       // If nothing was processed, wait before polling again to conserve Redis requests
-      // With 18 brands, each cycle is ~20 Redis commands. At 5s idle interval:
-      // ~345,600 requests/day idle vs 1.7M at 1s interval
+      // With 18 brands, each cycle is ~20 Redis commands. At 20s idle interval:
+      // ~86,400 requests/day idle (~$5/month on Upstash pay-as-you-go)
       if (!processed) {
-        await new Promise((resolve) => setTimeout(resolve, 5000));
+        await new Promise((resolve) => setTimeout(resolve, 20000));
       }
     } catch (err) {
       if ((err as Error).message?.includes('Connection is closed')) {
@@ -123,7 +123,7 @@ export async function startConsumer(
         await new Promise((resolve) => setTimeout(resolve, 60000));
       } else {
         logger.error({ err }, 'Queue consumer error');
-        await new Promise((resolve) => setTimeout(resolve, 5000));
+        await new Promise((resolve) => setTimeout(resolve, 20000));
       }
     }
   }
