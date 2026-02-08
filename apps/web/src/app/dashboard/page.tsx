@@ -27,7 +27,7 @@ export default async function DashboardPage() {
     })
     .from(recommendations)
     .innerJoin(brands, eq(recommendations.brand_id, brands.id))
-    .where(isNotNull(recommendations.priority_rank))
+    .where(and(isNotNull(recommendations.priority_rank), eq(recommendations.status, 'active')))
     .orderBy(recommendations.priority_rank)
     .limit(20);
 

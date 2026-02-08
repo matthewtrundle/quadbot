@@ -7,6 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ContentBriefSection } from '@/components/content-brief-section';
 import { McpQuickActions } from '@/components/mcp-quick-actions';
+import { RecommendationActions } from '@/components/recommendation-actions';
+import { GscActionsPanel } from '@/components/gsc-actions-panel';
 import { ArrowLeft, ChevronDown } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -59,6 +61,7 @@ export default async function RecommendationDetailPage({
       base_score: recommendations.base_score,
       claude_delta: recommendations.claude_delta,
       created_at: recommendations.created_at,
+      status: recommendations.status,
     })
     .from(recommendations)
     .innerJoin(brands, eq(recommendations.brand_id, brands.id))
@@ -117,39 +120,42 @@ export default async function RecommendationDetailPage({
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
-      {/* Back link */}
-      <Link
-        href="/dashboard"
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <ArrowLeft className="h-3.5 w-3.5" />
-        Back to Dashboard
-      </Link>
+      {/* Breadcrumb */}
+      <nav className="flex items-center gap-1.5 text-sm text-muted-foreground">
+        <Link href="/dashboard" className="hover:text-foreground transition-colors">
+          Dashboard
+        </Link>
+        <span>/</span>
+        <span className="text-foreground truncate max-w-[300px]">{rec.title}</span>
+      </nav>
 
       {/* Header */}
       <div>
-        <div className="flex items-start gap-3">
-          {rec.priority_rank != null && (
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/20 text-sm font-bold text-primary">
-              {rec.priority_rank}
-            </span>
-          )}
-          <div className="space-y-2">
-            <h1 className="text-2xl font-bold">{rec.title}</h1>
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant={priorityColors[rec.priority] || 'outline'}>{rec.priority}</Badge>
-              <Badge variant="outline">{rec.source}</Badge>
-              <Badge variant="secondary">{rec.brand_name}</Badge>
-              {rec.effort_estimate && (
-                <Badge variant="outline" className="uppercase text-[10px] tracking-wide">
-                  {rec.effort_estimate}
-                </Badge>
-              )}
-              <span className="text-xs text-muted-foreground">
-                {new Date(rec.created_at).toLocaleString()}
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3">
+            {rec.priority_rank != null && (
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/20 text-sm font-bold text-primary">
+                {rec.priority_rank}
               </span>
+            )}
+            <div className="space-y-2">
+              <h1 className="text-2xl font-bold">{rec.title}</h1>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant={priorityColors[rec.priority] || 'outline'}>{rec.priority}</Badge>
+                <Badge variant="outline">{rec.source}</Badge>
+                <Badge variant="secondary">{rec.brand_name}</Badge>
+                {rec.effort_estimate && (
+                  <Badge variant="outline" className="uppercase text-[10px] tracking-wide">
+                    {rec.effort_estimate}
+                  </Badge>
+                )}
+                <span className="text-xs text-muted-foreground">
+                  {new Date(rec.created_at).toLocaleString()}
+                </span>
+              </div>
             </div>
           </div>
+          <RecommendationActions recId={rec.id} currentStatus={rec.status} variant="full" />
         </div>
       </div>
 
@@ -284,6 +290,9 @@ export default async function RecommendationDetailPage({
           </CardContent>
         </Card>
       )}
+
+      {/* GSC Actions */}
+      <GscActionsPanel brandId={rec.brand_id} recData={rec.data as Record<string, unknown>} source={rec.source} />
 
       {/* MCP Quick Actions */}
       <McpQuickActions actions={mcpActions} />

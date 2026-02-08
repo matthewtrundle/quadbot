@@ -1,7 +1,10 @@
+'use client';
+
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ListOrdered, Inbox } from 'lucide-react';
+import { RecommendationActions } from '@/components/recommendation-actions';
 
 type PriorityRec = {
   id: string;
@@ -82,6 +85,7 @@ export function PriorityQueue({ recommendations }: { recommendations: PriorityRe
                       {(rec.roi_score * 100).toFixed(0)}pts
                     </span>
                   )}
+                  <RecommendationActions recId={rec.id} currentStatus="active" variant="inline" />
                 </div>
               </Link>
             ))}

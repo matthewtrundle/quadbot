@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Nav } from '@/components/nav';
+import { Toaster } from 'sonner';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -13,6 +14,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen">
         <Nav />
         <main className="ml-64 min-h-screen p-8">{children}</main>
+        <Toaster theme="dark" richColors position="bottom-right" />
       </body>
     </html>
   );

@@ -44,7 +44,8 @@ export async function evaluationScorer(ctx: JobContext): Promise<void> {
       .from(actionDrafts)
       .where(eq(actionDrafts.recommendation_id, rec.id));
 
-    const wasAccepted = drafts.some(
+    const isDismissed = rec.status === 'dismissed';
+    const wasAccepted = !isDismissed && drafts.some(
       (d) => d.status === 'approved' || d.status === 'executed_stub' || d.status === 'executed',
     );
 

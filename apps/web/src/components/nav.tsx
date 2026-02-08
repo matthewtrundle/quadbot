@@ -1,7 +1,58 @@
+'use client';
+
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Building2, LayoutDashboard, CalendarClock, Download, DollarSign, Settings, Sparkles } from 'lucide-react';
 
+type NavItem = {
+  href: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  matchPrefix: string;
+};
+
+const coreItems: NavItem[] = [
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, matchPrefix: '/dashboard' },
+  { href: '/dashboard/daily-diff', label: 'Daily Diff', icon: CalendarClock, matchPrefix: '/dashboard/daily-diff' },
+  { href: '/brands', label: 'Brands', icon: Building2, matchPrefix: '/brands' },
+];
+
+const setupItems: NavItem[] = [
+  { href: '/onboarding/gsc-import', label: 'Google Import', icon: Download, matchPrefix: '/onboarding' },
+  { href: '/dashboard/usage', label: 'Usage & Costs', icon: DollarSign, matchPrefix: '/dashboard/usage' },
+  { href: '/dashboard/settings', label: 'Settings', icon: Settings, matchPrefix: '/dashboard/settings' },
+];
+
+function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
+  // Special case: /dashboard should only match exactly or sub-routes not claimed by other items
+  const isActive =
+    item.matchPrefix === '/dashboard'
+      ? pathname === '/dashboard' ||
+        (pathname.startsWith('/dashboard') &&
+          !pathname.startsWith('/dashboard/daily-diff') &&
+          !pathname.startsWith('/dashboard/usage') &&
+          !pathname.startsWith('/dashboard/settings') &&
+          !pathname.startsWith('/dashboard/improvements'))
+      : pathname.startsWith(item.matchPrefix);
+
+  return (
+    <Link
+      href={item.href}
+      className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors ${
+        isActive
+          ? 'bg-secondary text-primary border-l-2 border-primary'
+          : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+      }`}
+    >
+      <item.icon className="h-4 w-4" />
+      {item.label}
+    </Link>
+  );
+}
+
 export function Nav() {
+  const pathname = usePathname();
+
   return (
     <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r border-border/50 bg-card/80 backdrop-blur-sm">
       <div className="flex h-full flex-col">
@@ -23,52 +74,16 @@ export function Nav() {
           <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Core
           </p>
-          <Link
-            href="/dashboard"
-            className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-foreground/80 transition-colors hover:bg-secondary hover:text-primary"
-          >
-            <LayoutDashboard className="h-4 w-4" />
-            Dashboard
-          </Link>
-          <Link
-            href="/dashboard/daily-diff"
-            className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-          >
-            <CalendarClock className="h-4 w-4" />
-            Daily Diff
-          </Link>
-          <Link
-            href="/brands"
-            className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-foreground/80 transition-colors hover:bg-secondary hover:text-primary"
-          >
-            <Building2 className="h-4 w-4" />
-            Brands
-          </Link>
+          {coreItems.map((item) => (
+            <NavLink key={item.href} item={item} pathname={pathname} />
+          ))}
 
           <p className="mb-2 mt-6 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Setup
           </p>
-          <Link
-            href="/onboarding/gsc-import"
-            className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-          >
-            <Download className="h-4 w-4" />
-            Google Import
-          </Link>
-          <Link
-            href="/dashboard/usage"
-            className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-          >
-            <DollarSign className="h-4 w-4" />
-            Usage & Costs
-          </Link>
-          <Link
-            href="/dashboard/settings"
-            className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-          >
-            <Settings className="h-4 w-4" />
-            Settings
-          </Link>
+          {setupItems.map((item) => (
+            <NavLink key={item.href} item={item} pathname={pathname} />
+          ))}
         </nav>
 
         {/* Footer with version */}

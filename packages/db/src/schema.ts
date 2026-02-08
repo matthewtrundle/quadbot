@@ -105,6 +105,8 @@ export const recommendations = pgTable('recommendations', {
   base_score: real('base_score'),
   claude_delta: real('claude_delta'),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  status: varchar('status', { length: 20 }).notNull().default('active'),
+  dismissed_at: timestamp('dismissed_at', { withTimezone: true }),
 }, (table) => [
   index('idx_recommendations_brand_created').on(table.brand_id, table.created_at),
   index('idx_recommendations_brand_source').on(table.brand_id, table.source),

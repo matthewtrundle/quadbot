@@ -1,7 +1,19 @@
+'use client';
+
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Activity } from 'lucide-react';
 
+const tabs = [
+  { href: '/dashboard', label: 'Overview', exact: true },
+  { href: '/dashboard/daily-diff', label: 'Daily Diff' },
+  { href: '/dashboard/improvements', label: 'Improvements' },
+  { href: '/dashboard/usage', label: 'Usage & Costs' },
+];
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+
   return (
     <div className="space-y-8">
       {/* Premium header */}
@@ -25,30 +37,25 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* Tab navigation */}
       <nav className="flex gap-1 border-b border-border/50">
-        <Link
-          href="/dashboard"
-          className="relative px-4 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-        >
-          Overview
-        </Link>
-        <Link
-          href="/dashboard/daily-diff"
-          className="relative px-4 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-        >
-          Daily Diff
-        </Link>
-        <Link
-          href="/dashboard/improvements"
-          className="relative px-4 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-        >
-          Improvements
-        </Link>
-        <Link
-          href="/dashboard/usage"
-          className="relative px-4 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-        >
-          Usage & Costs
-        </Link>
+        {tabs.map((tab) => {
+          const isActive = tab.exact
+            ? pathname === tab.href
+            : pathname.startsWith(tab.href);
+
+          return (
+            <Link
+              key={tab.href}
+              href={tab.href}
+              className={`relative px-4 py-2.5 text-sm font-medium transition-colors hover:text-foreground ${
+                isActive
+                  ? 'text-foreground after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-primary'
+                  : 'text-muted-foreground'
+              }`}
+            >
+              {tab.label}
+            </Link>
+          );
+        })}
       </nav>
 
       {children}
