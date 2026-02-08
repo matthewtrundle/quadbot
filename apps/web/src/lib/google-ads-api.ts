@@ -98,7 +98,7 @@ export async function exchangeAdsCodeForTokens(code: string): Promise<GoogleAdsT
  * List accessible Google Ads accounts
  *
  * In production, this would use the Google Ads API:
- * GET https://googleads.googleapis.com/v18/customers:listAccessibleCustomers
+ * GET https://googleads.googleapis.com/v21/customers:listAccessibleCustomers
  */
 export async function listAdsAccounts(accessToken: string): Promise<AdsAccountSummary[]> {
   // Google Ads API requires additional headers:
@@ -112,7 +112,7 @@ export async function listAdsAccounts(accessToken: string): Promise<AdsAccountSu
   }
 
   const response = await fetch(
-    'https://googleads.googleapis.com/v18/customers:listAccessibleCustomers',
+    'https://googleads.googleapis.com/v21/customers:listAccessibleCustomers',
     {
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -165,7 +165,7 @@ export async function getCampaignPerformance(
   `;
 
   const response = await fetch(
-    `https://googleads.googleapis.com/v18/customers/${customerId}/googleAds:searchStream`,
+    `https://googleads.googleapis.com/v21/customers/${customerId}/googleAds:searchStream`,
     {
       method: 'POST',
       headers: {
