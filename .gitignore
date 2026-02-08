@@ -7,3 +7,4 @@ dist
 *.tsbuildinfo
 google-credentials.json
 .vercel
+.mcp.json
