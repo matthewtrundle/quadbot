@@ -205,7 +205,6 @@ export async function gscDailyDigest(ctx: JobContext): Promise<void> {
       recommendations_count: result.data.recommendations.length,
     },
     model_meta: result.model_meta,
-    input_data_hash: result.input_data_hash,
   }).returning();
 
   await emitEvent(
@@ -227,8 +226,7 @@ export async function gscDailyDigest(ctx: JobContext): Promise<void> {
       body: rec.description,
       data: { type: rec.type },
       model_meta: result.model_meta,
-      input_data_hash: result.input_data_hash,
-    }).returning();
+      }).returning();
 
     await emitEvent(
       EventType.RECOMMENDATION_CREATED,

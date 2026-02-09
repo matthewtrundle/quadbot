@@ -1,7 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import Handlebars from 'handlebars';
 import { z } from 'zod';
-import { createHash } from 'node:crypto';
 import { logger } from './logger.js';
 
 let client: Anthropic | null = null;
@@ -30,17 +29,7 @@ export type ClaudeResult<T> = {
     input_tokens: number;
     output_tokens: number;
   };
-  input_data_hash: string;
 };
-
-/**
- * Compute a SHA-256 hash of the input variables for traceability.
- * Keys are sorted to ensure deterministic hashing.
- */
-export function computeInputHash(variables: Record<string, unknown>): string {
-  const sorted = JSON.stringify(variables, Object.keys(variables).sort());
-  return createHash('sha256').update(sorted).digest('hex');
-}
 
 export type GroundingValidationResult = {
   valid: boolean;
@@ -123,7 +112,6 @@ export async function callClaude<T>(
           input_tokens: response.usage.input_tokens,
           output_tokens: response.usage.output_tokens,
         },
-        input_data_hash: computeInputHash(variables),
       };
     } catch (err) {
       logger.warn(
