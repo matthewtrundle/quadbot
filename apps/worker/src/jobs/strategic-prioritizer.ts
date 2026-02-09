@@ -1,4 +1,4 @@
-import { recommendations, brands, playbooks } from '@quadbot/db';
+import { recommendations, brands } from '@quadbot/db';
 import { eq, and, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 import type { JobContext } from '../registry.js';
@@ -64,16 +64,8 @@ export async function strategicPrioritizer(ctx: JobContext): Promise<void> {
   const sourceDomain = pendingRecs[0]?.source === 'gsc_daily_digest' ? 'seo' : 'community';
   const signalContext = await getCrossBrandContext(brandId, sourceDomain);
 
-  // Step 3: Find matching playbooks
-  const activePlaybooks = await db
-    .select()
-    .from(playbooks)
-    .where(eq(playbooks.is_active, true));
-
-  const playbookContext = activePlaybooks
-    .map((p) => `[${p.domain}] ${JSON.stringify(p.recommended_actions)}`)
-    .join('\n')
-    .substring(0, 1000);
+  // Step 3: Playbook context (placeholder — playbooks table not yet implemented)
+  const playbookContext = '';
 
   // Step 4: Call Claude for bounded adjustments
   let prompt;
