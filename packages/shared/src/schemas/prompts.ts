@@ -1,5 +1,57 @@
 import { z } from 'zod';
 
+// Shared recommendation type enum for all pipeline outputs
+export const recommendationTypeEnum = z.enum([
+  'ranking_improvement',
+  'ranking_decline',
+  'ctr_anomaly',
+  'not_indexed',
+  'page_not_indexed',
+  'indexing_issue',
+  'new_page',
+  'content_updated',
+  'crawl_error',
+  'crawl_issue',
+  'page_error',
+  'fetch_error',
+  'redirect_error',
+  'sitemap_issue',
+  'sitemap_error',
+  'sitemap_missing',
+  'sitemap_outdated',
+  'deleted_page',
+  'page_removed',
+  'content_gap',
+  'opportunity',
+  'warning',
+  'general',
+  'budget_alert',
+  'performance_decline',
+  'performance_improvement',
+  'audience_shift',
+  'conversion_anomaly',
+  'traffic_anomaly',
+  'engagement_change',
+  'cross_channel_opportunity',
+  'attribution_insight',
+  'flag_for_review',
+  'update_meta',
+  'update_content',
+]);
+
+// Action type enum for action draft generator
+export const actionTypeEnum = z.enum([
+  'gsc-index-request',
+  'gsc-inspection',
+  'gsc-sitemap-notify',
+  'flag_for_review',
+  'update_meta',
+  'update_content',
+  'publish_post',
+  'send_reply',
+  'general',
+]);
+
 export const communityModerationOutputSchema = z.object({
   decision: z.enum(['approve', 'reject', 'escalate', 'flag']),
   reason: z.string(),
@@ -9,18 +61,18 @@ export const communityModerationOutputSchema = z.object({
 });
 
 export const gscChangeSchema = z.object({
-  query: z.string(),
+  query: z.string().min(1).max(500),
   clicks_delta: z.number(),
   impressions_delta: z.number(),
-  ctr_delta: z.number(),
-  position_delta: z.number(),
+  ctr_delta: z.number().min(-1).max(1),
+  position_delta: z.number().min(-100).max(100),
 });
 
 export const gscRecommendationSchema = z.object({
-  type: z.string(),
+  type: recommendationTypeEnum,
   priority: z.enum(['low', 'medium', 'high', 'critical']),
-  title: z.string(),
-  description: z.string(),
+  title: z.string().min(5).max(300),
+  description: z.string().min(10).max(2000),
 });
 
 export const gscDigestOutputSchema = z.object({
@@ -30,8 +82,14 @@ export const gscDigestOutputSchema = z.object({
 });
 
 export const actionDraftGeneratorOutputSchema = z.object({
-  type: z.string(),
-  payload: z.record(z.unknown()),
+  type: actionTypeEnum,
+  payload: z.record(z.unknown()).refine(
+    (obj) => {
+      const keys = Object.keys(obj);
+      return keys.length >= 1 && keys.length <= 20;
+    },
+    { message: 'payload must have between 1 and 20 keys' },
+  ),
   risk: z.enum(['low', 'medium', 'high']),
   guardrails_applied: z.record(z.unknown()),
   requires_approval: z.boolean(),
@@ -94,7 +152,7 @@ export const adsPerformanceOutputSchema = z.object({
     trend: z.enum(['up', 'down', 'stable']),
   })),
   recommendations: z.array(z.object({
-    type: z.string(),
+    type: recommendationTypeEnum,
     priority: z.enum(['low', 'medium', 'high', 'critical']),
     title: z.string(),
     description: z.string(),
@@ -117,7 +175,7 @@ export const analyticsInsightsOutputSchema = z.object({
     exit_rate: z.number(),
   })),
   recommendations: z.array(z.object({
-    type: z.string(),
+    type: recommendationTypeEnum,
     priority: z.enum(['low', 'medium', 'high', 'critical']),
     title: z.string(),
     description: z.string(),
@@ -134,7 +192,7 @@ export const crossChannelCorrelationSchema = z.object({
     confidence: z.number().min(0).max(1),
   })),
   unified_recommendations: z.array(z.object({
-    type: z.string(),
+    type: recommendationTypeEnum,
     priority: z.enum(['low', 'medium', 'high', 'critical']),
     title: z.string(),
     description: z.string(),

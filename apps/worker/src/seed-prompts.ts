@@ -1,15 +1,83 @@
 import { db } from '@quadbot/db';
 import { promptVersions } from '@quadbot/db';
+import { sql } from 'drizzle-orm';
 import { logger } from './logger.js';
+
+const GROUNDING_RULES = {
+  gsc_digest: `
+
+CRITICAL GROUNDING RULES:
+- ONLY reference queries, URLs, and metrics that appear in the provided GSC data.
+- NEVER invent queries or pages not present in the input.
+- Every recommendation MUST reference at least one specific query from the input data.
+- If the data is insufficient to make a recommendation, say so rather than fabricating.
+- All numeric deltas must be calculated from the provided data, not invented.`,
+
+  action_draft: `
+
+CRITICAL GROUNDING RULES:
+- The action MUST directly address the recommendation provided.
+- NEVER introduce topics, URLs, or data not present in the recommendation or brand context.
+- If the recommendation is unclear or insufficient, set type to "flag_for_review".
+- The payload must only contain information derivable from the input.`,
+
+  trend_brief: `
+
+CRITICAL GROUNDING RULES:
+- All content suggestions MUST connect the specific trend to the specific brand.
+- NEVER suggest content about unrelated topics.
+- Headlines and outlines must reference the actual trend title and brand industry.
+- If the trend is too generic or irrelevant to the brand, indicate low urgency and note the weak connection.`,
+
+  signal_extractor: `
+
+CRITICAL GROUNDING RULES:
+- The signal MUST be derived from the provided recommendation and outcome data.
+- NEVER invent metrics or outcomes not present in the input.
+- The evidence field must reference specific data points from the input.
+- If the outcome data is insufficient, set confidence below 0.3.`,
+
+  strategic_prioritizer: `
+
+CRITICAL GROUNDING RULES:
+- Only adjust priorities for recommendations listed in the input.
+- NEVER reference recommendation IDs not present in the input data.
+- Reasoning must cite specific attributes from the provided recommendations.
+- If insufficient context to adjust, return delta_rank of 0 with explanation.`,
+
+  brand_profiler: `
+
+CRITICAL GROUNDING RULES:
+- The profile MUST be based solely on the provided website content.
+- NEVER guess or fabricate information not evidenced in the website text.
+- If the website content is insufficient, use conservative/generic values and note limitations.
+- Keywords and competitors must be inferable from the actual content provided.`,
+
+  trend_filter: `
+
+CRITICAL GROUNDING RULES:
+- Only evaluate trends listed in the input data.
+- Relevance assessment must reference specific brand keywords, industry, or audience.
+- NEVER fabricate trend details not present in the input.
+- If a trend's content is ambiguous, err on the side of marking it irrelevant.`,
+
+  community_moderation: `
+
+CRITICAL GROUNDING RULES:
+- Base your decision ONLY on the provided post content and community rules.
+- NEVER reference content not present in the post.
+- If the post is ambiguous, set needs_human_review to true.
+- Tags must describe actual characteristics of the provided content.`,
+};
 
 const PROMPTS = [
   {
     name: 'community_moderation_classifier_v1',
-    version: 1,
+    version: 2,
     model: 'claude-sonnet-4-20250514',
     system_prompt: `You are a community moderation assistant for a brand. Your job is to classify user-generated content (posts, comments) against the brand's community rules and voice guidelines.
 
-You must return a JSON object with your classification. Be consistent, fair, and err on the side of caution for edge cases.`,
+You must return a JSON object with your classification. Be consistent, fair, and err on the side of caution for edge cases.${GROUNDING_RULES.community_moderation}`,
     user_prompt_template: `Classify the following community post for brand "{{brand_name}}".
 
 ## Community Rules
@@ -35,12 +103,17 @@ Return a JSON object with:
   },
   {
     name: 'gsc_digest_recommender_v1',
-    version: 1,
+    version: 2,
     model: 'claude-sonnet-4-20250514',
     system_prompt: `You are an SEO analyst assistant. You analyze Google Search Console data comparing today vs yesterday to identify significant changes and provide actionable recommendations.
 
-Return structured JSON with your analysis. Focus on meaningful changes, not noise.`,
+Return structured JSON with your analysis. Focus on meaningful changes, not noise.${GROUNDING_RULES.gsc_digest}`,
     user_prompt_template: `Analyze the following Google Search Console data for brand "{{brand_name}}".
+
+## Brand Context
+Domain: {{brand_domain}}
+Industry: {{brand_industry}}
+Description: {{brand_description}}
 
 ## Today's Data
 {{gsc_today}}
@@ -62,11 +135,11 @@ Focus on:
   },
   {
     name: 'action_draft_generator_v1',
-    version: 1,
+    version: 2,
     model: 'claude-sonnet-4-20250514',
     system_prompt: `You are an action planning assistant. Given a recommendation, you generate a concrete action draft that can be executed (or reviewed before execution).
 
-You must respect the brand's guardrails and mode. In Assist mode, generate actions that require human approval. Always assess risk accurately.`,
+You must respect the brand's guardrails and mode. In Assist mode, generate actions that require human approval. Always assess risk accurately.${GROUNDING_RULES.action_draft}`,
     user_prompt_template: `Generate an action draft for the following recommendation.
 
 ## Recommendation
@@ -77,6 +150,8 @@ Priority: {{recommendation_priority}}
 Data: {{recommendation_data}}
 
 ## Brand Context
+Name: {{brand_name}}
+Industry: {{brand_industry}}
 Mode: {{brand_mode}}
 Guardrails: {{brand_guardrails}}
 
@@ -86,8 +161,8 @@ Guardrails: {{brand_guardrails}}
 {{/if}}
 
 Return a JSON object with:
-- type: string action type (e.g., "publish_post", "update_meta", "send_reply", "flag_for_review")
-- payload: object with action-specific data
+- type: string action type (one of: "gsc-index-request", "gsc-inspection", "gsc-sitemap-notify", "flag_for_review", "update_meta", "update_content", "publish_post", "send_reply", "general")
+- payload: object with action-specific data (1-20 keys)
 - risk: "low" | "medium" | "high"
 - guardrails_applied: object showing which guardrails were checked
 - requires_approval: boolean (should be true in Assist mode)`,
@@ -96,14 +171,14 @@ Return a JSON object with:
   // Phase 4: Signal Extractor
   {
     name: 'signal_extractor_v1',
-    version: 1,
+    version: 2,
     model: 'claude-sonnet-4-20250514',
     system_prompt: `You are a pattern recognition assistant. Given a recommendation and its measured outcome, extract a generalizable signal that could be useful for other brands or future decisions.
 
 Focus on patterns that are:
 - Actionable: can inform future recommendations
 - Generalizable: not too specific to one brand
-- Evidence-based: grounded in the outcome data
+- Evidence-based: grounded in the outcome data${GROUNDING_RULES.signal_extractor}
 
 Return a JSON object with the signal details.`,
     user_prompt_template: `Extract a signal from the following recommendation and outcome.
@@ -134,11 +209,11 @@ Return a JSON object with:
   // Phase 5: Strategic Prioritizer
   {
     name: 'strategic_prioritizer_v1',
-    version: 1,
+    version: 2,
     model: 'claude-sonnet-4-20250514',
     system_prompt: `You are a strategic prioritization assistant. Given a set of pending recommendations with base scores, brand context, cross-brand signals, and applicable playbooks, adjust the priority ranking.
 
-Your adjustments are bounded: you can only shift a recommendation's rank by -2 to +2 positions. The deterministic base score does most of the work; your role is to apply judgment that algorithms cannot.
+Your adjustments are bounded: you can only shift a recommendation's rank by -2 to +2 positions. The deterministic base score does most of the work; your role is to apply judgment that algorithms cannot.${GROUNDING_RULES.strategic_prioritizer}
 
 Return a JSON array of adjustments.`,
     user_prompt_template: `Prioritize the following recommendations for brand "{{brand_name}}".
@@ -172,11 +247,11 @@ Return a JSON object with:
   // Brand Profiler: auto-detect brand profile from website content
   {
     name: 'brand_profiler_v1',
-    version: 1,
+    version: 2,
     model: 'claude-sonnet-4-20250514',
     system_prompt: `You are a brand analysis assistant. Given website content and a brand name, you identify the brand's industry, business description, target audience, relevant keywords, and likely competitors.
 
-Return structured JSON. Be specific and accurate based on the actual website content provided.`,
+Return structured JSON. Be specific and accurate based on the actual website content provided.${GROUNDING_RULES.brand_profiler}`,
     user_prompt_template: `Analyze the following brand and website content to build a brand profile.
 
 ## Brand Name
@@ -196,7 +271,7 @@ Return a JSON object with:
   // Trend Relevance + Sensitivity Filter
   {
     name: 'trend_relevance_filter_v1',
-    version: 1,
+    version: 2,
     model: 'claude-sonnet-4-20250514',
     system_prompt: `You are a trend relevance and sensitivity filter for a brand's content recommendations. You evaluate trending topics against a brand's profile to determine:
 
@@ -212,7 +287,7 @@ SENSITIVITY CATEGORIES (always flag these):
 - Child exploitation or endangerment
 - Health crises or pandemics (unless the brand is in healthcare)
 
-A trend can be relevant but still sensitive. Filter OUT trends that are sensitive OR irrelevant.
+A trend can be relevant but still sensitive. Filter OUT trends that are sensitive OR irrelevant.${GROUNDING_RULES.trend_filter}
 
 Return structured JSON evaluating each trend.`,
     user_prompt_template: `Filter the following trending topics for brand relevance and sensitivity.
@@ -242,7 +317,7 @@ For each trend (by index), return a JSON object with:
   // Trend Content Brief Enricher: generates multi-platform content briefs from trending topics
   {
     name: 'trend_brief_enricher_v1',
-    version: 1,
+    version: 2,
     model: 'claude-sonnet-4-20250514',
     system_prompt: `You are a content strategist. Given a trending topic and brand context, you create structured multi-platform content briefs that a content creator can immediately act on.
 
@@ -250,7 +325,7 @@ Your briefs must be:
 - ACTIONABLE: specific headlines, outlines, and platform-specific angles ready to use
 - BRAND-ALIGNED: tone, keywords, and angles match the brand's industry and audience
 - MULTI-PLATFORM: provide angles for blog, social media, and email where appropriate
-- TIME-SENSITIVE: reflect the trend's lifecycle stage and urgency
+- TIME-SENSITIVE: reflect the trend's lifecycle stage and urgency${GROUNDING_RULES.trend_brief}
 
 Return structured JSON matching the requested schema exactly.`,
     user_prompt_template: `Create a multi-platform content brief for the following trending topic.
@@ -259,6 +334,11 @@ Return structured JSON matching the requested schema exactly.`,
 Title: {{trend_title}}
 Description: {{trend_body}}
 Source: {{trend_source}}
+
+{{#if trend_evidence}}
+## Source Evidence
+{{trend_evidence}}
+{{/if}}
 
 ## Brand Context
 Name: {{brand_name}}
@@ -286,8 +366,8 @@ export async function seedPrompts(): Promise<void> {
 
   for (const prompt of PROMPTS) {
     const existing = await db.query.promptVersions.findFirst({
-      where: (pv, { eq, and }) =>
-        and(eq(pv.name, prompt.name), eq(pv.version, prompt.version)),
+      where: (pv, { eq: e, and: a }) =>
+        a(e(pv.name, prompt.name), e(pv.version, prompt.version)),
     });
 
     if (existing) {
@@ -295,7 +375,13 @@ export async function seedPrompts(): Promise<void> {
       continue;
     }
 
+    // Deactivate older versions of the same prompt name
+    await db
+      .update(promptVersions)
+      .set({ is_active: false })
+      .where(sql`${promptVersions.name} = ${prompt.name} AND ${promptVersions.is_active} = true`);
+
     await db.insert(promptVersions).values(prompt);
-    logger.info({ name: prompt.name, version: prompt.version }, 'Seeded prompt version');
+    logger.info({ name: prompt.name, version: prompt.version }, 'Seeded prompt version (deactivated older versions)');
   }
 }

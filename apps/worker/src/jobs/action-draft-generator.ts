@@ -169,6 +169,8 @@ export async function actionDraftGenerator(ctx: JobContext): Promise<void> {
     // Fall back to LLM for other recommendation types
     const prompt = await loadActivePrompt('action_draft_generator_v1');
 
+    const guardrails = (brand[0].guardrails || {}) as Record<string, unknown>;
+
     const result = await callClaude(
       prompt,
       {
@@ -177,8 +179,10 @@ export async function actionDraftGenerator(ctx: JobContext): Promise<void> {
         recommendation_source: recommendation.source,
         recommendation_priority: recommendation.priority,
         recommendation_data: JSON.stringify(recData),
+        brand_name: brand[0].name,
+        brand_industry: (guardrails.industry as string) || 'unknown',
         brand_mode: brand[0].mode,
-        brand_guardrails: JSON.stringify(brand[0].guardrails),
+        brand_guardrails: JSON.stringify(guardrails),
       },
       actionDraftGeneratorOutputSchema,
     );

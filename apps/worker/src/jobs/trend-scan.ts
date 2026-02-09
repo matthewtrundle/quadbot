@@ -267,6 +267,38 @@ async function ensureGuardrails(ctx: JobContext, brand: { id: string; name: stri
  * Enrich a content_opportunity recommendation with a structured multi-platform content brief.
  * Returns the brief content or null if enrichment fails.
  */
+/**
+ * Gather source evidence from a recommendation's data for grounding.
+ */
+function gatherSourceEvidence(data: Record<string, unknown>): string {
+  const parts: string[] = [];
+
+  // Source URLs from news articles
+  const articles = data.articles as Array<{ title?: string; url?: string; source?: string }> | undefined;
+  if (articles?.length) {
+    for (const article of articles) {
+      parts.push(`- Article: "${article.title || 'untitled'}" (${article.source || 'unknown source'}) — ${article.url || 'no URL'}`);
+    }
+  }
+
+  // Source URL if directly available
+  if (data.url) {
+    parts.push(`- Source URL: ${data.url}`);
+  }
+
+  // Subreddit if from Reddit
+  if (data.subreddit) {
+    parts.push(`- Subreddit: r/${data.subreddit} (score: ${data.score || 'unknown'})`);
+  }
+
+  // Keyword if from keyword search
+  if (data.keyword) {
+    parts.push(`- Search keyword: "${data.keyword}"`);
+  }
+
+  return parts.length > 0 ? parts.join('\n') : 'No source evidence available';
+}
+
 async function enrichTrendWithBrief(
   rec: { title: string; body: string; data: Record<string, unknown> },
   guardrails: BrandGuardrails,
@@ -282,6 +314,7 @@ async function enrichTrendWithBrief(
         trend_title: rec.title,
         trend_body: rec.body,
         trend_source: String(rec.data.source || 'unknown'),
+        trend_evidence: gatherSourceEvidence(rec.data),
         brand_name: brandName,
         brand_industry: guardrails.industry || 'unknown',
         brand_description: guardrails.description || '',

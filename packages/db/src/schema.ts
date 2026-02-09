@@ -96,6 +96,7 @@ export const recommendations = pgTable('recommendations', {
   body: text('body').notNull(),
   data: jsonb('data').$type<Record<string, unknown>>().default({}),
   model_meta: jsonb('model_meta').$type<Record<string, unknown>>(),
+  input_data_hash: varchar('input_data_hash', { length: 64 }),
   confidence: real('confidence'),
   evaluation_score: real('evaluation_score'),
   roi_score: real('roi_score'),

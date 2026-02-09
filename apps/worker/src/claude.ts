@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import Handlebars from 'handlebars';
 import { z } from 'zod';
+import { createHash } from 'node:crypto';
 import { logger } from './logger.js';
 
 let client: Anthropic | null = null;
@@ -29,19 +30,40 @@ export type ClaudeResult<T> = {
     input_tokens: number;
     output_tokens: number;
   };
+  input_data_hash: string;
 };
 
-export type CallClaudeOptions = {
+/**
+ * Compute a SHA-256 hash of the input variables for traceability.
+ * Keys are sorted to ensure deterministic hashing.
+ */
+export function computeInputHash(variables: Record<string, unknown>): string {
+  const sorted = JSON.stringify(variables, Object.keys(variables).sort());
+  return createHash('sha256').update(sorted).digest('hex');
+}
+
+export type GroundingValidationResult = {
+  valid: boolean;
+  reason?: string;
+};
+
+export type GroundingValidator<T> = (
+  output: T,
+  inputs: Record<string, unknown>,
+) => GroundingValidationResult;
+
+export type CallClaudeOptions<T = unknown> = {
   retries?: number;
   signalContext?: string;
   playbookContext?: string;
+  groundingValidator?: GroundingValidator<T>;
 };
 
 export async function callClaude<T>(
   prompt: PromptVersion,
   variables: Record<string, unknown>,
   schema: z.ZodSchema<T>,
-  retriesOrOptions: number | CallClaudeOptions = 2,
+  retriesOrOptions: number | CallClaudeOptions<T> = 2,
 ): Promise<ClaudeResult<T>> {
   const options = typeof retriesOrOptions === 'number'
     ? { retries: retriesOrOptions }
@@ -85,6 +107,14 @@ export async function callClaude<T>(
       const parsed = JSON.parse(jsonStr);
       const validated = schema.parse(parsed);
 
+      // Run grounding validator if provided
+      if (options.groundingValidator) {
+        const groundingResult = options.groundingValidator(validated, variables);
+        if (!groundingResult.valid) {
+          throw new Error(`Grounding validation failed: ${groundingResult.reason || 'output not grounded in input data'}`);
+        }
+      }
+
       return {
         data: validated,
         model_meta: {
@@ -93,6 +123,7 @@ export async function callClaude<T>(
           input_tokens: response.usage.input_tokens,
           output_tokens: response.usage.output_tokens,
         },
+        input_data_hash: computeInputHash(variables),
       };
     } catch (err) {
       logger.warn(
