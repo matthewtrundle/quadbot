@@ -36,7 +36,7 @@ async function getSiteUrlFromIntegration(
   }
 
   const config = integration.config as Record<string, unknown> | null;
-  return (config?.site_url as string) || null;
+  return (config?.siteUrl as string) || (config?.site_url as string) || null;
 }
 
 export const gscSitemapNotifyExecutor: Executor = {

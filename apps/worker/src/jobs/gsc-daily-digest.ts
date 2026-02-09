@@ -57,7 +57,9 @@ async function getGscSiteUrl(
     )
     .limit(1);
 
-  return (integration?.config as { site_url?: string })?.site_url || null;
+  const config = integration?.config as Record<string, unknown> | undefined;
+  // Support both camelCase (siteUrl) and snake_case (site_url) config keys
+  return (config?.siteUrl as string) || (config?.site_url as string) || null;
 }
 
 /**
