@@ -3,11 +3,13 @@ export * from './registry.js';
 export * from './gsc-index-request.js';
 export * from './gsc-inspection.js';
 export * from './gsc-sitemap-notify.js';
+export * from './flag-for-review.js';
 
 import { registerExecutor } from './registry.js';
 import { gscIndexRequestExecutor } from './gsc-index-request.js';
 import { gscInspectionExecutor } from './gsc-inspection.js';
 import { gscSitemapNotifyExecutor } from './gsc-sitemap-notify.js';
+import { flagForReviewExecutor } from './flag-for-review.js';
 
 /**
  * Register all executors with the registry.
@@ -17,4 +19,5 @@ export function registerAllExecutors(): void {
   registerExecutor(gscIndexRequestExecutor);
   registerExecutor(gscInspectionExecutor);
   registerExecutor(gscSitemapNotifyExecutor);
+  registerExecutor(flagForReviewExecutor);
 }

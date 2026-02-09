@@ -101,6 +101,7 @@ export const strategicPrioritizerOutputSchema = z.object({
     delta_rank: z.number().min(-2).max(2),
     effort_estimate: z.enum(['minutes', 'hours', 'days']),
     reasoning: z.string(),
+    drop: z.boolean().optional(),
   })),
 });
 
@@ -244,6 +245,7 @@ export const trendFilterItemSchema = z.object({
   index: z.number(),
   relevant: z.boolean(),
   sensitive: z.boolean(),
+  relevance_confidence: z.number().min(0).max(1),
   relevance_reason: z.string(),
   sensitivity_flag: z.string().optional(),
   suggested_angle: z.string().optional(),

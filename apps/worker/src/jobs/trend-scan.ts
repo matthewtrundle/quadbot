@@ -189,11 +189,13 @@ async function filterTrendsWithLLM(
       filterMap.set(item.index, item);
     }
 
-    // Keep only relevant + non-sensitive trends
+    // Keep only relevant + non-sensitive trends with sufficient confidence.
+    // If the LLM didn't evaluate a trend, EXCLUDE it (safe default).
+    const MIN_RELEVANCE_CONFIDENCE = 0.6;
     const filtered = allRecommendations.filter((_, i) => {
       const verdict = filterMap.get(i);
-      if (!verdict) return true; // If LLM didn't evaluate, keep it
-      return verdict.relevant && !verdict.sensitive;
+      if (!verdict) return false; // LLM didn't evaluate → exclude
+      return verdict.relevant && !verdict.sensitive && verdict.relevance_confidence >= MIN_RELEVANCE_CONFIDENCE;
     });
 
     // Update priorities based on LLM assessment
@@ -211,9 +213,12 @@ async function filterTrendsWithLLM(
     const removedCount = allRecommendations.length - filtered.length;
     const sensitiveCount = result.data.filtered_trends.filter((t) => t.sensitive).length;
     const irrelevantCount = result.data.filtered_trends.filter((t) => !t.relevant).length;
+    const lowConfidenceCount = result.data.filtered_trends.filter(
+      (t) => t.relevant && !t.sensitive && t.relevance_confidence < MIN_RELEVANCE_CONFIDENCE,
+    ).length;
 
     logger.info(
-      { jobId, total: allRecommendations.length, kept: filtered.length, removed: removedCount, sensitive: sensitiveCount, irrelevant: irrelevantCount },
+      { jobId, total: allRecommendations.length, kept: filtered.length, removed: removedCount, sensitive: sensitiveCount, irrelevant: irrelevantCount, lowConfidence: lowConfidenceCount },
       'LLM trend filter applied',
     );
 
@@ -227,11 +232,15 @@ async function filterTrendsWithLLM(
         removed: removedCount,
         sensitive: sensitiveCount,
         irrelevant: irrelevantCount,
+        low_confidence: lowConfidenceCount,
+        min_confidence_threshold: MIN_RELEVANCE_CONFIDENCE,
       },
     };
   } catch (err) {
-    logger.warn({ err, jobId }, 'LLM trend filter failed — falling back to unfiltered');
-    return { filtered: allRecommendations, filterApplied: false, filterMeta: null };
+    // Hard failure: do NOT fall back to unfiltered trends.
+    // Unfiltered trends pollute the pipeline with irrelevant recommendations.
+    logger.error({ err, jobId }, 'LLM trend filter failed — discarding all trends (no silent fallback)');
+    return { filtered: [], filterApplied: false, filterMeta: null };
   }
 }
 
@@ -350,6 +359,26 @@ export async function trendScanIndustry(ctx: JobContext): Promise<void> {
   // Ensure guardrails are populated (lazy auto-detect if needed)
   const guardrails = await ensureGuardrails(ctx, brand[0]);
 
+  // Hard gate: refuse to run with unknown/missing guardrails.
+  // Without knowing what the brand does, we can't assess relevance and
+  // would flood the pipeline with generic news recommendations.
+  if (!guardrails || !guardrails.industry || guardrails.industry === 'unknown') {
+    logger.warn(
+      { jobId, brandId, hasGuardrails: !!guardrails, industry: guardrails?.industry },
+      'Trend scan skipped: brand guardrails incomplete (industry unknown). Run brand profiler first.',
+    );
+    await db.insert(recommendations).values({
+      brand_id: brandId,
+      job_id: jobId,
+      source: 'trend_scan',
+      priority: 'low',
+      title: 'Trend Scan Skipped: Brand Profile Needed',
+      body: `Could not run trend scan for ${brandName} because the brand profile is incomplete (industry unknown). Please update the brand profile or ensure the website is accessible for auto-detection.`,
+      data: { skipped: true, reason: 'guardrails_incomplete' },
+    });
+    return;
+  }
+
   const config = await getBrandConfig(ctx, guardrails);
   const industry = config.industry || 'default';
   const keywords = config.keywords?.length ? config.keywords : [brandName];
@@ -444,11 +473,11 @@ export async function trendScanIndustry(ctx: JobContext): Promise<void> {
     }
   }
 
-  // 5. Apply LLM relevance + sensitivity filter
+  // 5. Apply LLM relevance + sensitivity filter (always — guardrails guaranteed by gate above)
   let finalRecommendations = allRecommendations;
   let filterMeta: Record<string, unknown> | null = null;
 
-  if (guardrails && allRecommendations.length > 0) {
+  if (allRecommendations.length > 0) {
     const filterResult = await filterTrendsWithLLM(allRecommendations, guardrails, brandName, jobId);
     finalRecommendations = filterResult.filtered;
     filterMeta = filterResult.filterMeta;

@@ -14,6 +14,7 @@ const strategicPrioritizerOutputSchema = z.object({
     delta_rank: z.number().min(-2).max(2),
     effort_estimate: z.enum(['minutes', 'hours', 'days']),
     reasoning: z.string(),
+    drop: z.boolean().optional(),
   })),
 });
 
@@ -118,16 +119,18 @@ export async function strategicPrioritizer(ctx: JobContext): Promise<void> {
     { signalContext, playbookContext },
   );
 
-  // Step 5: Apply adjustments
+  // Step 5: Apply adjustments + hard relevance gate
   const adjustmentMap = new Map(
     result.data.adjustments.map((a) => [a.recommendation_id, a]),
   );
+
+  const MIN_FINAL_SCORE = 0.2;
+  let droppedCount = 0;
 
   for (const rec of scored) {
     const adjustment = adjustmentMap.get(rec.id);
     const deltaRank = adjustment?.delta_rank || 0;
     const effortEstimate = adjustment?.effort_estimate || rec.effort_estimate || 'hours';
-    const finalScore = applyClaudeDelta(rec.computed_base_score, deltaRank);
 
     await db
       .update(recommendations)
@@ -139,33 +142,58 @@ export async function strategicPrioritizer(ctx: JobContext): Promise<void> {
       .where(eq(recommendations.id, rec.id));
   }
 
-  // Re-sort by final score and assign ranks
-  const finalScored = scored.map((rec) => {
-    const adjustment = adjustmentMap.get(rec.id);
-    const deltaRank = adjustment?.delta_rank || 0;
-    return {
-      id: rec.id,
-      finalScore: applyClaudeDelta(rec.computed_base_score, deltaRank),
-      effortEstimate: adjustment?.effort_estimate || rec.effort_estimate || 'hours',
-    };
-  });
+  // Build final scored list, excluding Claude-dropped and below-threshold recs
+  const finalScored = scored
+    .map((rec) => {
+      const adjustment = adjustmentMap.get(rec.id);
+      const deltaRank = adjustment?.delta_rank || 0;
+      return {
+        id: rec.id,
+        finalScore: applyClaudeDelta(rec.computed_base_score, deltaRank),
+        effortEstimate: adjustment?.effort_estimate || rec.effort_estimate || 'hours',
+        drop: adjustment?.drop === true,
+        reasoning: adjustment?.reasoning || '',
+      };
+    });
 
-  finalScored.sort((a, b) => b.finalScore - a.finalScore);
+  // Partition into kept vs dropped
+  const kept = finalScored.filter((r) => !r.drop && r.finalScore >= MIN_FINAL_SCORE);
+  const dropped = finalScored.filter((r) => r.drop || r.finalScore < MIN_FINAL_SCORE);
 
-  for (let i = 0; i < finalScored.length; i++) {
+  kept.sort((a, b) => b.finalScore - a.finalScore);
+
+  // Assign ranks to kept recommendations
+  for (let i = 0; i < kept.length; i++) {
     await db
       .update(recommendations)
       .set({
         priority_rank: i + 1,
-        roi_score: Math.round(finalScored[i].finalScore * 1000) / 1000,
+        roi_score: Math.round(kept[i].finalScore * 1000) / 1000,
       })
-      .where(eq(recommendations.id, finalScored[i].id));
+      .where(eq(recommendations.id, kept[i].id));
+  }
+
+  // Mark dropped recommendations: priority_rank = -1 signals "dropped by prioritizer"
+  for (const rec of dropped) {
+    droppedCount++;
+    await db
+      .update(recommendations)
+      .set({
+        priority_rank: -1,
+        roi_score: Math.round(rec.finalScore * 1000) / 1000,
+      })
+      .where(eq(recommendations.id, rec.id));
+    logger.info(
+      { jobId, recommendationId: rec.id, reason: rec.drop ? 'claude_drop' : 'below_threshold', score: rec.finalScore },
+      'Dropped recommendation from prioritization',
+    );
   }
 
   logger.info({
     jobId,
     brandId,
-    rankedCount: scored.length,
+    rankedCount: kept.length,
+    droppedCount,
     adjustmentsApplied: result.data.adjustments.length,
   }, 'Strategic prioritization complete');
 }

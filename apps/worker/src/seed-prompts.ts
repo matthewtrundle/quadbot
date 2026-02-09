@@ -209,11 +209,17 @@ Return a JSON object with:
   // Phase 5: Strategic Prioritizer
   {
     name: 'strategic_prioritizer_v1',
-    version: 2,
+    version: 3,
     model: 'claude-sonnet-4-20250514',
     system_prompt: `You are a strategic prioritization assistant. Given a set of pending recommendations with base scores, brand context, cross-brand signals, and applicable playbooks, adjust the priority ranking.
 
-Your adjustments are bounded: you can only shift a recommendation's rank by -2 to +2 positions. The deterministic base score does most of the work; your role is to apply judgment that algorithms cannot.${GROUNDING_RULES.strategic_prioritizer}
+Your adjustments are bounded: you can only shift a recommendation's rank by -2 to +2 positions. The deterministic base score does most of the work; your role is to apply judgment that algorithms cannot.
+
+IMPORTANT: You can also DROP recommendations that are clearly irrelevant to the brand. Set "drop": true for any recommendation that:
+- Has no meaningful connection to the brand's industry, products, or audience
+- Would waste the brand owner's time to review
+- Is about a topic completely unrelated to the brand
+Recommendations below a 0.2 final score are automatically dropped.${GROUNDING_RULES.strategic_prioritizer}
 
 Return a JSON array of adjustments.`,
     user_prompt_template: `Prioritize the following recommendations for brand "{{brand_name}}".
@@ -241,7 +247,7 @@ Available: {{time_budget}} minutes/day
 {{/if}}
 
 Return a JSON object with:
-- adjustments: array of { recommendation_id, delta_rank (integer -2 to +2), effort_estimate ("minutes" | "hours" | "days"), reasoning (string) }`,
+- adjustments: array of { recommendation_id, delta_rank (integer -2 to +2), effort_estimate ("minutes" | "hours" | "days"), reasoning (string), drop (optional boolean — true to remove clearly irrelevant recommendations) }`,
     is_active: true,
   },
   // Brand Profiler: auto-detect brand profile from website content
@@ -271,7 +277,7 @@ Return a JSON object with:
   // Trend Relevance + Sensitivity Filter
   {
     name: 'trend_relevance_filter_v1',
-    version: 2,
+    version: 3,
     model: 'claude-sonnet-4-20250514',
     system_prompt: `You are a trend relevance and sensitivity filter for a brand's content recommendations. You evaluate trending topics against a brand's profile to determine:
 
@@ -308,7 +314,8 @@ For each trend (by index), return a JSON object with:
   - index: number (0-based index of the trend)
   - relevant: boolean (does this connect to the brand?)
   - sensitive: boolean (does this involve a sensitivity category?)
-  - relevance_reason: string (why it is or isn't relevant)
+  - relevance_confidence: number 0-1 (how confident you are in the relevance assessment — 0.0 = no connection, 1.0 = directly about the brand's core industry. Trends below 0.6 will be discarded.)
+  - relevance_reason: string (why it is or isn't relevant — must reference specific brand keywords, industry, or audience)
   - sensitivity_flag: string (optional — which sensitivity category, if any)
   - suggested_angle: string (optional — how the brand could use this trend, if relevant and not sensitive)
   - priority: "low" | "medium" | "high" | "critical" (adjusted priority based on brand fit)`,
