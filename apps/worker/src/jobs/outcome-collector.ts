@@ -1,4 +1,4 @@
-import { recommendations, actionDrafts, outcomes, metricSnapshots } from '@quadbot/db';
+import { recommendations, actionDrafts, outcomes, metricSnapshots, signalApplications } from '@quadbot/db';
 import { eq, and, lt, desc } from 'drizzle-orm';
 import type { JobContext } from '../registry.js';
 import { logger } from '../logger.js';
@@ -109,6 +109,32 @@ export async function outcomeCollector(ctx: JobContext): Promise<void> {
       `outcome:${rec.id}`,
       'outcome_collector',
     );
+
+    // Close the signal outcome loop: update any signal applications
+    // linked to this recommendation with whether the outcome was positive.
+    // This feeds back into getCrossBrandContext() weighting.
+    // For most metrics (CTR, engagement), positive delta = good.
+    // For inverse metrics (spam_rate, error_rate), negative delta = good.
+    const inverseMetrics = ['spam_rate', 'error_rate', 'bounce_rate'];
+    const isPositive = inverseMetrics.includes(metricKey) ? delta < 0 : delta > 0;
+    const linkedApplications = await db
+      .select({ id: signalApplications.id })
+      .from(signalApplications)
+      .where(eq(signalApplications.recommendation_id, rec.id));
+
+    for (const app of linkedApplications) {
+      await db
+        .update(signalApplications)
+        .set({ outcome_positive: isPositive })
+        .where(eq(signalApplications.id, app.id));
+    }
+
+    if (linkedApplications.length > 0) {
+      logger.info(
+        { recommendationId: rec.id, isPositive, signalApplications: linkedApplications.length },
+        'Updated signal application outcomes',
+      );
+    }
 
     collected++;
   }

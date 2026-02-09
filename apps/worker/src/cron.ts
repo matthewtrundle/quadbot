@@ -1,7 +1,7 @@
 import cron from 'node-cron';
 import { db } from '@quadbot/db';
-import { brands, jobs } from '@quadbot/db';
-import { eq, and } from 'drizzle-orm';
+import { brands, jobs, signals } from '@quadbot/db';
+import { eq, and, gt, sql } from 'drizzle-orm';
 import type Redis from 'ioredis';
 import { enqueue } from './queue.js';
 import { JobType, QUEUE_KEY } from '@quadbot/shared';
@@ -82,6 +82,13 @@ export function startCronScheduler(redis: Redis): void {
     await enqueueSystemWideJob(redis, JobType.CAPABILITY_GAP_ANALYZER);
   });
 
+  // Signal Decay - daily at 5:00 AM
+  // Exponential decay: decay_weight = e^(-age_days / HALF_LIFE_DAYS * ln(2))
+  // Half-life of 30 days means a 30-day-old signal has 50% weight.
+  cron.schedule('0 5 * * *', async () => {
+    await decaySignalWeights();
+  });
+
   logger.info('Cron scheduler started');
 }
 
@@ -128,6 +135,38 @@ async function enqueueForAllBrands(redis: Redis, jobType: string): Promise<void>
 
   if (failed > 0) {
     logger.warn({ jobType, succeeded, failed, total: allBrands.length }, 'Cron enqueue completed with failures');
+  }
+}
+
+const SIGNAL_HALF_LIFE_DAYS = 30;
+
+/**
+ * Decay signal weights using exponential decay based on age.
+ * Formula: decay_weight = e^(-age_days * ln(2) / half_life)
+ *
+ * At half_life=30 days:
+ *   0 days  → 1.00
+ *   15 days → 0.71
+ *   30 days → 0.50
+ *   60 days → 0.25
+ *   90 days → 0.13
+ *
+ * Single SQL update — no per-row queries needed.
+ */
+async function decaySignalWeights(): Promise<void> {
+  try {
+    const now = new Date();
+
+    const result = await db
+      .update(signals)
+      .set({
+        decay_weight: sql`exp(-1.0 * extract(epoch from (${now.toISOString()}::timestamptz - ${signals.created_at})) / 86400.0 * ln(2) / ${SIGNAL_HALF_LIFE_DAYS})`,
+      })
+      .where(gt(signals.expires_at, now));
+
+    logger.info('Signal decay weights updated');
+  } catch (err) {
+    logger.error({ err }, 'Failed to decay signal weights');
   }
 }
 

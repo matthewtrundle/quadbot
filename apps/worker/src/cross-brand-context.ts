@@ -29,6 +29,7 @@ type WeightedSignal = {
 export async function getCrossBrandContext(
   brandId: string,
   domain: string,
+  recommendationId?: string,
 ): Promise<string> {
   const now = new Date();
 
@@ -107,6 +108,7 @@ export async function getCrossBrandContext(
     await db.insert(signalApplications).values({
       signal_id: sig.id,
       target_brand_id: brandId,
+      recommendation_id: recommendationId || null,
     });
   }
 

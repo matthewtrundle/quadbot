@@ -11,6 +11,7 @@ import { startCronScheduler } from './cron.js';
 import { startEventProcessor } from './event-processor.js';
 import { startJobReaper } from './job-reaper.js';
 import { seedPrompts } from './seed-prompts.js';
+import { seedEventRules } from './seed-event-rules.js';
 import { registerAllExecutors } from './executors/index.js';
 import { communityModeratePost } from './jobs/community-moderate.js';
 import { gscDailyDigest } from './jobs/gsc-daily-digest.js';
@@ -180,8 +181,9 @@ async function handleMessage(message: string): Promise<void> {
 async function main(): Promise<void> {
   logger.info('Quadbot worker starting...');
 
-  // Seed prompt versions on startup (idempotent)
+  // Seed prompt versions and event rules on startup (idempotent)
   await seedPrompts();
+  await seedEventRules();
 
   // Register all executors for the execution loop
   registerAllExecutors();
