@@ -18,6 +18,10 @@ export function TimeBudgetBar({ brands }: { brands: BrandStat[] }) {
   const totalUsed = brands.reduce((sum, b) => sum + estimateMinutes(b.pending_actions), 0);
   const percentage = totalBudget > 0 ? Math.min(100, (totalUsed / totalBudget) * 100) : 0;
 
+  // Only show brands with pending actions
+  const activeBrands = brands.filter((b) => b.pending_actions > 0);
+  const inactiveCount = brands.length - activeBrands.length;
+
   return (
     <Card className={`overflow-hidden ${percentage > 80 ? 'pulse-glow' : ''}`}>
       <CardContent className="py-5">
@@ -42,17 +46,46 @@ export function TimeBudgetBar({ brands }: { brands: BrandStat[] }) {
             }}
           />
         </div>
-        <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2">
-          {brands.map((b) => (
-            <div key={b.brand_id} className="flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-primary/40" />
-              <span className="text-sm text-foreground/80">{b.brand_name}</span>
-              <span className="text-sm tabular-nums text-muted-foreground">
-                {estimateMinutes(b.pending_actions)}/{b.time_budget}m
-              </span>
-            </div>
-          ))}
-        </div>
+        {activeBrands.length > 0 ? (
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            {activeBrands.map((b) => {
+              const used = estimateMinutes(b.pending_actions);
+              const pct = b.time_budget > 0 ? Math.min(100, (used / b.time_budget) * 100) : 0;
+              return (
+                <div key={b.brand_id} className="flex items-center gap-3">
+                  <span className="min-w-0 flex-1 truncate text-sm text-foreground/80">
+                    {b.brand_name}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <div className="h-1.5 w-16 overflow-hidden rounded-full bg-secondary">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          pct > 80 ? 'bg-destructive' : ''
+                        }`}
+                        style={{
+                          width: `${Math.max(pct, 4)}%`,
+                          ...(pct <= 80 ? { background: 'linear-gradient(90deg, var(--color-quad-cyan), var(--color-quad-purple))' } : {}),
+                        }}
+                      />
+                    </div>
+                    <span className="text-xs tabular-nums text-muted-foreground whitespace-nowrap">
+                      {used}/{b.time_budget}m
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="mt-4 text-sm text-muted-foreground">
+            No pending actions across {brands.length} brands — you&apos;re all caught up.
+          </p>
+        )}
+        {inactiveCount > 0 && activeBrands.length > 0 && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            +{inactiveCount} brand{inactiveCount !== 1 ? 's' : ''} with no pending actions
+          </p>
+        )}
       </CardContent>
     </Card>
   );
