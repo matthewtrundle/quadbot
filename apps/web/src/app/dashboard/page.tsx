@@ -71,6 +71,7 @@ export default async function DashboardPage() {
         brand_id: brand.id,
         brand_name: brand.name,
         mode: brand.mode,
+        is_active: brand.is_active,
         pending_actions: pendingActions.length,
         recent_recommendations: recentRecs.length,
         time_budget: brand.time_budget_minutes_per_day || 30,

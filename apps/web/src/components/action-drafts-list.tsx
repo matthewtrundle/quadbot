@@ -17,7 +17,7 @@ type Tab = 'pending' | 'completed' | 'rejected';
 
 const tabs: { key: Tab; label: string; filter: (d: ActionDraft) => boolean }[] = [
   { key: 'pending', label: 'Pending', filter: (d) => d.status === 'pending' },
-  { key: 'completed', label: 'Completed', filter: (d) => ['approved', 'executed', 'executed_stub'].includes(d.status) },
+  { key: 'completed', label: 'Approved', filter: (d) => ['approved', 'executed', 'executed_stub'].includes(d.status) },
   { key: 'rejected', label: 'Rejected', filter: (d) => d.status === 'rejected' },
 ];
 
@@ -63,7 +63,7 @@ export function ActionDraftsList({ drafts }: { drafts: ActionDraft[] }) {
       {filtered.length === 0 ? (
         <p className="text-center text-sm text-muted-foreground py-8">
           {activeTab === 'pending' && 'No actions awaiting review.'}
-          {activeTab === 'completed' && 'No completed actions yet.'}
+          {activeTab === 'completed' && 'No approved actions yet.'}
           {activeTab === 'rejected' && 'No rejected actions.'}
         </p>
       ) : (
