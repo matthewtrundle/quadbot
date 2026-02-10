@@ -90,9 +90,9 @@ function extractQueriesFromGscData(jsonStr: string): Set<string> {
  * Checks that top_changes reference actual queries from the input data.
  */
 const gscGroundingValidator: GroundingValidator<GscDigestOutput> = (output, inputs) => {
-  const todayQueries = extractQueriesFromGscData(String(inputs.gsc_today || '[]'));
-  const yesterdayQueries = extractQueriesFromGscData(String(inputs.gsc_yesterday || '[]'));
-  const allQueries = new Set([...todayQueries, ...yesterdayQueries]);
+  const thisWeekQueries = extractQueriesFromGscData(String(inputs.gsc_this_week || '[]'));
+  const lastWeekQueries = extractQueriesFromGscData(String(inputs.gsc_last_week || '[]'));
+  const allQueries = new Set([...thisWeekQueries, ...lastWeekQueries]);
 
   if (allQueries.size === 0) {
     // No queries in input data — can't validate, let it pass
@@ -141,30 +141,38 @@ export async function gscDailyDigest(ctx: JobContext): Promise<void> {
     return;
   }
 
-  let gscToday: string;
-  let gscYesterday: string;
+  let gscThisWeek: string;
+  let gscLastWeek: string;
 
   try {
     const accessToken = await getValidGscToken(db, brandId, credentials);
 
     const today = new Date();
-    // GSC data typically has 2-day lag
-    const endDate = new Date(today);
-    endDate.setDate(endDate.getDate() - 2);
-    const startDate = new Date(endDate);
-    startDate.setDate(startDate.getDate() - 1);
+    // GSC data has a 3-day lag; use 7-day rolling windows for stable comparisons.
+    // "This week" = days -10 to -3, "Last week" = days -17 to -10
+    const thisWeekEnd = new Date(today);
+    thisWeekEnd.setDate(thisWeekEnd.getDate() - 3);
+    const thisWeekStart = new Date(thisWeekEnd);
+    thisWeekStart.setDate(thisWeekStart.getDate() - 6);
 
-    const todayStr = endDate.toISOString().split('T')[0];
-    const yesterdayStr = startDate.toISOString().split('T')[0];
+    const lastWeekEnd = new Date(thisWeekStart);
+    lastWeekEnd.setDate(lastWeekEnd.getDate() - 1);
+    const lastWeekStart = new Date(lastWeekEnd);
+    lastWeekStart.setDate(lastWeekStart.getDate() - 6);
 
-    const [todayData, yesterdayData] = await Promise.all([
-      fetchGscSearchAnalytics(accessToken, siteUrl, todayStr, todayStr),
-      fetchGscSearchAnalytics(accessToken, siteUrl, yesterdayStr, yesterdayStr),
+    const fmt = (d: Date) => d.toISOString().split('T')[0];
+
+    const [thisWeekData, lastWeekData] = await Promise.all([
+      fetchGscSearchAnalytics(accessToken, siteUrl, fmt(thisWeekStart), fmt(thisWeekEnd)),
+      fetchGscSearchAnalytics(accessToken, siteUrl, fmt(lastWeekStart), fmt(lastWeekEnd)),
     ]);
 
-    gscToday = JSON.stringify(todayData);
-    gscYesterday = JSON.stringify(yesterdayData);
-    logger.info({ jobId, brandId, siteUrl, todayRows: todayData.length, yesterdayRows: yesterdayData.length }, 'Fetched real GSC data');
+    gscThisWeek = JSON.stringify(thisWeekData);
+    gscLastWeek = JSON.stringify(lastWeekData);
+    logger.info(
+      { jobId, brandId, siteUrl, thisWeek: `${fmt(thisWeekStart)}..${fmt(thisWeekEnd)}`, lastWeek: `${fmt(lastWeekStart)}..${fmt(lastWeekEnd)}`, thisWeekRows: thisWeekData.length, lastWeekRows: lastWeekData.length },
+      'Fetched real GSC data (7-day rolling windows)',
+    );
   } catch (err) {
     logger.warn(
       { jobId, brandId, err: (err as Error).message },
@@ -183,8 +191,8 @@ export async function gscDailyDigest(ctx: JobContext): Promise<void> {
     brand_domain: siteUrl,
     brand_industry: guardrails.industry || 'unknown',
     brand_description: guardrails.description || '',
-    gsc_today: gscToday,
-    gsc_yesterday: gscYesterday,
+    gsc_this_week: gscThisWeek,
+    gsc_last_week: gscLastWeek,
   };
 
   const result = await callClaude(

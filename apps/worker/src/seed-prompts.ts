@@ -103,11 +103,11 @@ Return a JSON object with:
   },
   {
     name: 'gsc_digest_recommender_v1',
-    version: 3,
+    version: 4,
     model: 'claude-sonnet-4-20250514',
-    system_prompt: `You are an SEO analyst assistant. You analyze Google Search Console data comparing today vs yesterday to identify significant changes and provide actionable recommendations.
+    system_prompt: `You are an SEO analyst assistant. You analyze Google Search Console data comparing two 7-day rolling windows (this week vs last week) to identify meaningful trends and provide actionable recommendations.
 
-Return structured JSON with your analysis. Focus on meaningful changes, not noise.${GROUNDING_RULES.gsc_digest}`,
+Return structured JSON with your analysis. Focus on statistically meaningful week-over-week changes, not daily noise. Aggregate metrics per query across the 7-day window.${GROUNDING_RULES.gsc_digest}`,
     user_prompt_template: `Analyze the following Google Search Console data for brand "{{brand_name}}".
 
 ## Brand Context
@@ -115,15 +115,15 @@ Domain: {{brand_domain}}
 Industry: {{brand_industry}}
 Description: {{brand_description}}
 
-## Today's Data
-{{gsc_today}}
+## This Week's Data (7-day window)
+{{gsc_this_week}}
 
-## Yesterday's Data
-{{gsc_yesterday}}
+## Last Week's Data (7-day window)
+{{gsc_last_week}}
 
 Return a JSON object with:
-- summary: string overview of the day's performance
-- top_changes: array of { query, clicks_delta (number), impressions_delta (number), ctr_delta (number), position_delta (number) }
+- summary: string overview of the week's performance vs the prior week
+- top_changes: array of { query, clicks_delta (number), impressions_delta (number), ctr_delta (number), position_delta (number) } — deltas are this_week minus last_week totals
 - recommendations: array of { type, priority ("low"|"medium"|"high"|"critical"), title, description }
 
 IMPORTANT: All delta values must be JSON numbers, not strings. For example: {"position_delta": 0.3} not {"position_delta": "0.3"}
@@ -132,10 +132,11 @@ Valid recommendation type values (you MUST use one of these exactly):
 ranking_improvement, ranking_decline, ctr_anomaly, content_gap, content_strategy, content_optimization, technical_seo, opportunity, warning, general, performance_decline, performance_improvement, flag_for_review
 
 Focus on:
-1. Queries with significant position changes (>3 positions)
-2. CTR anomalies
-3. New queries appearing or disappearing
-4. Actionable SEO recommendations`,
+1. Queries with significant week-over-week position changes (>3 positions)
+2. Queries gaining or losing substantial impressions/clicks
+3. CTR anomalies (high impressions but low CTR)
+4. New queries appearing this week that weren't present last week
+5. Actionable SEO recommendations based on trends, not single-day fluctuations`,
     is_active: true,
   },
   {
