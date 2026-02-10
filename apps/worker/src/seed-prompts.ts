@@ -103,7 +103,7 @@ Return a JSON object with:
   },
   {
     name: 'gsc_digest_recommender_v1',
-    version: 2,
+    version: 3,
     model: 'claude-sonnet-4-20250514',
     system_prompt: `You are an SEO analyst assistant. You analyze Google Search Console data comparing today vs yesterday to identify significant changes and provide actionable recommendations.
 
@@ -123,8 +123,13 @@ Description: {{brand_description}}
 
 Return a JSON object with:
 - summary: string overview of the day's performance
-- top_changes: array of { query, clicks_delta, impressions_delta, ctr_delta, position_delta }
+- top_changes: array of { query, clicks_delta (number), impressions_delta (number), ctr_delta (number), position_delta (number) }
 - recommendations: array of { type, priority ("low"|"medium"|"high"|"critical"), title, description }
+
+IMPORTANT: All delta values must be JSON numbers, not strings. For example: {"position_delta": 0.3} not {"position_delta": "0.3"}
+
+Valid recommendation type values (you MUST use one of these exactly):
+ranking_improvement, ranking_decline, ctr_anomaly, content_gap, content_strategy, content_optimization, technical_seo, opportunity, warning, general, performance_decline, performance_improvement, flag_for_review
 
 Focus on:
 1. Queries with significant position changes (>3 positions)

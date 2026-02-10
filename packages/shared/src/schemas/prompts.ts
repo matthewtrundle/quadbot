@@ -22,6 +22,9 @@ export const recommendationTypeEnum = z.enum([
   'deleted_page',
   'page_removed',
   'content_gap',
+  'content_strategy',
+  'content_optimization',
+  'technical_seo',
   'opportunity',
   'warning',
   'general',
@@ -62,10 +65,10 @@ export const communityModerationOutputSchema = z.object({
 
 export const gscChangeSchema = z.object({
   query: z.string().min(1).max(500),
-  clicks_delta: z.number(),
-  impressions_delta: z.number(),
-  ctr_delta: z.number().min(-1).max(1),
-  position_delta: z.number().min(-100).max(100),
+  clicks_delta: z.coerce.number(),
+  impressions_delta: z.coerce.number(),
+  ctr_delta: z.coerce.number().min(-1).max(1),
+  position_delta: z.coerce.number().min(-100).max(100),
 });
 
 export const gscRecommendationSchema = z.object({
