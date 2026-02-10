@@ -68,6 +68,51 @@ CRITICAL GROUNDING RULES:
 - NEVER reference content not present in the post.
 - If the post is ambiguous, set needs_human_review to true.
 - Tags must describe actual characteristics of the provided content.`,
+
+  ads_performance: `
+
+CRITICAL GROUNDING RULES:
+- ONLY reference campaigns, metrics, and data that appear in the provided Google Ads data.
+- NEVER invent campaign names, spend amounts, or conversion numbers not present in the input.
+- Every recommendation MUST reference at least one specific campaign from the input data.
+- All comparisons must be calculated from the provided current and previous period data.
+- If the data is insufficient to make a recommendation, say so rather than fabricating.`,
+
+  analytics_insights: `
+
+CRITICAL GROUNDING RULES:
+- ONLY reference pages, metrics, and user behavior data present in the provided analytics data.
+- NEVER invent page paths, traffic numbers, or conversion metrics not in the input.
+- Every recommendation MUST be grounded in specific metrics from the input data.
+- All period-over-period comparisons must be calculated from the provided data.
+- If the data is insufficient, say so rather than fabricating insights.`,
+
+  content_optimizer: `
+
+CRITICAL GROUNDING RULES:
+- ONLY reference the specific page URL, title, and metrics provided in the input.
+- NEVER invent search queries, traffic data, or performance metrics not in the input.
+- Title variants must be realistic improvements of the actual current title.
+- Content brief must be relevant to the actual page topic and brand industry.
+- If the data is insufficient for meaningful optimization, say so.`,
+
+  cross_channel: `
+
+CRITICAL GROUNDING RULES:
+- ONLY reference data from the channels actually provided (GSC, Ads, Analytics).
+- NEVER fabricate correlations between channels with no data provided.
+- If a channel's data shows "Not available", do NOT include it in correlations.
+- Every correlation must cite specific metrics from at least two provided data sources.
+- If insufficient cross-channel data exists, say so rather than inventing patterns.`,
+
+  capability_gap: `
+
+CRITICAL GROUNDING RULES:
+- ONLY assess capabilities based on the provided integration and performance data.
+- NEVER invent metrics, integration statuses, or performance numbers not in the input.
+- Improvement suggestions must be grounded in actual gaps visible in the data.
+- Do NOT suggest capabilities that duplicate existing suggestions listed in the input.
+- If the data is insufficient to assess a capability, note limitations honestly.`,
 };
 
 const PROMPTS = [
@@ -370,6 +415,176 @@ Return a JSON object with:
 - suggested_keywords: array of { keyword, intent ("informational"|"navigational"|"transactional"|"commercial"), priority ("primary"|"secondary"|"long_tail") }
 - tone_guidance: { recommended_tone, voice_notes, things_to_avoid (string[]) }
 - timeliness: { urgency ("immediate"|"this_week"|"this_month"|"evergreen"), publish_window, trend_lifecycle_stage ("emerging"|"peaking"|"sustained"|"declining") }`,
+    is_active: true,
+  },
+  // Google Ads Performance Digest
+  {
+    name: 'ads_performance_digest_v1',
+    version: 1,
+    model: 'claude-sonnet-4-20250514',
+    system_prompt: `You are a Google Ads performance analyst. You analyze campaign data comparing two 7-day periods (this week vs last week) to identify meaningful trends, budget issues, and optimization opportunities.
+
+Return structured JSON with your analysis. Focus on statistically meaningful changes, not daily noise.${GROUNDING_RULES.ads_performance}`,
+    user_prompt_template: `Analyze the following Google Ads performance data for brand "{{brand_name}}".
+
+## This Period's Data
+{{ads_data}}
+
+## Previous Period's Data
+{{ads_previous_data}}
+
+## Account Goals
+{{account_goals}}
+
+Return a JSON object with:
+- summary: string overview of the period's ad performance vs the prior period
+- top_campaigns: array of { campaign_name, spend (number), conversions (number), roas (number), trend ("up"|"down"|"stable") }
+- recommendations: array of { type, priority ("low"|"medium"|"high"|"critical"), title, description }
+
+Valid recommendation type values (you MUST use one of these exactly):
+performance_decline, performance_improvement, budget_alert, conversion_anomaly, opportunity, warning, general, flag_for_review
+
+Focus on:
+1. Campaigns with significant ROAS changes vs the previous period
+2. Budget utilization — underspending or overspending vs monthly budget target
+3. Conversion cost trends — rising or falling cost per conversion
+4. Campaigns with high spend but low conversions (waste)
+5. Campaigns with strong ROAS that could benefit from more budget`,
+    is_active: true,
+  },
+  // Google Analytics Insights
+  {
+    name: 'analytics_insights_v1',
+    version: 1,
+    model: 'claude-sonnet-4-20250514',
+    system_prompt: `You are a web analytics analyst. You analyze Google Analytics data comparing two periods to identify meaningful traffic patterns, user behavior changes, and conversion opportunities.
+
+Return structured JSON with your analysis. Focus on actionable insights, not vanity metrics.${GROUNDING_RULES.analytics_insights}`,
+    user_prompt_template: `Analyze the following Google Analytics data for brand "{{brand_name}}".
+
+## This Period's Data
+{{analytics_data}}
+
+## Previous Period's Data
+{{analytics_previous_data}}
+
+## Conversion Goals
+{{conversion_goals}}
+
+Return a JSON object with:
+- summary: string overview of the period's analytics performance
+- key_metrics: { sessions (number), users (number), bounce_rate (number 0-1), avg_session_duration (number in seconds), conversions (number) }
+- top_pages: array of { page_path, pageviews (number), avg_time_on_page (number in seconds), exit_rate (number 0-1) }
+- recommendations: array of { type, priority ("low"|"medium"|"high"|"critical"), title, description }
+
+Valid recommendation type values (you MUST use one of these exactly):
+traffic_anomaly, engagement_change, conversion_anomaly, content_optimization, opportunity, warning, general, performance_decline, performance_improvement, flag_for_review
+
+Focus on:
+1. Significant traffic changes — sources gaining or losing sessions
+2. High-exit pages that may need content or UX improvements
+3. Conversion rate changes and funnel drop-off points
+4. Pages with high engagement that could be leveraged further
+5. Bounce rate anomalies indicating content-audience mismatch`,
+    is_active: true,
+  },
+  // Content Optimizer
+  {
+    name: 'content_optimizer_v1',
+    version: 1,
+    model: 'claude-sonnet-4-20250514',
+    system_prompt: `You are an SEO content optimization specialist. Given a page's current performance metrics and title, you generate optimized title variants, meta descriptions, and optional content briefs to improve search performance.
+
+Return structured JSON with your optimization suggestions. Focus on practical, implementable changes.${GROUNDING_RULES.content_optimizer}`,
+    user_prompt_template: `Optimize the following page for brand "{{brand_name}}".
+
+## Page URL
+{{page_url}}
+
+## Current Title
+{{current_title}}
+
+## Current Performance Metrics
+{{current_metrics}}
+
+Return a JSON object with:
+- page_url: string (the page URL provided)
+- current_title: string (the current title provided)
+- title_variants: array of { title (string), rationale (string), predicted_ctr_lift (number 0-100) }
+- meta_descriptions: array of { description (string, max 160 chars), includes_cta (boolean), target_intent (string) }
+- content_brief: optional object with { target_keyword, search_intent ("informational"|"navigational"|"transactional"|"commercial"), recommended_word_count (number), outline (array of { heading, points (string[]) }), internal_link_opportunities (array of { anchor_text, target_url }) }
+- priority: "low" | "medium" | "high" | "critical"
+- estimated_impact: string describing expected improvement
+
+Focus on:
+1. Title variants that improve CTR while maintaining keyword relevance
+2. Meta descriptions that include a clear call-to-action and match search intent
+3. Content gaps that could be addressed to improve rankings
+4. Internal linking opportunities to strengthen page authority`,
+    is_active: true,
+  },
+  // Cross-Channel Correlator
+  {
+    name: 'cross_channel_correlator_v1',
+    version: 1,
+    model: 'claude-sonnet-4-20250514',
+    system_prompt: `You are a cross-channel marketing analyst. Given data from multiple marketing channels (Google Search Console, Google Ads, Google Analytics), you identify correlations, synergies, and conflicts between channels.
+
+Return structured JSON with your cross-channel analysis. Focus on actionable insights that span multiple channels.${GROUNDING_RULES.cross_channel}`,
+    user_prompt_template: `Analyze cross-channel correlations for brand "{{brand_name}}".
+
+## Google Search Console Data
+{{gsc_data}}
+
+## Google Ads Data
+{{ads_data}}
+
+## Google Analytics Data
+{{analytics_data}}
+
+Return a JSON object with:
+- summary: string overview of cross-channel performance patterns
+- correlations: array of { channel_a (string), channel_b (string), correlation_type ("positive"|"negative"|"neutral"), insight (string), confidence (number 0-1) }
+- unified_recommendations: array of { type, priority ("low"|"medium"|"high"|"critical"), title, description, affected_channels (string[]) }
+
+Valid recommendation type values (you MUST use one of these exactly):
+cross_channel_opportunity, attribution_insight, content_optimization, budget_alert, opportunity, warning, general, flag_for_review
+
+Focus on:
+1. Organic vs paid keyword overlap — are ads cannibalizing organic traffic?
+2. Content performance across channels — pages that perform well organically but poorly in ads or vice versa
+3. Conversion attribution — which channel combinations drive the best outcomes?
+4. Budget allocation opportunities — where should spend shift based on organic strength?
+5. Traffic quality differences between channels`,
+    is_active: true,
+  },
+  // Capability Gap Analyzer (self-improvement)
+  {
+    name: 'capability_gap_analyzer_v1',
+    version: 1,
+    model: 'claude-sonnet-4-20250514',
+    system_prompt: `You are a system capability analyst for QuadBot, an AI marketing assistant platform. Given data about current brand integrations, recommendation performance, and action execution history, you identify gaps in the system's capabilities and suggest improvements.
+
+Return structured JSON with your analysis. Focus on practical improvements that would measurably improve outcomes.${GROUNDING_RULES.capability_gap}`,
+    user_prompt_template: `Analyze capability gaps for the following {{scope}} assessment.
+
+## Current Capabilities & Integration Data
+{{capabilities_data}}
+
+## Existing Improvement Suggestions (avoid duplicates)
+{{existing_suggestions}}
+
+Return a JSON object with:
+- current_capabilities: array of { name (string), data_sources (string[]), quality_score (number 0-1), limitations (string[]) }
+- improvement_suggestions: array of { category ("integration"|"data_source"|"feature"|"analysis"|"automation"), title (string), description (string), rationale (string), expected_impact (string), implementation_effort ("low"|"medium"|"high"), priority ("low"|"medium"|"high"|"critical"), prerequisites (optional string[]), example_use_case (string) }
+- meta_observations: array of { observation (string), implication (string), suggested_action (string) }
+
+Focus on:
+1. Missing integrations that would provide valuable data
+2. Data quality issues that limit recommendation accuracy
+3. Automation opportunities to reduce manual review burden
+4. Analysis gaps — what patterns could be detected with better data?
+5. Feedback loop improvements — how to better measure recommendation outcomes`,
     is_active: true,
   },
 ];
