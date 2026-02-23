@@ -193,7 +193,7 @@ export default async function EvaluationPage({ params }: { params: Promise<{ id:
             {sourceRankings.map((sq, i) => (
               <Card key={sq.source}>
                 <CardContent className="flex items-center justify-between py-3">
-                  <div className="flex items-center gap-4 text-sm">
+                  <div className="flex items-center gap-2 md:gap-4 text-sm flex-wrap">
                     <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/20 text-xs font-bold text-primary">
                       {i + 1}
                     </span>
@@ -234,7 +234,7 @@ export default async function EvaluationPage({ params }: { params: Promise<{ id:
             {runs.map((run) => (
               <Card key={run.id}>
                 <CardContent className="flex items-center justify-between py-3">
-                  <div className="flex items-center gap-4 text-sm">
+                  <div className="flex items-center gap-2 md:gap-4 text-sm flex-wrap">
                     <span className="font-medium">{run.total_recommendations} recs</span>
                     <Badge variant="secondary">
                       Acceptance: {run.acceptance_rate != null ? `${(run.acceptance_rate * 100).toFixed(1)}%` : 'N/A'}
@@ -281,7 +281,7 @@ export default async function EvaluationPage({ params }: { params: Promise<{ id:
             {performance.map((p) => (
               <Card key={p.id}>
                 <CardContent className="flex items-center justify-between py-3">
-                  <div className="flex items-center gap-4 text-sm">
+                  <div className="flex items-center gap-2 md:gap-4 text-sm flex-wrap">
                     <span className="font-medium">{p.prompt_name} v{p.prompt_version}</span>
                     <Badge variant="secondary">
                       {p.total_recommendations} recs
