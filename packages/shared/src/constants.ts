@@ -38,6 +38,9 @@ export const JobType = {
   WEEKLY_SUMMARY_EMAIL: 'weekly_summary_email',
   // Cross-Brand Benchmarks
   BENCHMARK_GENERATOR: 'benchmark_generator',
+  // Content Automation Pipeline
+  CONTENT_WRITER: 'content_writer',
+  CONTENT_AUTOMATION: 'content_automation',
   // Outreach Module
   OUTREACH_CAMPAIGN_SCHEDULER: 'outreach_campaign_scheduler',
   OUTREACH_SEND_EMAIL: 'outreach_send_email',

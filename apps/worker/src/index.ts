@@ -50,6 +50,8 @@ import { weeklySummaryEmail } from './jobs/weekly-summary-email.js';
 import { benchmarkGenerator } from './jobs/benchmark-generator.js';
 // Brand Profiler (on-demand)
 import { brandProfiler } from './jobs/brand-profiler.js';
+// Content Automation Pipeline
+import { contentWriter } from './jobs/content-writer.js';
 // Outreach Module
 import { outreachCampaignScheduler } from './jobs/outreach-campaign-scheduler.js';
 import { outreachSendEmailJob } from './jobs/outreach-send-email.js';
@@ -92,6 +94,8 @@ registerHandler(JobType.WEEKLY_SUMMARY_EMAIL, weeklySummaryEmail);
 registerHandler(JobType.BENCHMARK_GENERATOR, benchmarkGenerator);
 // Brand Profiler (on-demand)
 registerHandler(JobType.BRAND_PROFILER, brandProfiler);
+// Content Automation Pipeline handlers
+registerHandler(JobType.CONTENT_WRITER, contentWriter);
 // Outreach Module handlers
 registerHandler(JobType.OUTREACH_CAMPAIGN_SCHEDULER, outreachCampaignScheduler);
 registerHandler(JobType.OUTREACH_SEND_EMAIL, outreachSendEmailJob);
