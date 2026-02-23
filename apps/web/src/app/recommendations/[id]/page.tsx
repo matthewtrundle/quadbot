@@ -6,8 +6,10 @@ import { eq } from 'drizzle-orm';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ContentBriefSection } from '@/components/content-brief-section';
+import { EnrichedDataSection } from '@/components/enriched-data-section';
 import { McpQuickActions } from '@/components/mcp-quick-actions';
 import { RecommendationActions } from '@/components/recommendation-actions';
+import { RecommendationFeedback } from '@/components/recommendation-feedback';
 import { GscActionsPanel } from '@/components/gsc-actions-panel';
 import { ArrowLeft, ChevronDown } from 'lucide-react';
 
@@ -126,7 +128,7 @@ export default async function RecommendationDetailPage({
           Dashboard
         </Link>
         <span>/</span>
-        <span className="text-foreground truncate max-w-[300px]">{rec.title}</span>
+        <span className="text-foreground truncate max-w-[200px] sm:max-w-[300px]">{rec.title}</span>
       </nav>
 
       {/* Header */}
@@ -145,7 +147,7 @@ export default async function RecommendationDetailPage({
                 <Badge variant="outline">{rec.source}</Badge>
                 <Badge variant="secondary">{rec.brand_name}</Badge>
                 {rec.effort_estimate && (
-                  <Badge variant="outline" className="uppercase text-[10px] tracking-wide">
+                  <Badge variant="outline" className="uppercase text-[11px] tracking-wide">
                     {rec.effort_estimate}
                   </Badge>
                 )}
@@ -165,9 +167,29 @@ export default async function RecommendationDetailPage({
           <CardTitle className="text-base">Analysis</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm whitespace-pre-wrap">{rec.body}</p>
+          <div className="text-sm space-y-3">
+            {rec.body.split('\n\n').map((paragraph, i) => (
+              <p key={i}>
+                {paragraph.split('\n').flatMap((line, li, arr) => {
+                  const parts = line.split(/\*\*(.+?)\*\*/).map((part, pi) =>
+                    pi % 2 === 0 ? part : <strong key={`${li}-${pi}`}>{part}</strong>
+                  );
+                  return li < arr.length - 1 ? [...parts, <br key={`br-${li}`} />] : parts;
+                })}
+              </p>
+            ))}
+          </div>
         </CardContent>
       </Card>
+
+      {/* User Feedback */}
+      <RecommendationFeedback
+        recId={rec.id}
+        existingFeedback={(rec.data as Record<string, unknown>)?.user_feedback as { rating: string; comment?: string } | undefined}
+      />
+
+      {/* Enriched Data */}
+      <EnrichedDataSection data={rec.data as Record<string, unknown>} />
 
       {/* Scores Grid */}
       {scores.some((s) => s.value != null) && (

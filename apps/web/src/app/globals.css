@@ -125,6 +125,12 @@
     display: none;
   }
 
+  @media (prefers-reduced-motion: reduce) {
+    .animate-fade-in-up {
+      animation: none !important;
+    }
+  }
+
   .holographic {
     background: linear-gradient(
       90deg,

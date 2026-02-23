@@ -102,8 +102,8 @@ export default async function DashboardPage() {
         <TimeBudgetBar brands={brandStats} />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 animate-fade-in-up" style={{ animationDelay: '200ms' }}>
+      <div className="grid gap-6 md:grid-cols-3">
+        <div className="md:col-span-2 animate-fade-in-up" style={{ animationDelay: '200ms' }}>
           <PriorityQueue recommendations={priorityRecs} />
         </div>
         <div className="space-y-6">
