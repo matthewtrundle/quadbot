@@ -334,3 +334,24 @@ export type AdsPerformanceOutput = z.infer<typeof adsPerformanceOutputSchema>;
 export type AnalyticsInsightsOutput = z.infer<typeof analyticsInsightsOutputSchema>;
 export type CrossChannelCorrelationOutput = z.infer<typeof crossChannelCorrelationSchema>;
 export type CapabilityGapOutput = z.infer<typeof capabilityGapOutputSchema>;
+
+// Content Writer Output (full blog post generation from content brief)
+export const contentWriterOutputSchema = z.object({
+  title: z.string().min(10).max(200),
+  slug: z.string().min(5).max(100).describe('URL-friendly slug'),
+  meta_description: z.string().min(50).max(160),
+  content_markdown: z.string().min(500).describe('Full article in Markdown format'),
+  excerpt: z.string().min(50).max(300).describe('Short excerpt for previews/social'),
+  tags: z.array(z.string()).min(1).max(10),
+  estimated_read_time_minutes: z.number().int().min(1),
+  seo_keywords: z.array(z.object({
+    keyword: z.string(),
+    usage_count: z.number().int().describe('How many times used in content'),
+  })),
+  social_snippets: z.object({
+    twitter: z.string().max(280).optional(),
+    linkedin: z.string().max(700).optional(),
+  }).optional(),
+});
+
+export type ContentWriterOutput = z.infer<typeof contentWriterOutputSchema>;

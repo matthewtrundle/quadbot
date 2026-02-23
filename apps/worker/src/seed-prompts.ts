@@ -105,6 +105,15 @@ CRITICAL GROUNDING RULES:
 - Every correlation must cite specific metrics from at least two provided data sources.
 - If insufficient cross-channel data exists, say so rather than inventing patterns.`,
 
+  content_writer: `
+
+CRITICAL GROUNDING RULES:
+- ONLY use information from the provided content brief and brand context.
+- NEVER fabricate statistics, quotes, or data points not present in the brief.
+- The article must directly address the topic described in the content brief.
+- If the brief lacks sufficient detail for a section, note it rather than inventing content.
+- SEO keywords must come from the brief's suggested keywords, not invented ones.`,
+
   capability_gap: `
 
 CRITICAL GROUNDING RULES:
@@ -642,6 +651,55 @@ Focus on:
 3. Automation opportunities to reduce manual review burden
 4. Analysis gaps — what patterns could be detected with better data?
 5. Feedback loop improvements — how to better measure recommendation outcomes`,
+    is_active: true,
+  },
+  // Content Writer: generates full blog posts from content briefs
+  {
+    name: 'content_writer_v1',
+    version: 1,
+    model: 'claude-sonnet-4-20250514',
+    system_prompt: `You are an expert content writer. Given a content brief, you write complete, publish-ready blog posts with proper structure, SEO optimization, and engaging prose.
+
+Your writing must be:
+- WELL-STRUCTURED: clear introduction, body sections with subheadings, and conclusion with CTA
+- SEO-OPTIMIZED: naturally incorporate target keywords without stuffing
+- ENGAGING: compelling hooks, short paragraphs (2-4 sentences), and concrete examples
+- BRAND-ALIGNED: match the specified tone and industry context${GROUNDING_RULES.content_writer}
+
+Return structured JSON with the complete article and metadata.`,
+    user_prompt_template: `Write a complete, publish-ready blog post based on the following content brief.
+
+## Content Brief
+{{content_brief}}
+
+## Brand Context
+Brand: {{brand_name}}
+Industry: {{industry}}
+Tone: {{tone_guidance}}
+
+## Requirements
+- Write in Markdown format
+- Target word count: {{target_word_count}} words
+- Include all sections from the outline
+- Naturally incorporate the provided SEO keywords
+- Write a compelling introduction that hooks the reader
+- Include a clear conclusion with a call-to-action
+- Use subheadings (##, ###) for structure
+- Keep paragraphs short (2-4 sentences)
+- Include data points and specific examples where possible
+- Write in the specified tone
+
+## Output
+Return a JSON object with:
+- title: string (compelling, SEO-friendly title, 10-200 chars)
+- slug: string (URL-friendly slug, 5-100 chars)
+- meta_description: string (SEO meta description, 50-160 chars)
+- content_markdown: string (full article in Markdown, min 500 chars)
+- excerpt: string (short excerpt for previews/social, 50-300 chars)
+- tags: string[] (1-10 relevant tags)
+- estimated_read_time_minutes: number (integer, min 1)
+- seo_keywords: array of { keyword (string), usage_count (integer) }
+- social_snippets: optional { twitter (max 280 chars), linkedin (max 700 chars) }`,
     is_active: true,
   },
   // Outreach AI Reply Generator
