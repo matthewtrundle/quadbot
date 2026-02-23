@@ -1,6 +1,6 @@
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
-import { artifacts } from '@quadbot/db';
+import { artifacts, actionDrafts } from '@quadbot/db';
 import { eq } from 'drizzle-orm';
 import type { Executor, ExecutorContext, ExecutorResult } from './types.js';
 import { logger } from '../logger.js';
@@ -101,6 +101,25 @@ export const contentPublisherExecutor: Executor = {
       // Compute published URL
       const baseUrl = url_prefix || process.env.CONTENT_URL_PREFIX || '';
       const publishedUrl = baseUrl ? `${baseUrl.replace(/\/$/, '')}/${slug}` : slug;
+
+      // Auto-create GSC index request for the published URL
+      if (publishedUrl && publishedUrl.startsWith('http') && artifact.recommendation_id) {
+        await db.insert(actionDrafts).values({
+          brand_id: brandId,
+          recommendation_id: artifact.recommendation_id,
+          type: 'gsc-index-request',
+          payload: {
+            url: publishedUrl,
+            action: 'URL_UPDATED',
+          },
+          risk: 'low',
+          guardrails_applied: {},
+          requires_approval: false,
+          status: 'approved',
+        });
+
+        logger.info({ brandId, publishedUrl }, 'GSC index request created for published content');
+      }
 
       logger.info({
         brandId,
