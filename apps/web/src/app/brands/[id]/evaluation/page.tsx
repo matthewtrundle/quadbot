@@ -223,7 +223,12 @@ export default async function EvaluationPage({ params }: { params: Promise<{ id:
       <div>
         <h3 className="mb-3 text-lg font-medium">Evaluation Runs</h3>
         {runs.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No evaluation runs yet.</p>
+          <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-10 text-center">
+            <p className="font-medium text-sm">No evaluation runs yet</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Evaluation runs are created automatically after recommendations are reviewed.
+            </p>
+          </div>
         ) : (
           <div className="space-y-2">
             {runs.map((run) => (
@@ -265,7 +270,12 @@ export default async function EvaluationPage({ params }: { params: Promise<{ id:
       <div>
         <h3 className="mb-3 text-lg font-medium">Prompt Performance</h3>
         {performance.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No prompt performance data yet.</p>
+          <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-10 text-center">
+            <p className="font-medium text-sm">No prompt performance data yet</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Prompt performance data appears after evaluation runs compare prompt versions.
+            </p>
+          </div>
         ) : (
           <div className="space-y-2">
             {performance.map((p) => (
