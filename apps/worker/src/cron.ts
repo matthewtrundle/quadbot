@@ -106,6 +106,12 @@ export function startCronScheduler(redis: Redis): void {
     await enqueueForAllBrands(redis, JobType.BENCHMARK_GENERATOR);
   });
 
+  // Content Automation - weekly on Wednesdays at 9:00 AM
+  cron.schedule('0 9 * * 3', async () => {
+    logger.info('Cron: triggering content automation for all brands');
+    await enqueueForAllBrands(redis, JobType.CONTENT_AUTOMATION);
+  });
+
   // Phase 8: Capability Gap Analyzer - weekly on Mondays at 6:00 AM
   cron.schedule('0 6 * * 1', async () => {
     logger.info('Cron: triggering capability gap analyzer (system-wide)');
