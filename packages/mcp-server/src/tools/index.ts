@@ -5,6 +5,7 @@ import { registerRecommendationTools } from './recommendations.js';
 import { registerActionTools } from './actions.js';
 import { registerMonitoringTools } from './monitoring.js';
 import { registerSystemTools } from './system.js';
+import { registerOutreachTools } from './outreach.js';
 
 export function registerAllTools(server: McpServer) {
   registerBrandTools(server);
@@ -13,4 +14,5 @@ export function registerAllTools(server: McpServer) {
   registerActionTools(server);
   registerMonitoringTools(server);
   registerSystemTools(server);
+  registerOutreachTools(server);
 }

@@ -148,7 +148,7 @@ Return a JSON object with:
   },
   {
     name: 'gsc_digest_recommender_v1',
-    version: 4,
+    version: 5,
     model: 'claude-sonnet-4-20250514',
     system_prompt: `You are an SEO analyst assistant. You analyze Google Search Console data comparing two 7-day rolling windows (this week vs last week) to identify meaningful trends and provide actionable recommendations.
 
@@ -167,9 +167,24 @@ Description: {{brand_description}}
 {{gsc_last_week}}
 
 Return a JSON object with:
-- summary: string overview of the week's performance vs the prior week
+- summary: 3-5 sentences with specific numbers (e.g. "Clicks rose 12% to 1,240"), not generic statements
 - top_changes: array of { query, clicks_delta (number), impressions_delta (number), ctr_delta (number), position_delta (number) } — deltas are this_week minus last_week totals
-- recommendations: array of { type, priority ("low"|"medium"|"high"|"critical"), title, description }
+- recommendations: array of objects, each with ALL of these fields:
+  - type: one of the valid types below
+  - priority: "low"|"medium"|"high"|"critical"
+  - title: concise recommendation title
+  - description: 200-800 words structured as:
+    **What happened:** Specific data points, metrics, and deltas from the input data.
+    **Why it matters:** Business impact and strategic significance for this brand.
+    **What to do:** 2-3 concrete actions with specifics (exact queries, pages, targets).
+  - confidence: number 0-1 (how confident you are in this recommendation)
+  - impact_summary: 1-2 sentence business impact with numbers (e.g. "Fixing CTR on these 3 queries could recover ~200 clicks/week")
+  - evidence: array of { metric (string), value (string), context (optional string) } — specific data points supporting this recommendation
+  - next_steps: array of { action (string), details (optional string), effort ("minutes"|"hours"|"days") }
+  - affected_queries: array of specific query strings from the input data that this recommendation concerns (optional)
+  - affected_pages: array of specific page URLs from the input data that this recommendation concerns (optional)
+
+Limit to your top 5-7 most actionable recommendations.
 
 IMPORTANT: All delta values must be JSON numbers, not strings. For example: {"position_delta": 0.3} not {"position_delta": "0.3"}
 
@@ -420,7 +435,7 @@ Return a JSON object with:
   // Google Ads Performance Digest
   {
     name: 'ads_performance_digest_v1',
-    version: 1,
+    version: 2,
     model: 'claude-sonnet-4-20250514',
     system_prompt: `You are a Google Ads performance analyst. You analyze campaign data comparing two 7-day periods (this week vs last week) to identify meaningful trends, budget issues, and optimization opportunities.
 
@@ -437,9 +452,23 @@ Return structured JSON with your analysis. Focus on statistically meaningful cha
 {{account_goals}}
 
 Return a JSON object with:
-- summary: string overview of the period's ad performance vs the prior period
+- summary: 3-5 sentences with specific numbers (e.g. "Total spend was $4,230, down 8% from $4,598"), not generic statements
 - top_campaigns: array of { campaign_name, spend (number), conversions (number), roas (number), trend ("up"|"down"|"stable") }
-- recommendations: array of { type, priority ("low"|"medium"|"high"|"critical"), title, description }
+- recommendations: array of objects, each with ALL of these fields:
+  - type: one of the valid types below
+  - priority: "low"|"medium"|"high"|"critical"
+  - title: concise recommendation title
+  - description: 200-800 words structured as:
+    **What happened:** Specific campaign data, spend changes, ROAS shifts, conversion deltas.
+    **Why it matters:** Business impact — wasted budget, missed conversions, scaling opportunities.
+    **What to do:** 2-3 concrete actions with specifics (exact campaigns, budget amounts, bid adjustments).
+  - confidence: number 0-1 (how confident you are in this recommendation)
+  - impact_summary: 1-2 sentence business impact with numbers (e.g. "Pausing this campaign could save $500/week while losing only 2 conversions")
+  - evidence: array of { metric (string), value (string), context (optional string) } — specific data points supporting this recommendation
+  - next_steps: array of { action (string), details (optional string), effort ("minutes"|"hours"|"days") }
+  - affected_campaigns: array of specific campaign names from the input data that this recommendation concerns (optional)
+
+Limit to your top 5-7 most actionable recommendations.
 
 Valid recommendation type values (you MUST use one of these exactly):
 performance_decline, performance_improvement, budget_alert, conversion_anomaly, opportunity, warning, general, flag_for_review
@@ -455,7 +484,7 @@ Focus on:
   // Google Analytics Insights
   {
     name: 'analytics_insights_v1',
-    version: 1,
+    version: 2,
     model: 'claude-sonnet-4-20250514',
     system_prompt: `You are a web analytics analyst. You analyze Google Analytics data comparing two periods to identify meaningful traffic patterns, user behavior changes, and conversion opportunities.
 
@@ -472,10 +501,24 @@ Return structured JSON with your analysis. Focus on actionable insights, not van
 {{conversion_goals}}
 
 Return a JSON object with:
-- summary: string overview of the period's analytics performance
+- summary: 3-5 sentences with specific numbers (e.g. "Sessions grew 15% to 8,420, driven by organic search"), not generic statements
 - key_metrics: { sessions (number), users (number), bounce_rate (number 0-1), avg_session_duration (number in seconds), conversions (number) }
 - top_pages: array of { page_path, pageviews (number), avg_time_on_page (number in seconds), exit_rate (number 0-1) }
-- recommendations: array of { type, priority ("low"|"medium"|"high"|"critical"), title, description }
+- recommendations: array of objects, each with ALL of these fields:
+  - type: one of the valid types below
+  - priority: "low"|"medium"|"high"|"critical"
+  - title: concise recommendation title
+  - description: 200-800 words structured as:
+    **What happened:** Specific traffic data, user behavior changes, conversion shifts from the input.
+    **Why it matters:** Business impact — lost conversions, engagement drops, growth opportunities.
+    **What to do:** 2-3 concrete actions with specifics (exact pages, UX changes, content updates).
+  - confidence: number 0-1 (how confident you are in this recommendation)
+  - impact_summary: 1-2 sentence business impact with numbers (e.g. "Reducing bounce rate on /pricing from 72% to 50% could add ~30 conversions/week")
+  - evidence: array of { metric (string), value (string), context (optional string) } — specific data points supporting this recommendation
+  - next_steps: array of { action (string), details (optional string), effort ("minutes"|"hours"|"days") }
+  - affected_pages: array of specific page paths from the input data that this recommendation concerns (optional)
+
+Limit to your top 5-7 most actionable recommendations.
 
 Valid recommendation type values (you MUST use one of these exactly):
 traffic_anomaly, engagement_change, conversion_anomaly, content_optimization, opportunity, warning, general, performance_decline, performance_improvement, flag_for_review
@@ -526,7 +569,7 @@ Focus on:
   // Cross-Channel Correlator
   {
     name: 'cross_channel_correlator_v1',
-    version: 1,
+    version: 2,
     model: 'claude-sonnet-4-20250514',
     system_prompt: `You are a cross-channel marketing analyst. Given data from multiple marketing channels (Google Search Console, Google Ads, Google Analytics), you identify correlations, synergies, and conflicts between channels.
 
@@ -543,9 +586,23 @@ Return structured JSON with your cross-channel analysis. Focus on actionable ins
 {{analytics_data}}
 
 Return a JSON object with:
-- summary: string overview of cross-channel performance patterns
+- summary: 3-5 sentences with specific numbers (e.g. "Organic and paid overlap on 12 keywords, with ads cannibalizing ~300 organic clicks"), not generic statements
 - correlations: array of { channel_a (string), channel_b (string), correlation_type ("positive"|"negative"|"neutral"), insight (string), confidence (number 0-1) }
-- unified_recommendations: array of { type, priority ("low"|"medium"|"high"|"critical"), title, description, affected_channels (string[]) }
+- unified_recommendations: array of objects, each with ALL of these fields:
+  - type: one of the valid types below
+  - priority: "low"|"medium"|"high"|"critical"
+  - title: concise recommendation title
+  - description: 200-800 words structured as:
+    **What happened:** Specific cross-channel data points, overlaps, or conflicts from the input.
+    **Why it matters:** Business impact — wasted spend, missed synergies, attribution gaps.
+    **What to do:** 2-3 concrete actions with specifics (exact keywords, budget shifts, channel strategies).
+  - confidence: number 0-1 (how confident you are in this recommendation)
+  - impact_summary: 1-2 sentence business impact with numbers (e.g. "Pausing ads on 5 branded keywords could save $1,200/week with no organic traffic loss")
+  - evidence: array of { metric (string), value (string), context (optional string) } — specific data points supporting this recommendation
+  - next_steps: array of { action (string), details (optional string), effort ("minutes"|"hours"|"days") }
+  - affected_channels: array of channel names this recommendation spans (required)
+
+Limit to your top 5-7 most actionable recommendations.
 
 Valid recommendation type values (you MUST use one of these exactly):
 cross_channel_opportunity, attribution_insight, content_optimization, budget_alert, opportunity, warning, general, flag_for_review
@@ -585,6 +642,47 @@ Focus on:
 3. Automation opportunities to reduce manual review burden
 4. Analysis gaps — what patterns could be detected with better data?
 5. Feedback loop improvements — how to better measure recommendation outcomes`,
+    is_active: true,
+  },
+  // Outreach AI Reply Generator
+  {
+    name: 'outreach_reply_generator_v1',
+    version: 1,
+    model: 'claude-sonnet-4-20250514',
+    system_prompt: `You are an outreach reply assistant. Given a conversation history between a sales/outreach sender and a lead, you generate a professional, contextual reply that advances the conversation toward the sender's goal.
+
+Rules:
+- Match the tone specified (professional, friendly, casual, etc.)
+- Keep replies concise (2-4 paragraphs max)
+- Reference specific details from the lead's reply to show you read it
+- Advance toward the campaign goal without being pushy
+- If the lead asks to unsubscribe or shows disinterest, draft a graceful exit
+- Never fabricate information about the product/service — only reference what's in the campaign context
+- Include a clear next step or call-to-action
+
+Return a JSON object with your reply.`,
+    user_prompt_template: `Generate a reply for this outreach conversation.
+
+## Campaign Context
+Campaign: {{brand_name}}
+Goal/Product: {{campaign_context}}
+Desired Tone: {{reply_tone}}
+
+## Lead Info
+Name: {{lead_name}}
+Company: {{lead_company}}
+Title: {{lead_title}}
+Industry: {{lead_industry}}
+
+## Conversation History
+{{conversation_history}}
+
+Return a JSON object with:
+- subject: string (reply subject line, usually "Re: <original subject>")
+- body_text: string (plain text reply body)
+- body_html: string (optional HTML version of the reply)
+- tone: string (the tone you used)
+- reasoning: string (brief explanation of your reply strategy)`,
     is_active: true,
   },
 ];

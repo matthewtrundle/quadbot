@@ -76,10 +76,52 @@ export function startCronScheduler(redis: Redis): void {
     await enqueueForAllBrands(redis, JobType.CROSS_CHANNEL_CORRELATOR);
   });
 
+  // Source Quality Scorer - weekly on Sundays at 3:30 AM
+  cron.schedule('30 3 * * 0', async () => {
+    logger.info('Cron: triggering source quality scorer for all brands');
+    await enqueueForAllBrands(redis, JobType.SOURCE_QUALITY_SCORER);
+  });
+
+  // Daily Email Digest - daily at 7:00 AM (before GSC digest)
+  cron.schedule('0 7 * * *', async () => {
+    logger.info('Cron: triggering daily email digest for all brands');
+    await enqueueForAllBrands(redis, JobType.DAILY_EMAIL_DIGEST);
+  });
+
+  // Anomaly Detector - daily at 1:30 AM (after metric snapshot)
+  cron.schedule('30 1 * * *', async () => {
+    logger.info('Cron: triggering anomaly detector for all brands');
+    await enqueueForAllBrands(redis, JobType.ANOMALY_DETECTOR);
+  });
+
+  // Weekly Summary Email - Sundays at 10:00 AM
+  cron.schedule('0 10 * * 0', async () => {
+    logger.info('Cron: triggering weekly summary email for all brands');
+    await enqueueForAllBrands(redis, JobType.WEEKLY_SUMMARY_EMAIL);
+  });
+
+  // Cross-Brand Benchmark Generator - weekly on Mondays at 5:00 AM
+  cron.schedule('0 5 * * 1', async () => {
+    logger.info('Cron: triggering benchmark generator for all brands');
+    await enqueueForAllBrands(redis, JobType.BENCHMARK_GENERATOR);
+  });
+
   // Phase 8: Capability Gap Analyzer - weekly on Mondays at 6:00 AM
   cron.schedule('0 6 * * 1', async () => {
     logger.info('Cron: triggering capability gap analyzer (system-wide)');
     await enqueueSystemWideJob(redis, JobType.CAPABILITY_GAP_ANALYZER);
+  });
+
+  // Outreach: Campaign Scheduler - every 2 minutes
+  cron.schedule('*/2 * * * *', async () => {
+    logger.info('Cron: triggering outreach campaign scheduler');
+    await enqueueSystemWideJob(redis, JobType.OUTREACH_CAMPAIGN_SCHEDULER);
+  });
+
+  // Outreach: Campaign Analytics - daily at 6:00 AM
+  cron.schedule('0 6 * * *', async () => {
+    logger.info('Cron: triggering outreach campaign analytics for all brands');
+    await enqueueForAllBrands(redis, JobType.OUTREACH_CAMPAIGN_ANALYTICS);
   });
 
   // Signal Decay - daily at 5:00 AM

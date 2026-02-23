@@ -28,6 +28,22 @@ export const JobType = {
   CAPABILITY_GAP_ANALYZER: 'capability_gap_analyzer',
   // Brand profiler (on-demand)
   BRAND_PROFILER: 'brand_profiler',
+  // Source Quality & Feedback
+  SOURCE_QUALITY_SCORER: 'source_quality_scorer',
+  // Email Digest
+  DAILY_EMAIL_DIGEST: 'daily_email_digest',
+  // Anomaly Detection
+  ANOMALY_DETECTOR: 'anomaly_detector',
+  // Weekly Summary
+  WEEKLY_SUMMARY_EMAIL: 'weekly_summary_email',
+  // Cross-Brand Benchmarks
+  BENCHMARK_GENERATOR: 'benchmark_generator',
+  // Outreach Module
+  OUTREACH_CAMPAIGN_SCHEDULER: 'outreach_campaign_scheduler',
+  OUTREACH_SEND_EMAIL: 'outreach_send_email',
+  OUTREACH_PROCESS_REPLY: 'outreach_process_reply',
+  OUTREACH_AI_REPLY: 'outreach_ai_reply',
+  OUTREACH_CAMPAIGN_ANALYTICS: 'outreach_campaign_analytics',
 } as const;
 export type JobType = (typeof JobType)[keyof typeof JobType];
 
@@ -74,6 +90,13 @@ export const EventType = {
   ACTION_DRAFT_REJECTED: 'action_draft.rejected',
   ACTION_EXECUTED: 'action.executed',
   OUTCOME_COLLECTED: 'outcome.collected',
+  // Outreach Module
+  OUTREACH_EMAIL_SENT: 'outreach.email.sent',
+  OUTREACH_EMAIL_BOUNCED: 'outreach.email.bounced',
+  OUTREACH_REPLY_RECEIVED: 'outreach.reply.received',
+  OUTREACH_AI_REPLY_DRAFTED: 'outreach.ai_reply.drafted',
+  OUTREACH_AI_REPLY_SENT: 'outreach.ai_reply.sent',
+  OUTREACH_CAMPAIGN_COMPLETED: 'outreach.campaign.completed',
 } as const;
 export type EventType = (typeof EventType)[keyof typeof EventType];
 

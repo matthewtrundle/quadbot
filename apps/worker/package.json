@@ -12,11 +12,13 @@
     "@anthropic-ai/sdk": "^0.39.0",
     "@quadbot/db": "workspace:*",
     "@quadbot/shared": "workspace:*",
+    "@sentry/node": "^10.39.0",
     "drizzle-orm": "^0.36.0",
     "handlebars": "^4.7.8",
     "ioredis": "^5.4.0",
     "node-cron": "^3.0.3",
     "pino": "^9.6.0",
+    "resend": "^6.9.2",
     "zod": "^3.23.0"
   },
   "devDependencies": {

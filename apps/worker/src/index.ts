@@ -1,3 +1,5 @@
+import './sentry.js';
+import { Sentry } from './sentry.js';
 import { db } from '@quadbot/db';
 import { jobs } from '@quadbot/db';
 import { eq } from 'drizzle-orm';
@@ -10,6 +12,7 @@ import { startExecutionLoop } from './execution-loop.js';
 import { startCronScheduler } from './cron.js';
 import { startEventProcessor } from './event-processor.js';
 import { startJobReaper } from './job-reaper.js';
+import { startHealthServer } from './health-server.js';
 import { seedPrompts } from './seed-prompts.js';
 import { seedEventRules } from './seed-event-rules.js';
 import { registerAllExecutors } from './executors/index.js';
@@ -35,8 +38,24 @@ import { analyticsInsights } from './jobs/analytics-insights.js';
 import { crossChannelCorrelator } from './jobs/cross-channel-correlator.js';
 // Phase 8: Self-Improvement Engine
 import { capabilityGapAnalyzer } from './jobs/capability-gap-analyzer.js';
+// Source Quality Scorer
+import { sourceQualityScorer } from './jobs/source-quality-scorer.js';
+// Email Digest
+import { dailyEmailDigest } from './jobs/daily-email-digest.js';
+// Anomaly Detection
+import { anomalyDetector } from './jobs/anomaly-detector.js';
+// Weekly Summary
+import { weeklySummaryEmail } from './jobs/weekly-summary-email.js';
+// Cross-Brand Benchmarks
+import { benchmarkGenerator } from './jobs/benchmark-generator.js';
 // Brand Profiler (on-demand)
 import { brandProfiler } from './jobs/brand-profiler.js';
+// Outreach Module
+import { outreachCampaignScheduler } from './jobs/outreach-campaign-scheduler.js';
+import { outreachSendEmailJob } from './jobs/outreach-send-email.js';
+import { outreachProcessReply } from './jobs/outreach-process-reply.js';
+import { outreachAiReply } from './jobs/outreach-ai-reply.js';
+import { outreachCampaignAnalytics } from './jobs/outreach-campaign-analytics.js';
 
 // Register job handlers
 registerHandler(JobType.COMMUNITY_MODERATE_POST, communityModeratePost);
@@ -61,8 +80,24 @@ registerHandler(JobType.ANALYTICS_INSIGHTS, analyticsInsights);
 registerHandler(JobType.CROSS_CHANNEL_CORRELATOR, crossChannelCorrelator);
 // Phase 8: Self-Improvement Engine handlers
 registerHandler(JobType.CAPABILITY_GAP_ANALYZER, capabilityGapAnalyzer);
+// Source Quality Scorer
+registerHandler(JobType.SOURCE_QUALITY_SCORER, sourceQualityScorer);
+// Email Digest
+registerHandler(JobType.DAILY_EMAIL_DIGEST, dailyEmailDigest);
+// Anomaly Detection
+registerHandler(JobType.ANOMALY_DETECTOR, anomalyDetector);
+// Weekly Summary
+registerHandler(JobType.WEEKLY_SUMMARY_EMAIL, weeklySummaryEmail);
+// Cross-Brand Benchmarks
+registerHandler(JobType.BENCHMARK_GENERATOR, benchmarkGenerator);
 // Brand Profiler (on-demand)
 registerHandler(JobType.BRAND_PROFILER, brandProfiler);
+// Outreach Module handlers
+registerHandler(JobType.OUTREACH_CAMPAIGN_SCHEDULER, outreachCampaignScheduler);
+registerHandler(JobType.OUTREACH_SEND_EMAIL, outreachSendEmailJob);
+registerHandler(JobType.OUTREACH_PROCESS_REPLY, outreachProcessReply);
+registerHandler(JobType.OUTREACH_AI_REPLY, outreachAiReply);
+registerHandler(JobType.OUTREACH_CAMPAIGN_ANALYTICS, outreachCampaignAnalytics);
 
 async function handleMessage(message: string): Promise<void> {
   let parsed;
@@ -142,6 +177,7 @@ async function handleMessage(message: string): Promise<void> {
     logger.info({ jobId, type, attempts }, 'Job completed successfully');
   } catch (err) {
     logger.error({ err, jobId, type }, 'Job handler failed');
+    Sentry.captureException(err, { extra: { jobId, type } });
 
     // Get current attempts from DB
     const [job] = await db.select().from(jobs).where(eq(jobs.id, jobId)).limit(1);
@@ -202,12 +238,16 @@ async function main(): Promise<void> {
   // Start job reaper (catches stuck/orphaned jobs)
   const reaperTimer = startJobReaper();
 
+  // Start health HTTP server
+  const healthServer = startHealthServer(config.WORKER_PORT);
+
   // Graceful shutdown
   const shutdown = async () => {
     logger.info('Shutting down worker...');
     clearInterval(executionTimer);
     clearInterval(eventTimer);
     clearInterval(reaperTimer);
+    healthServer.close();
     await closeRedis();
     process.exit(0);
   };
@@ -221,5 +261,6 @@ async function main(): Promise<void> {
 
 main().catch((err) => {
   logger.error({ err }, 'Worker failed to start');
+  Sentry.captureException(err);
   process.exit(1);
 });

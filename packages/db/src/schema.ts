@@ -327,6 +327,36 @@ export const executionRules = pgTable('execution_rules', {
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
+// Phase 2: Execution Safety + Notifications
+
+export const notifications = pgTable('notifications', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  brand_id: uuid('brand_id')
+    .notNull()
+    .references(() => brands.id, { onDelete: 'cascade' }),
+  type: varchar('type', { length: 50 }).notNull(),
+  title: varchar('title', { length: 500 }).notNull(),
+  body: text('body').notNull(),
+  data: jsonb('data').$type<Record<string, unknown>>().default({}),
+  read: boolean('read').notNull().default(false),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('idx_notifications_brand_read').on(table.brand_id, table.read),
+  index('idx_notifications_brand_created').on(table.brand_id, table.created_at),
+]);
+
+export const executionBudgets = pgTable('execution_budgets', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  brand_id: uuid('brand_id')
+    .notNull()
+    .references(() => brands.id, { onDelete: 'cascade' }),
+  date: varchar('date', { length: 10 }).notNull(),
+  executions_count: integer('executions_count').notNull().default(0),
+  spend_delta_cents: integer('spend_delta_cents').notNull().default(0),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
 // Self-Improvement Engine
 
 export const improvementSuggestions = pgTable('improvement_suggestions', {
@@ -418,3 +448,302 @@ export const improvementOutcomes = pgTable('improvement_outcomes', {
   notes: text('notes'),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
+
+// ============================================================================
+// Outreach Module (Email Outreach System)
+// ============================================================================
+
+export const outreachAccountStatusEnum = pgEnum('outreach_account_status', ['active', 'paused', 'disabled']);
+export const campaignStatusEnum = pgEnum('campaign_status', ['draft', 'active', 'paused', 'completed', 'archived']);
+export const campaignReplyModeEnum = pgEnum('campaign_reply_mode', ['manual', 'ai_draft_approve', 'ai_auto_reply']);
+export const campaignLeadStatusEnum = pgEnum('campaign_lead_status', [
+  'pending', 'scheduled', 'sending', 'sent', 'replied', 'completed', 'bounced', 'unsubscribed', 'error',
+]);
+export const outreachEmailStatusEnum = pgEnum('outreach_email_status', [
+  'queued', 'sent', 'delivered', 'opened', 'clicked', 'bounced', 'complained', 'failed',
+]);
+export const outreachMessageDirectionEnum = pgEnum('outreach_message_direction', ['outbound', 'inbound']);
+export const conversationStatusEnum = pgEnum('conversation_status', ['active', 'resolved', 'archived']);
+
+export const outreachAccounts = pgTable('outreach_accounts', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  brand_id: uuid('brand_id')
+    .notNull()
+    .references(() => brands.id, { onDelete: 'cascade' }),
+  email: varchar('email', { length: 255 }).notNull(),
+  from_name: varchar('from_name', { length: 255 }).notNull(),
+  resend_api_key_encrypted: text('resend_api_key_encrypted').notNull(),
+  daily_limit: integer('daily_limit').notNull().default(50),
+  sent_today: integer('sent_today').notNull().default(0),
+  sent_today_date: varchar('sent_today_date', { length: 10 }),
+  status: outreachAccountStatusEnum('status').notNull().default('active'),
+  last_used_at: timestamp('last_used_at', { withTimezone: true }),
+  total_sent: integer('total_sent').notNull().default(0),
+  total_bounced: integer('total_bounced').notNull().default(0),
+  total_complained: integer('total_complained').notNull().default(0),
+  bounce_rate: real('bounce_rate').notNull().default(0),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('idx_outreach_accounts_brand').on(table.brand_id),
+  index('idx_outreach_accounts_brand_status').on(table.brand_id, table.status),
+  uniqueIndex('idx_outreach_accounts_brand_email').on(table.brand_id, table.email),
+]);
+
+export const leadLists = pgTable('lead_lists', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  brand_id: uuid('brand_id')
+    .notNull()
+    .references(() => brands.id, { onDelete: 'cascade' }),
+  name: varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
+  original_filename: varchar('original_filename', { length: 500 }),
+  total_rows: integer('total_rows').notNull().default(0),
+  imported_count: integer('imported_count').notNull().default(0),
+  duplicate_count: integer('duplicate_count').notNull().default(0),
+  error_count: integer('error_count').notNull().default(0),
+  column_mapping: jsonb('column_mapping').$type<Record<string, string>>().default({}),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('idx_lead_lists_brand').on(table.brand_id),
+]);
+
+export const leads = pgTable('leads', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  brand_id: uuid('brand_id')
+    .notNull()
+    .references(() => brands.id, { onDelete: 'cascade' }),
+  lead_list_id: uuid('lead_list_id')
+    .references(() => leadLists.id, { onDelete: 'set null' }),
+  email: varchar('email', { length: 255 }).notNull(),
+  first_name: varchar('first_name', { length: 255 }),
+  last_name: varchar('last_name', { length: 255 }),
+  company: varchar('company', { length: 255 }),
+  title: varchar('title', { length: 255 }),
+  linkedin_url: varchar('linkedin_url', { length: 500 }),
+  phone: varchar('phone', { length: 50 }),
+  industry: varchar('industry', { length: 255 }),
+  employee_count: varchar('employee_count', { length: 50 }),
+  location: varchar('location', { length: 255 }),
+  custom_fields: jsonb('custom_fields').$type<Record<string, unknown>>().default({}),
+  is_unsubscribed: boolean('is_unsubscribed').notNull().default(false),
+  is_bounced: boolean('is_bounced').notNull().default(false),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('idx_leads_brand_email').on(table.brand_id, table.email),
+  index('idx_leads_lead_list').on(table.lead_list_id),
+]);
+
+export const campaigns = pgTable('campaigns', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  brand_id: uuid('brand_id')
+    .notNull()
+    .references(() => brands.id, { onDelete: 'cascade' }),
+  name: varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
+  status: campaignStatusEnum('status').notNull().default('draft'),
+  reply_mode: campaignReplyModeEnum('reply_mode').notNull().default('manual'),
+  ai_reply_context: text('ai_reply_context'),
+  ai_reply_tone: varchar('ai_reply_tone', { length: 100 }),
+  timezone: varchar('timezone', { length: 100 }).notNull().default('America/Chicago'),
+  send_days: jsonb('send_days').$type<number[]>().default([1, 2, 3, 4, 5]),
+  send_window_start: varchar('send_window_start', { length: 5 }).notNull().default('09:00'),
+  send_window_end: varchar('send_window_end', { length: 5 }).notNull().default('17:00'),
+  daily_send_limit: integer('daily_send_limit').notNull().default(50),
+  min_spacing_seconds: integer('min_spacing_seconds').notNull().default(60),
+  max_spacing_seconds: integer('max_spacing_seconds').notNull().default(300),
+  sent_today: integer('sent_today').notNull().default(0),
+  sent_today_date: varchar('sent_today_date', { length: 10 }),
+  total_sent: integer('total_sent').notNull().default(0),
+  total_leads: integer('total_leads').notNull().default(0),
+  started_at: timestamp('started_at', { withTimezone: true }),
+  paused_at: timestamp('paused_at', { withTimezone: true }),
+  completed_at: timestamp('completed_at', { withTimezone: true }),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('idx_campaigns_brand').on(table.brand_id),
+  index('idx_campaigns_brand_status').on(table.brand_id, table.status),
+]);
+
+export const campaignSequenceSteps = pgTable('campaign_sequence_steps', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  campaign_id: uuid('campaign_id')
+    .notNull()
+    .references(() => campaigns.id, { onDelete: 'cascade' }),
+  step_order: integer('step_order').notNull(),
+  delay_days: integer('delay_days').notNull().default(1),
+  subject_template: text('subject_template').notNull(),
+  body_template: text('body_template').notNull(),
+  is_reply_to_previous: boolean('is_reply_to_previous').notNull().default(false),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('idx_campaign_steps_campaign_order').on(table.campaign_id, table.step_order),
+]);
+
+export const campaignLeads = pgTable('campaign_leads', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  campaign_id: uuid('campaign_id')
+    .notNull()
+    .references(() => campaigns.id, { onDelete: 'cascade' }),
+  lead_id: uuid('lead_id')
+    .notNull()
+    .references(() => leads.id, { onDelete: 'cascade' }),
+  outreach_account_id: uuid('outreach_account_id')
+    .references(() => outreachAccounts.id, { onDelete: 'set null' }),
+  current_step: integer('current_step').notNull().default(0),
+  status: campaignLeadStatusEnum('status').notNull().default('pending'),
+  next_send_at: timestamp('next_send_at', { withTimezone: true }),
+  paused_at: timestamp('paused_at', { withTimezone: true }),
+  pause_reason: text('pause_reason'),
+  enrolled_at: timestamp('enrolled_at', { withTimezone: true }).defaultNow().notNull(),
+  last_sent_at: timestamp('last_sent_at', { withTimezone: true }),
+  completed_at: timestamp('completed_at', { withTimezone: true }),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('idx_campaign_leads_campaign_lead').on(table.campaign_id, table.lead_id),
+  index('idx_campaign_leads_status_next_send').on(table.status, table.next_send_at),
+  index('idx_campaign_leads_campaign_status').on(table.campaign_id, table.status),
+]);
+
+export const outreachEmails = pgTable('outreach_emails', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  brand_id: uuid('brand_id')
+    .notNull()
+    .references(() => brands.id, { onDelete: 'cascade' }),
+  campaign_id: uuid('campaign_id')
+    .notNull()
+    .references(() => campaigns.id, { onDelete: 'cascade' }),
+  campaign_lead_id: uuid('campaign_lead_id')
+    .notNull()
+    .references(() => campaignLeads.id, { onDelete: 'cascade' }),
+  outreach_account_id: uuid('outreach_account_id')
+    .notNull()
+    .references(() => outreachAccounts.id, { onDelete: 'cascade' }),
+  step_order: integer('step_order').notNull(),
+  from_email: varchar('from_email', { length: 255 }).notNull(),
+  from_name: varchar('from_name', { length: 255 }).notNull(),
+  to_email: varchar('to_email', { length: 255 }).notNull(),
+  subject: text('subject').notNull(),
+  body_html: text('body_html').notNull(),
+  body_text: text('body_text'),
+  resend_message_id: varchar('resend_message_id', { length: 255 }),
+  message_id_header: varchar('message_id_header', { length: 500 }),
+  in_reply_to_header: varchar('in_reply_to_header', { length: 500 }),
+  status: outreachEmailStatusEnum('status').notNull().default('queued'),
+  sent_at: timestamp('sent_at', { withTimezone: true }),
+  delivered_at: timestamp('delivered_at', { withTimezone: true }),
+  opened_at: timestamp('opened_at', { withTimezone: true }),
+  clicked_at: timestamp('clicked_at', { withTimezone: true }),
+  bounced_at: timestamp('bounced_at', { withTimezone: true }),
+  complained_at: timestamp('complained_at', { withTimezone: true }),
+  open_count: integer('open_count').notNull().default(0),
+  click_count: integer('click_count').notNull().default(0),
+  error: text('error'),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('idx_outreach_emails_resend_id').on(table.resend_message_id),
+  index('idx_outreach_emails_message_id').on(table.message_id_header),
+  index('idx_outreach_emails_to_email').on(table.to_email),
+  index('idx_outreach_emails_campaign').on(table.campaign_id),
+  index('idx_outreach_emails_brand').on(table.brand_id),
+]);
+
+export const outreachConversations = pgTable('outreach_conversations', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  brand_id: uuid('brand_id')
+    .notNull()
+    .references(() => brands.id, { onDelete: 'cascade' }),
+  campaign_id: uuid('campaign_id')
+    .notNull()
+    .references(() => campaigns.id, { onDelete: 'cascade' }),
+  lead_id: uuid('lead_id')
+    .notNull()
+    .references(() => leads.id, { onDelete: 'cascade' }),
+  campaign_lead_id: uuid('campaign_lead_id')
+    .references(() => campaignLeads.id, { onDelete: 'set null' }),
+  status: conversationStatusEnum('status').notNull().default('active'),
+  last_message_at: timestamp('last_message_at', { withTimezone: true }),
+  message_count: integer('message_count').notNull().default(0),
+  ai_draft_pending: boolean('ai_draft_pending').notNull().default(false),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('idx_outreach_conversations_campaign_lead').on(table.campaign_id, table.lead_id),
+  index('idx_outreach_conversations_brand').on(table.brand_id),
+]);
+
+export const outreachMessages = pgTable('outreach_messages', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  conversation_id: uuid('conversation_id')
+    .notNull()
+    .references(() => outreachConversations.id, { onDelete: 'cascade' }),
+  direction: outreachMessageDirectionEnum('direction').notNull(),
+  subject: text('subject'),
+  body_text: text('body_text'),
+  body_html: text('body_html'),
+  outreach_email_id: uuid('outreach_email_id')
+    .references(() => outreachEmails.id, { onDelete: 'set null' }),
+  from_email: varchar('from_email', { length: 255 }),
+  resend_inbound_id: varchar('resend_inbound_id', { length: 255 }),
+  raw_headers: jsonb('raw_headers').$type<Record<string, unknown>>(),
+  ai_generated: boolean('ai_generated').notNull().default(false),
+  ai_approved: boolean('ai_approved'),
+  ai_approved_at: timestamp('ai_approved_at', { withTimezone: true }),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('idx_outreach_messages_conversation').on(table.conversation_id),
+]);
+
+// Phase 5: LLM Usage Tracking
+export const llmUsage = pgTable('llm_usage', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  brand_id: uuid('brand_id').references(() => brands.id, { onDelete: 'cascade' }),
+  job_id: uuid('job_id').references(() => jobs.id, { onDelete: 'set null' }),
+  prompt_version_id: uuid('prompt_version_id').references(() => promptVersions.id, { onDelete: 'set null' }),
+  model: varchar('model', { length: 100 }).notNull(),
+  input_tokens: integer('input_tokens').notNull(),
+  output_tokens: integer('output_tokens').notNull(),
+  cost_cents: real('cost_cents').notNull().default(0),
+  latency_ms: integer('latency_ms'),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('idx_llm_usage_brand').on(table.brand_id),
+  index('idx_llm_usage_created').on(table.created_at),
+]);
+
+// Phase 7A: Playbooks
+export const playbooks = pgTable('playbooks', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  brand_id: uuid('brand_id').notNull().references(() => brands.id, { onDelete: 'cascade' }),
+  name: varchar('name', { length: 255 }).notNull(),
+  trigger_type: varchar('trigger_type', { length: 100 }).notNull(),
+  trigger_conditions: jsonb('trigger_conditions').$type<Record<string, unknown>>().notNull().default({}),
+  actions: jsonb('actions').$type<Record<string, unknown>[]>().notNull().default([]),
+  is_active: boolean('is_active').notNull().default(true),
+  run_count: integer('run_count').notNull().default(0),
+  last_run_at: timestamp('last_run_at', { withTimezone: true }),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('idx_playbooks_brand').on(table.brand_id),
+]);
+
+// Phase 8C: Outgoing Webhooks
+export const webhooks = pgTable('webhooks', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  brand_id: uuid('brand_id').notNull().references(() => brands.id, { onDelete: 'cascade' }),
+  url: text('url').notNull(),
+  event_types: jsonb('event_types').$type<string[]>().notNull().default([]),
+  secret: varchar('secret', { length: 255 }), // HMAC signing secret
+  is_active: boolean('is_active').notNull().default(true),
+  last_triggered_at: timestamp('last_triggered_at', { withTimezone: true }),
+  failure_count: integer('failure_count').notNull().default(0),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('idx_webhooks_brand').on(table.brand_id),
+]);
