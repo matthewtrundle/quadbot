@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { label: 'Inbox', segment: 'inbox' },
   { label: 'Actions', segment: 'actions' },
   { label: 'Artifacts', segment: 'artifacts' },
+  { label: 'Content', segment: 'content' },
   { label: 'Outreach', segment: 'outreach' },
   { label: 'Playbooks', segment: 'playbooks' },
   { label: 'Executions', segment: 'executions' },
