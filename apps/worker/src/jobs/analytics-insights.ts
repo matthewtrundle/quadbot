@@ -106,6 +106,7 @@ export async function analyticsInsights(ctx: JobContext): Promise<void> {
       }),
     },
     analyticsInsightsOutputSchema,
+    { trackUsage: { db, brandId, jobId } },
   );
 
   // Create summary recommendation
@@ -139,9 +140,18 @@ export async function analyticsInsights(ctx: JobContext): Promise<void> {
       job_id: jobId,
       source: 'analytics_insights',
       priority: rec.priority,
+      confidence: rec.confidence ?? null,
       title: rec.title,
       body: rec.description,
-      data: { type: rec.type },
+      data: {
+        type: rec.type,
+        impact_summary: rec.impact_summary ?? null,
+        evidence: rec.evidence ?? null,
+        next_steps: rec.next_steps ?? null,
+        affected_pages: rec.affected_pages ?? null,
+        key_metrics: result.data.key_metrics,
+        top_pages: result.data.top_pages,
+      },
       model_meta: result.model_meta,
     }).returning();
 

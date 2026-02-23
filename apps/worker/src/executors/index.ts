@@ -4,12 +4,20 @@ export * from './gsc-index-request.js';
 export * from './gsc-inspection.js';
 export * from './gsc-sitemap-notify.js';
 export * from './flag-for-review.js';
+export * from './ads-pause-campaign.js';
+export * from './ads-enable-campaign.js';
+export * from './ads-adjust-budget.js';
+export * from './update-meta.js';
 
 import { registerExecutor } from './registry.js';
 import { gscIndexRequestExecutor } from './gsc-index-request.js';
 import { gscInspectionExecutor } from './gsc-inspection.js';
 import { gscSitemapNotifyExecutor } from './gsc-sitemap-notify.js';
 import { flagForReviewExecutor } from './flag-for-review.js';
+import { adsPauseCampaignExecutor } from './ads-pause-campaign.js';
+import { adsEnableCampaignExecutor } from './ads-enable-campaign.js';
+import { adsAdjustBudgetExecutor } from './ads-adjust-budget.js';
+import { updateMetaExecutor } from './update-meta.js';
 
 /**
  * Register all executors with the registry.
@@ -20,4 +28,8 @@ export function registerAllExecutors(): void {
   registerExecutor(gscInspectionExecutor);
   registerExecutor(gscSitemapNotifyExecutor);
   registerExecutor(flagForReviewExecutor);
+  registerExecutor(adsPauseCampaignExecutor);
+  registerExecutor(adsEnableCampaignExecutor);
+  registerExecutor(adsAdjustBudgetExecutor);
+  registerExecutor(updateMetaExecutor);
 }

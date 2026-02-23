@@ -6,6 +6,7 @@ import { getRedis } from './queue.js';
 import { config } from './config.js';
 import { logger } from './logger.js';
 import { randomUUID } from 'node:crypto';
+import { dispatchWebhooks } from './webhook-dispatcher.js';
 
 /**
  * Emit an event with idempotency via dedupe_key.
@@ -57,6 +58,9 @@ export async function emitEvent(
 
     // Dispatch matching event rules
     await dispatchEventRules(eventId, type, brandId, payload);
+
+    // Fire outgoing webhooks (non-blocking)
+    dispatchWebhooks(brandId, type, payload).catch(() => {});
 
     return eventId;
   } catch (err) {

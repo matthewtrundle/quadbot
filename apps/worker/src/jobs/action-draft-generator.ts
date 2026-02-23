@@ -185,6 +185,7 @@ export async function actionDraftGenerator(ctx: JobContext): Promise<void> {
         brand_guardrails: JSON.stringify(guardrails),
       },
       actionDraftGeneratorOutputSchema,
+      { trackUsage: { db, brandId, jobId } },
     );
 
     actionType = result.data.type;

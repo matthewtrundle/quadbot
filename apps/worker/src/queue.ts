@@ -1,6 +1,7 @@
 import Redis from 'ioredis';
 import { QUEUE_KEY, DLQ_KEY } from '@quadbot/shared';
 import { logger } from './logger.js';
+import { Sentry } from './sentry.js';
 
 let redis: Redis | null = null;
 
@@ -114,6 +115,7 @@ export async function startConsumer(
     } catch (err) {
       if ((err as Error).message?.includes('Connection is closed')) {
         logger.error('Redis connection closed, stopping consumer');
+        Sentry.captureException(err);
         break;
       }
       // Check for rate limit errors and back off aggressively
@@ -123,6 +125,7 @@ export async function startConsumer(
         await new Promise((resolve) => setTimeout(resolve, 60000));
       } else {
         logger.error({ err }, 'Queue consumer error');
+        Sentry.captureException(err);
         await new Promise((resolve) => setTimeout(resolve, 20000));
       }
     }

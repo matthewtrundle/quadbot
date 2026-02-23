@@ -68,6 +68,7 @@ export async function contentOptimizer(ctx: JobContext): Promise<void> {
           current_title: page.page, // Would be fetched from actual page in production
         },
         contentOptimizerOutputSchema,
+        { trackUsage: { db, brandId, jobId } },
       );
 
       // Create artifacts for each optimization type

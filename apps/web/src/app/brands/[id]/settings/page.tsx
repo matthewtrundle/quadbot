@@ -3,6 +3,7 @@ import { brands, executionRules } from '@quadbot/db';
 import { eq } from 'drizzle-orm';
 import { notFound } from 'next/navigation';
 import { SettingsForm } from '@/components/settings-form';
+import { WebhookSettings } from '@/components/webhook-settings';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,6 +36,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ id: s
           allowed_action_types: (rules.allowed_action_types as string[]) || [],
         } : undefined}
       />
+      <WebhookSettings brandId={b.id} />
     </div>
   );
 }

@@ -87,6 +87,7 @@ export async function capabilityGapAnalyzer(ctx: JobContext): Promise<void> {
       existing_suggestions: JSON.stringify(Array.from(existingTitles)),
     },
     capabilityGapOutputSchema,
+    { trackUsage: { db, brandId, jobId } },
   );
 
   // Store new improvement suggestions

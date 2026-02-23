@@ -107,6 +107,7 @@ export async function brandProfiler(ctx: JobContext): Promise<void> {
       website_content: websiteContent,
     },
     brandProfileOutputSchema,
+    { trackUsage: { db, brandId, jobId } },
   );
 
   // Merge with existing guardrails (preserve any user-set content_policies)

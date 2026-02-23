@@ -118,7 +118,7 @@ function analyzeBrandMentions(
   for (const article of brandArticles.slice(0, 3)) {
     mentions.push({
       title: `Brand mention: ${brandName} in ${article.source.name}`,
-      description: `Your brand was mentioned in "${article.title}". Review for PR opportunities or reputation management.`,
+      description: `Your brand was mentioned in "${article.title}" by ${article.source.name}.\n\n**Why this matters:** Brand mentions in media create opportunities for PR amplification, backlink acquisition, and reputation management. Unaddressed negative mentions can shape public perception.\n\n**Suggested actions:**\n- Review the article for accuracy and sentiment\n- Share positive coverage on social channels\n- Respond to any inaccuracies or engage with the journalist`,
       type: 'brand',
       priority: 'high',
     });
@@ -127,9 +127,13 @@ function analyzeBrandMentions(
   // Competitor mentions
   for (const [competitor, articles] of competitorArticles) {
     if (articles.length > 0) {
+      const topArticles = articles.slice(0, 3);
+      const articleList = topArticles
+        .map((a, i) => `${i + 1}. "${a.title}" — ${a.source.name}`)
+        .join('\n');
       mentions.push({
         title: `Competitor news: ${competitor}`,
-        description: `${competitor} appeared in ${articles.length} article(s). Latest: "${articles[0].title}". Monitor for competitive insights.`,
+        description: `${competitor} appeared in ${articles.length} article(s).\n\n**Key coverage:**\n${articleList}\n\n**Why this matters:** Competitor activity signals market shifts, new features, or strategic pivots that may affect your positioning.\n\n**Suggested actions:**\n- Analyze competitor messaging for differentiation opportunities\n- Check if coverage highlights features you also offer (potential content angle)\n- Monitor for follow-up coverage indicating a larger trend`,
         type: 'competitor',
         priority: 'medium',
       });
@@ -148,6 +152,8 @@ async function filterTrendsWithLLM(
   guardrails: BrandGuardrails,
   brandName: string,
   jobId: string,
+  db: import('@quadbot/db').Database,
+  brandId: string,
 ): Promise<{
   filtered: typeof allRecommendations;
   filterApplied: boolean;
@@ -181,6 +187,7 @@ async function filterTrendsWithLLM(
         trends_json: JSON.stringify(trendsJson, null, 2),
       },
       trendFilterOutputSchema,
+      { trackUsage: { db, brandId, jobId } },
     );
 
     // Build a lookup of filter results by index
@@ -313,6 +320,8 @@ async function enrichTrendWithBrief(
   guardrails: BrandGuardrails,
   brandName: string,
   jobId: string,
+  db: import('@quadbot/db').Database,
+  brandId: string,
 ): Promise<Record<string, unknown> | null> {
   try {
     const prompt = await loadActivePrompt('trend_brief_enricher_v1');
@@ -331,6 +340,7 @@ async function enrichTrendWithBrief(
         brand_keywords: (guardrails.keywords || []).join(', '),
       },
       trendContentBriefSchema,
+      { trackUsage: { db, brandId, jobId } },
     );
 
     logger.info({ jobId, recTitle: rec.title }, 'Generated content brief for trend');
@@ -420,15 +430,19 @@ export async function trendScanIndustry(ctx: JobContext): Promise<void> {
   for (const keyword of keywords.slice(0, 2)) {
     const keywordNews = await searchNews({ query: keyword, pageSize: 5 });
     if (keywordNews.length > 0) {
+      const articleList = keywordNews.slice(0, 3);
+      const articlesSection = articleList
+        .map((a, i) => `${i + 1}. "${a.title}" — ${a.source.name}`)
+        .join('\n');
       allRecommendations.push({
         title: `Industry update: ${keyword}`,
-        body: `Found ${keywordNews.length} recent articles about "${keyword}". Top story: "${keywordNews[0].title}" from ${keywordNews[0].source.name}.`,
+        body: `Found ${keywordNews.length} recent articles about "${keyword}".\n\n**Key articles:**\n${articlesSection}\n\n**Why this matters:** Staying informed on "${keyword}" trends helps ${brandName} identify content opportunities and competitive shifts in the ${industry} space.\n\n**Suggested actions:**\n- Review the top articles for content inspiration\n- Consider creating a response piece or industry commentary\n- Monitor for follow-up coverage that may affect your audience`,
         priority: 'low',
         data: {
           type: 'industry_awareness',
           source: 'news',
           keyword,
-          articles: keywordNews.slice(0, 3).map((a) => ({ title: a.title, url: a.url, source: a.source.name })),
+          articles: articleList.map((a) => ({ title: a.title, url: a.url, source: a.source.name })),
         },
       });
     }
@@ -478,7 +492,7 @@ export async function trendScanIndustry(ctx: JobContext): Promise<void> {
   let filterMeta: Record<string, unknown> | null = null;
 
   if (allRecommendations.length > 0) {
-    const filterResult = await filterTrendsWithLLM(allRecommendations, guardrails, brandName, jobId);
+    const filterResult = await filterTrendsWithLLM(allRecommendations, guardrails, brandName, jobId, db, brandId);
     finalRecommendations = filterResult.filtered;
     filterMeta = filterResult.filterMeta;
   }
@@ -524,7 +538,7 @@ export async function trendScanIndustry(ctx: JobContext): Promise<void> {
       // Enrich content opportunities with briefs (only if guardrails available)
       let briefContent: Record<string, unknown> | null = null;
       if (isContentOpportunity && guardrails) {
-        briefContent = await enrichTrendWithBrief(rec, guardrails, brandName, jobId);
+        briefContent = await enrichTrendWithBrief(rec, guardrails, brandName, jobId, db, brandId);
       }
 
       const [inserted] = await db.insert(recommendations).values({

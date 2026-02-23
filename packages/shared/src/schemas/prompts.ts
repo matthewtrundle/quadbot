@@ -47,6 +47,9 @@ export const actionTypeEnum = z.enum([
   'gsc-index-request',
   'gsc-inspection',
   'gsc-sitemap-notify',
+  'ads-pause-campaign',
+  'ads-enable-campaign',
+  'ads-adjust-budget',
   'flag_for_review',
   'update_meta',
   'update_content',
@@ -71,11 +74,29 @@ export const gscChangeSchema = z.object({
   position_delta: z.coerce.number().min(-100).max(100),
 });
 
-export const gscRecommendationSchema = z.object({
+// Shared enriched recommendation fields used by all digest outputs
+export const enrichedRecommendationFields = z.object({
   type: recommendationTypeEnum,
   priority: z.enum(['low', 'medium', 'high', 'critical']),
   title: z.string().min(5).max(300),
-  description: z.string().min(10).max(2000),
+  description: z.string().min(50).max(5000),
+  confidence: z.number().min(0).max(1).optional(),
+  impact_summary: z.string().max(500).optional(),
+  evidence: z.array(z.object({
+    metric: z.string(),
+    value: z.string(),
+    context: z.string().optional(),
+  })).max(20).optional(),
+  next_steps: z.array(z.object({
+    action: z.string(),
+    details: z.string().optional(),
+    effort: z.enum(['minutes', 'hours', 'days']).optional(),
+  })).max(10).optional(),
+});
+
+export const gscRecommendationSchema = enrichedRecommendationFields.extend({
+  affected_queries: z.array(z.string()).optional(),
+  affected_pages: z.array(z.string()).optional(),
 });
 
 export const gscDigestOutputSchema = z.object({
@@ -155,11 +176,8 @@ export const adsPerformanceOutputSchema = z.object({
     roas: z.number(),
     trend: z.enum(['up', 'down', 'stable']),
   })),
-  recommendations: z.array(z.object({
-    type: recommendationTypeEnum,
-    priority: z.enum(['low', 'medium', 'high', 'critical']),
-    title: z.string(),
-    description: z.string(),
+  recommendations: z.array(enrichedRecommendationFields.extend({
+    affected_campaigns: z.array(z.string()).optional(),
   })),
 });
 
@@ -178,11 +196,8 @@ export const analyticsInsightsOutputSchema = z.object({
     avg_time_on_page: z.number(),
     exit_rate: z.number(),
   })),
-  recommendations: z.array(z.object({
-    type: recommendationTypeEnum,
-    priority: z.enum(['low', 'medium', 'high', 'critical']),
-    title: z.string(),
-    description: z.string(),
+  recommendations: z.array(enrichedRecommendationFields.extend({
+    affected_pages: z.array(z.string()).optional(),
   })),
 });
 
@@ -195,15 +210,12 @@ export const crossChannelCorrelationSchema = z.object({
     insight: z.string(),
     confidence: z.number().min(0).max(1),
   })),
-  unified_recommendations: z.array(z.object({
-    type: recommendationTypeEnum,
-    priority: z.enum(['low', 'medium', 'high', 'critical']),
-    title: z.string(),
-    description: z.string(),
+  unified_recommendations: z.array(enrichedRecommendationFields.extend({
     affected_channels: z.array(z.string()),
   })),
 });
 
+export type EnrichedRecommendation = z.infer<typeof enrichedRecommendationFields>;
 export type StrategicPrioritizerOutput = z.infer<typeof strategicPrioritizerOutputSchema>;
 export type CommunityModerationOutput = z.infer<typeof communityModerationOutputSchema>;
 export type GscDigestOutput = z.infer<typeof gscDigestOutputSchema>;

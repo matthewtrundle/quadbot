@@ -199,7 +199,7 @@ export async function gscDailyDigest(ctx: JobContext): Promise<void> {
     prompt,
     variables,
     gscDigestOutputSchema,
-    { groundingValidator: gscGroundingValidator },
+    { groundingValidator: gscGroundingValidator, trackUsage: { db, brandId, jobId } },
   );
 
   // Insert summary recommendation
@@ -232,9 +232,18 @@ export async function gscDailyDigest(ctx: JobContext): Promise<void> {
       job_id: jobId,
       source: 'gsc_daily_digest',
       priority: rec.priority,
+      confidence: rec.confidence ?? null,
       title: rec.title,
       body: rec.description,
-      data: { type: rec.type },
+      data: {
+        type: rec.type,
+        impact_summary: rec.impact_summary ?? null,
+        evidence: rec.evidence ?? null,
+        next_steps: rec.next_steps ?? null,
+        affected_queries: rec.affected_queries ?? null,
+        affected_pages: rec.affected_pages ?? null,
+        top_changes: result.data.top_changes,
+      },
       model_meta: result.model_meta,
       }).returning();
 

@@ -72,6 +72,7 @@ export async function signalExtractor(ctx: JobContext): Promise<void> {
       brand_modules: JSON.stringify(brand[0].modules_enabled),
     },
     signalExtractorOutputSchema,
+    { trackUsage: { db, brandId, jobId } },
   );
 
   const expiresAt = new Date();

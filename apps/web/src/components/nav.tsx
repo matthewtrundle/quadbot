@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Building2, LayoutDashboard, CalendarClock, Download, DollarSign, Settings, Sparkles, LogOut } from 'lucide-react';
 import { useSession, signOut } from '@/lib/auth-client';
+import { NotificationBell } from './notification-bell';
 
 type NavItem = {
   href: string;
@@ -69,6 +70,9 @@ export function Nav() {
             </div>
           </div>
           <span className="text-lg font-bold tracking-tight holographic">QuadBot</span>
+          <div className="ml-auto">
+            <NotificationBell brandId={(session?.user as any)?.brandId || null} />
+          </div>
         </div>
 
         {/* Navigation */}

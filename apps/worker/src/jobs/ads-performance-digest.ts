@@ -103,6 +103,7 @@ export async function adsPerformanceDigest(ctx: JobContext): Promise<void> {
       account_goals: JSON.stringify({ target_roas: 4.0, monthly_budget: 10000 }),
     },
     adsPerformanceOutputSchema,
+    { trackUsage: { db, brandId, jobId } },
   );
 
   // Create summary recommendation
@@ -135,9 +136,17 @@ export async function adsPerformanceDigest(ctx: JobContext): Promise<void> {
       job_id: jobId,
       source: 'ads_performance_digest',
       priority: rec.priority,
+      confidence: rec.confidence ?? null,
       title: rec.title,
       body: rec.description,
-      data: { type: rec.type },
+      data: {
+        type: rec.type,
+        impact_summary: rec.impact_summary ?? null,
+        evidence: rec.evidence ?? null,
+        next_steps: rec.next_steps ?? null,
+        affected_campaigns: rec.affected_campaigns ?? null,
+        top_campaigns: result.data.top_campaigns,
+      },
       model_meta: result.model_meta,
     }).returning();
 

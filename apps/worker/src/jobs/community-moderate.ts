@@ -34,6 +34,7 @@ export async function communityModeratePost(ctx: JobContext): Promise<void> {
       post_context: payload.post_context || '',
     },
     communityModerationOutputSchema,
+    { trackUsage: { db, brandId, jobId } },
   );
 
   const priority = result.data.needs_human_review

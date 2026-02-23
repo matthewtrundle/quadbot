@@ -7,6 +7,7 @@ import { loadActivePrompt } from '../prompt-loader.js';
 import { logger } from '../logger.js';
 import { computeBaseScore, applyClaudeDelta, estimateReviewMinutes } from '../scoring.js';
 import { getCrossBrandContext } from '../cross-brand-context.js';
+import { getPlaybookContext } from '../playbook-engine.js';
 
 const strategicPrioritizerOutputSchema = z.object({
   adjustments: z.array(z.object({
@@ -64,8 +65,12 @@ export async function strategicPrioritizer(ctx: JobContext): Promise<void> {
   const sourceDomain = pendingRecs[0]?.source === 'gsc_daily_digest' ? 'seo' : 'community';
   const signalContext = await getCrossBrandContext(brandId, sourceDomain);
 
-  // Step 3: Playbook context (placeholder — playbooks table not yet implemented)
-  const playbookContext = '';
+  // Step 3: Playbook context from active playbooks
+  const playbookContext = await getPlaybookContext(
+    db,
+    brandId,
+    pendingRecs.map((r) => ({ source: r.source, priority: r.priority, type: (r.data as Record<string, string>)?.type })),
+  );
 
   // Step 4: Call Claude for bounded adjustments
   let prompt;
@@ -108,7 +113,7 @@ export async function strategicPrioritizer(ctx: JobContext): Promise<void> {
       time_budget: brand[0].time_budget_minutes_per_day || 30,
     },
     strategicPrioritizerOutputSchema,
-    { signalContext, playbookContext },
+    { signalContext, playbookContext, trackUsage: { db, brandId, jobId } },
   );
 
   // Step 5: Apply adjustments + hard relevance gate

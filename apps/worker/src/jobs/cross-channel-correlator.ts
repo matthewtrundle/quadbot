@@ -89,6 +89,7 @@ export async function crossChannelCorrelator(ctx: JobContext): Promise<void> {
       analytics_data: analyticsData ? JSON.stringify(analyticsData) : 'Not available',
     },
     crossChannelCorrelationSchema,
+    { trackUsage: { db, brandId, jobId } },
   );
 
   // Create summary recommendation with cross-channel insights
@@ -122,11 +123,16 @@ export async function crossChannelCorrelator(ctx: JobContext): Promise<void> {
       job_id: jobId,
       source: 'cross_channel_correlator',
       priority: rec.priority,
+      confidence: rec.confidence ?? null,
       title: rec.title,
       body: rec.description,
       data: {
         type: rec.type,
+        impact_summary: rec.impact_summary ?? null,
+        evidence: rec.evidence ?? null,
+        next_steps: rec.next_steps ?? null,
         affected_channels: rec.affected_channels,
+        correlations: result.data.correlations,
       },
       model_meta: result.model_meta,
     }).returning();
