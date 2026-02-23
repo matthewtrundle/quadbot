@@ -1,6 +1,10 @@
+'use client';
+
+import { useState } from 'react';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
 type Recommendation = {
   id: string;
@@ -11,6 +15,8 @@ type Recommendation = {
   created_at: Date;
 };
 
+const PAGE_SIZE = 20;
+
 const priorityColors: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
   critical: 'destructive',
   high: 'destructive',
@@ -19,6 +25,8 @@ const priorityColors: Record<string, 'default' | 'secondary' | 'destructive' | '
 };
 
 export function RecommendationList({ recommendations }: { recommendations: Recommendation[] }) {
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+
   if (recommendations.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-12 text-center">
@@ -35,27 +43,45 @@ export function RecommendationList({ recommendations }: { recommendations: Recom
     );
   }
 
+  const visible = recommendations.slice(0, visibleCount);
+  const hasMore = visibleCount < recommendations.length;
+
   return (
     <div className="space-y-4">
-      {recommendations.map((rec) => (
+      {visible.map((rec) => (
         <Link key={rec.id} href={`/recommendations/${rec.id}`} className="block">
-        <Card className="hover:border-primary/30 transition-all">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base">{rec.title}</CardTitle>
-              <div className="flex gap-2">
-                <Badge variant={priorityColors[rec.priority] || 'outline'}>{rec.priority}</Badge>
-                <Badge variant="outline">{rec.source}</Badge>
+          <Card className="hover:border-primary/30 transition-all">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base">{rec.title}</CardTitle>
+                <div className="flex gap-2">
+                  <Badge variant={priorityColors[rec.priority] || 'outline'}>{rec.priority}</Badge>
+                  <Badge variant="outline">{rec.source}</Badge>
+                </div>
               </div>
-            </div>
-            <CardDescription>{new Date(rec.created_at).toLocaleString()}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground line-clamp-3">{rec.body.split('\n\n')[0]}</p>
-          </CardContent>
-        </Card>
+              <CardDescription>{new Date(rec.created_at).toLocaleString()}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground line-clamp-3">{rec.body.split('\n\n')[0]}</p>
+            </CardContent>
+          </Card>
         </Link>
       ))}
+      {hasMore && (
+        <div className="flex justify-center pt-2">
+          <Button
+            variant="outline"
+            onClick={() => setVisibleCount((prev) => prev + PAGE_SIZE)}
+          >
+            Show more ({recommendations.length - visibleCount} remaining)
+          </Button>
+        </div>
+      )}
+      {!hasMore && recommendations.length > PAGE_SIZE && (
+        <p className="text-center text-xs text-muted-foreground">
+          Showing all {recommendations.length} recommendations
+        </p>
+      )}
     </div>
   );
 }
