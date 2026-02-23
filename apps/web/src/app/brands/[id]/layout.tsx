@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getSession, isAdmin } from '@/lib/auth-session';
 import { db } from '@/lib/db';
@@ -6,6 +5,7 @@ import { brands } from '@quadbot/db';
 import { eq } from 'drizzle-orm';
 import { notFound } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
+import { BrandNav } from '@/components/brand-nav';
 
 export default async function BrandLayout({
   children,
@@ -35,32 +35,7 @@ export default async function BrandLayout({
         <Badge variant={b.mode === 'assist' ? 'default' : 'secondary'}>{b.mode}</Badge>
       </div>
 
-      <nav className="flex gap-4 border-b pb-2">
-        <Link href={`/brands/${id}/inbox`} className="text-sm font-medium hover:text-primary">
-          Inbox
-        </Link>
-        <Link href={`/brands/${id}/actions`} className="text-sm font-medium hover:text-primary">
-          Actions
-        </Link>
-        <Link href={`/brands/${id}/artifacts`} className="text-sm font-medium hover:text-primary">
-          Artifacts
-        </Link>
-        <Link href={`/brands/${id}/outreach`} className="text-sm font-medium hover:text-primary">
-          Outreach
-        </Link>
-        <Link href={`/brands/${id}/playbooks`} className="text-sm font-medium hover:text-primary">
-          Playbooks
-        </Link>
-        <Link href={`/brands/${id}/executions`} className="text-sm font-medium hover:text-primary">
-          Executions
-        </Link>
-        <Link href={`/brands/${id}/evaluation`} className="text-sm font-medium hover:text-primary">
-          Evaluation
-        </Link>
-        <Link href={`/brands/${id}/settings`} className="text-sm font-medium hover:text-primary">
-          Settings
-        </Link>
-      </nav>
+      <BrandNav brandId={id} />
 
       {children}
     </div>
