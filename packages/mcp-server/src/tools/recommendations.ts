@@ -1,8 +1,11 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { db, recommendations, actionDrafts, outcomes, artifacts } from '@quadbot/db';
+import { db, recommendations, actionDrafts, outcomes, artifacts, brands, jobs } from '@quadbot/db';
 import { eq, desc, and } from 'drizzle-orm';
+import { randomUUID } from 'node:crypto';
+import { QUEUE_KEY, JobType } from '@quadbot/shared';
 import type { TrendContentBrief } from '@quadbot/shared';
+import { getRedis } from '../redis.js';
 
 export function registerRecommendationTools(server: McpServer) {
   server.tool(
@@ -235,6 +238,87 @@ Trend Stage: ${brief.timeliness.trend_lifecycle_stage}`;
         content: [{
           type: 'text',
           text: prompt,
+        }],
+      };
+    },
+  );
+
+  server.tool(
+    'trigger_content_writer',
+    'Generate a full blog post from a trend content brief artifact. Creates a content_writer job that uses LLM to write the article.',
+    {
+      artifactId: z.string().uuid().describe('The trend_content_brief artifact ID'),
+      platform: z.enum(['blog', 'social', 'email']).optional().describe('Target platform (default: blog)'),
+      targetWordCount: z.number().min(300).max(5000).optional().describe('Target word count (default: 1500)'),
+    },
+    async ({ artifactId, platform, targetWordCount }) => {
+      // Verify artifact exists and is the right type
+      const [artifact] = await db
+        .select()
+        .from(artifacts)
+        .where(eq(artifacts.id, artifactId))
+        .limit(1);
+
+      if (!artifact) {
+        return { content: [{ type: 'text', text: 'Artifact not found' }], isError: true };
+      }
+
+      if (artifact.type !== 'trend_content_brief') {
+        return {
+          content: [{ type: 'text', text: `This tool requires a trend_content_brief artifact. Got: ${artifact.type}` }],
+          isError: true,
+        };
+      }
+
+      // Verify brand exists
+      const [brand] = await db
+        .select()
+        .from(brands)
+        .where(eq(brands.id, artifact.brand_id))
+        .limit(1);
+
+      if (!brand) {
+        return { content: [{ type: 'text', text: 'Brand not found for this artifact' }], isError: true };
+      }
+
+      const jobId = randomUUID();
+      const jobPayload = {
+        artifact_id: artifactId,
+        platform: platform || 'blog',
+        target_word_count: targetWordCount || 1500,
+      };
+
+      await db.insert(jobs).values({
+        id: jobId,
+        brand_id: artifact.brand_id,
+        type: JobType.CONTENT_WRITER,
+        status: 'queued',
+        payload: jobPayload,
+      });
+
+      // Push to per-brand Redis queue
+      const redis = getRedis();
+      const message = JSON.stringify({
+        jobId,
+        type: JobType.CONTENT_WRITER,
+        payload: { brand_id: artifact.brand_id, ...jobPayload },
+      });
+      await redis.lpush(`quadbot:jobs:${artifact.brand_id}`, message);
+      await redis.sadd('quadbot:known_brands', artifact.brand_id);
+
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            success: true,
+            jobId,
+            jobType: JobType.CONTENT_WRITER,
+            brandId: artifact.brand_id,
+            brandName: brand.name,
+            artifactTitle: artifact.title,
+            platform: platform || 'blog',
+            targetWordCount: targetWordCount || 1500,
+          }, null, 2),
         }],
       };
     },
