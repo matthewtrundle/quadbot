@@ -5,6 +5,10 @@ import { useRouter } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
 type ActionDraft = {
@@ -224,9 +228,30 @@ export function ActionDraftCard({ draft }: { draft: ActionDraft }) {
           <Button size="sm" onClick={() => handleAction('approve')} disabled={loading}>
             Approve
           </Button>
-          <Button size="sm" variant="destructive" onClick={() => handleAction('reject')} disabled={loading}>
-            Reject
-          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button size="sm" variant="destructive" disabled={loading}>
+                Reject
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Reject this action?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will reject the &quot;{label}&quot; action draft. This cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={() => handleAction('reject')}
+                >
+                  Reject
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </CardFooter>
       )}
     </Card>

@@ -1,8 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Building2, LayoutDashboard, CalendarClock, Download, DollarSign, Settings, Sparkles, LogOut } from 'lucide-react';
+import { Building2, LayoutDashboard, CalendarClock, ChevronDown, Download, DollarSign, Settings, Sparkles, LogOut } from 'lucide-react';
 import { useSession, signOut } from '@/lib/auth-client';
 import { NotificationBell } from './notification-bell';
 
@@ -11,11 +12,19 @@ type NavItem = {
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   matchPrefix: string;
+  children?: NavItem[];
 };
 
 const coreItems: NavItem[] = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, matchPrefix: '/dashboard' },
-  { href: '/dashboard/daily-diff', label: 'Daily Diff', icon: CalendarClock, matchPrefix: '/dashboard/daily-diff' },
+  {
+    href: '/dashboard',
+    label: 'Dashboard',
+    icon: LayoutDashboard,
+    matchPrefix: '/dashboard',
+    children: [
+      { href: '/dashboard/daily-diff', label: 'Daily Diff', icon: CalendarClock, matchPrefix: '/dashboard/daily-diff' },
+    ],
+  },
   { href: '/brands', label: 'Brands', icon: Building2, matchPrefix: '/brands' },
 ];
 
@@ -25,22 +34,29 @@ const setupItems: NavItem[] = [
   { href: '/dashboard/settings', label: 'Settings', icon: Settings, matchPrefix: '/dashboard/settings' },
 ];
 
-function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
-  // Special case: /dashboard should only match exactly or sub-routes not claimed by other items
-  const isActive =
-    item.matchPrefix === '/dashboard'
-      ? pathname === '/dashboard' ||
-        (pathname.startsWith('/dashboard') &&
-          !pathname.startsWith('/dashboard/daily-diff') &&
-          !pathname.startsWith('/dashboard/usage') &&
-          !pathname.startsWith('/dashboard/settings') &&
-          !pathname.startsWith('/dashboard/improvements'))
-      : pathname.startsWith(item.matchPrefix);
+function isItemActive(item: NavItem, pathname: string): boolean {
+  if (item.matchPrefix === '/dashboard') {
+    return (
+      pathname === '/dashboard' ||
+      (pathname.startsWith('/dashboard') &&
+        !pathname.startsWith('/dashboard/daily-diff') &&
+        !pathname.startsWith('/dashboard/usage') &&
+        !pathname.startsWith('/dashboard/settings') &&
+        !pathname.startsWith('/dashboard/improvements'))
+    );
+  }
+  return pathname.startsWith(item.matchPrefix);
+}
+
+function NavLink({ item, pathname, indent }: { item: NavItem; pathname: string; indent?: boolean }) {
+  const isActive = isItemActive(item, pathname);
 
   return (
     <Link
       href={item.href}
       className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors ${
+        indent ? 'pl-10' : ''
+      } ${
         isActive
           ? 'bg-secondary text-primary border-l-2 border-primary'
           : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
@@ -49,6 +65,48 @@ function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
       <item.icon className="h-4 w-4" />
       {item.label}
     </Link>
+  );
+}
+
+function NavGroup({ item, pathname }: { item: NavItem; pathname: string }) {
+  const isParentActive = isItemActive(item, pathname);
+  const isChildActive = item.children?.some((child) => pathname.startsWith(child.matchPrefix)) ?? false;
+  const [open, setOpen] = useState(isParentActive || isChildActive);
+
+  return (
+    <div>
+      <div className="flex items-center">
+        <Link
+          href={item.href}
+          className={`flex flex-1 items-center gap-3 rounded-md rounded-r-none px-3 py-2.5 text-sm font-medium transition-colors ${
+            isParentActive
+              ? 'bg-secondary text-primary border-l-2 border-primary'
+              : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+          }`}
+        >
+          <item.icon className="h-4 w-4" />
+          {item.label}
+        </Link>
+        <button
+          onClick={() => setOpen((prev) => !prev)}
+          className={`rounded-md rounded-l-none px-2 py-2.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground ${
+            isParentActive ? 'bg-secondary' : ''
+          }`}
+          aria-label={open ? 'Collapse' : 'Expand'}
+        >
+          <ChevronDown
+            className={`h-4 w-4 transition-transform ${open ? 'rotate-0' : '-rotate-90'}`}
+          />
+        </button>
+      </div>
+      {open && item.children && (
+        <div className="mt-0.5 space-y-0.5">
+          {item.children.map((child) => (
+            <NavLink key={child.href} item={child} pathname={pathname} indent />
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -80,9 +138,13 @@ export function Nav() {
           <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Core
           </p>
-          {coreItems.map((item) => (
-            <NavLink key={item.href} item={item} pathname={pathname} />
-          ))}
+          {coreItems.map((item) =>
+            item.children ? (
+              <NavGroup key={item.href} item={item} pathname={pathname} />
+            ) : (
+              <NavLink key={item.href} item={item} pathname={pathname} />
+            )
+          )}
 
           <div className="my-4 mx-3 border-t border-border/30" />
           <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">

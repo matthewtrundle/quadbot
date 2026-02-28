@@ -32,7 +32,55 @@ type SettingsFormProps = {
   executionRules?: ExecutionRulesConfig;
 };
 
-const AVAILABLE_MODULES = ['community_moderation', 'gsc_digest', 'trend_scan'];
+type ModuleDefinition = {
+  id: string;
+  label: string;
+  description: string;
+  category: string;
+};
+
+const AVAILABLE_MODULES: ModuleDefinition[] = [
+  // Analysis & Monitoring
+  { id: 'gsc_digest', label: 'GSC Daily Digest', description: 'Daily Google Search Console performance report', category: 'Analysis' },
+  { id: 'trend_scan', label: 'Trend Scanner', description: 'Industry trend analysis and content opportunity detection', category: 'Analysis' },
+  { id: 'content_optimizer', label: 'Content Optimizer', description: 'Analyze existing content for improvement opportunities', category: 'Analysis' },
+  { id: 'anomaly_detector', label: 'Anomaly Detector', description: 'Detect unusual patterns in metrics', category: 'Analysis' },
+
+  // Multi-Source Intelligence
+  { id: 'ads_performance_digest', label: 'Ads Performance', description: 'Google Ads performance analysis', category: 'Intelligence' },
+  { id: 'analytics_insights', label: 'Analytics Insights', description: 'Google Analytics behavior insights', category: 'Intelligence' },
+  { id: 'cross_channel_correlator', label: 'Cross-Channel Correlator', description: 'Find patterns across data sources', category: 'Intelligence' },
+
+  // Automation
+  { id: 'action_draft_generator', label: 'Action Drafts', description: 'Auto-generate actionable recommendations', category: 'Automation' },
+  { id: 'metric_snapshot', label: 'Metric Snapshots', description: 'Periodic metric capture for trending', category: 'Automation' },
+  { id: 'content_automation', label: 'Content Automation', description: 'Automated content brief to publish pipeline', category: 'Automation' },
+
+  // Evaluation
+  { id: 'evaluation_scorer', label: 'Evaluation Scorer', description: 'Score recommendation quality and outcomes', category: 'Evaluation' },
+  { id: 'outcome_collector', label: 'Outcome Collector', description: 'Track recommendation outcomes', category: 'Evaluation' },
+  { id: 'prompt_scorer', label: 'Prompt Scorer', description: 'Evaluate prompt effectiveness', category: 'Evaluation' },
+  { id: 'source_quality_scorer', label: 'Source Quality', description: 'Rate reliability of data sources', category: 'Evaluation' },
+
+  // Signals
+  { id: 'signal_extractor', label: 'Signal Extractor', description: 'Extract cross-brand signals', category: 'Signals' },
+  { id: 'strategic_prioritizer', label: 'Strategic Prioritizer', description: 'Prioritize recommendations by impact', category: 'Signals' },
+  { id: 'benchmark_generator', label: 'Benchmarks', description: 'Cross-brand performance benchmarking', category: 'Signals' },
+  { id: 'capability_gap_analyzer', label: 'Capability Gaps', description: 'Identify improvement opportunities', category: 'Signals' },
+
+  // Community
+  { id: 'community_moderation', label: 'Community Moderation', description: 'AI-assisted community post moderation', category: 'Community' },
+
+  // Notifications
+  { id: 'daily_email_digest', label: 'Daily Email', description: 'Daily summary email digest', category: 'Notifications' },
+  { id: 'weekly_summary_email', label: 'Weekly Summary', description: 'Weekly performance summary email', category: 'Notifications' },
+
+  // Outreach
+  { id: 'outreach_campaign_scheduler', label: 'Campaign Scheduler', description: 'Automated outreach campaign scheduling', category: 'Outreach' },
+  { id: 'outreach_campaign_analytics', label: 'Campaign Analytics', description: 'Track outreach campaign performance', category: 'Outreach' },
+];
+
+const MODULE_CATEGORIES = [...new Set(AVAILABLE_MODULES.map((m) => m.category))];
 
 const INDUSTRY_OPTIONS = [
   'food & beverage',
@@ -198,12 +246,30 @@ export function SettingsForm({ brandId, mode, modulesEnabled, guardrails, execut
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Modules</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Enable or disable modules to control what Quadbot monitors and automates for this brand.
+          </p>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {AVAILABLE_MODULES.map((mod) => (
-            <div key={mod} className="flex items-center justify-between">
-              <Label>{mod.replace(/_/g, ' ')}</Label>
-              <Switch checked={modules.includes(mod)} onCheckedChange={() => toggleModule(mod)} />
+        <CardContent className="space-y-6">
+          {MODULE_CATEGORIES.map((category) => (
+            <div key={category} className="space-y-3">
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-foreground">{category}</h3>
+                <span className="text-xs text-muted-foreground">
+                  ({AVAILABLE_MODULES.filter((m) => m.category === category && modules.includes(m.id)).length}/{AVAILABLE_MODULES.filter((m) => m.category === category).length})
+                </span>
+              </div>
+              <div className="space-y-2 pl-1">
+                {AVAILABLE_MODULES.filter((m) => m.category === category).map((mod) => (
+                  <div key={mod.id} className="flex items-center justify-between rounded-md border px-3 py-2">
+                    <div className="space-y-0.5">
+                      <Label className="text-sm font-medium">{mod.label}</Label>
+                      <p className="text-xs text-muted-foreground">{mod.description}</p>
+                    </div>
+                    <Switch checked={modules.includes(mod.id)} onCheckedChange={() => toggleModule(mod.id)} />
+                  </div>
+                ))}
+              </div>
             </div>
           ))}
         </CardContent>
