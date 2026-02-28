@@ -7,6 +7,15 @@ import { Building2, LayoutDashboard, CalendarClock, ChevronDown, Download, Dolla
 import { useSession, signOut } from '@/lib/auth-client';
 import { NotificationBell } from './notification-bell';
 
+/** Client-side user type with custom additional fields from better-auth config. */
+type ClientUserWithBrand = {
+  id: string;
+  name: string;
+  email: string;
+  image?: string | null;
+  brandId?: string | null;
+};
+
 type NavItem = {
   href: string;
   label: string;
@@ -129,7 +138,7 @@ export function Nav() {
           </div>
           <span className="text-lg font-bold tracking-tight holographic">QuadBot</span>
           <div className="ml-auto">
-            <NotificationBell brandId={(session?.user as any)?.brandId || null} />
+            <NotificationBell brandId={(session?.user as ClientUserWithBrand | undefined)?.brandId || null} />
           </div>
         </div>
 

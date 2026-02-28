@@ -28,6 +28,9 @@ import type { JobContext } from '../registry.js';
  */
 export async function outreachAiReply(ctx: JobContext): Promise<void> {
   const { brandId, jobId, payload } = ctx;
+  const startTime = Date.now();
+  logger.info({ jobId, brandId, jobType: 'outreach_ai_reply' }, 'Outreach_AI_Reply starting');
+
   const conversationId = payload.conversation_id as string;
   const campaignId = payload.campaign_id as string;
   const replyMode = payload.reply_mode as string;
@@ -228,4 +231,6 @@ export async function outreachAiReply(ctx: JobContext): Promise<void> {
       updated_at: now,
     })
     .where(eq(outreachConversations.id, conversationId));
+
+  logger.info({ jobId, brandId, jobType: 'outreach_ai_reply', conversationId, replyMode, durationMs: Date.now() - startTime }, 'Outreach_AI_Reply completed');
 }

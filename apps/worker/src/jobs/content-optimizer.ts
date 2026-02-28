@@ -29,6 +29,8 @@ type GscPageData = {
  */
 export async function contentOptimizer(ctx: JobContext): Promise<void> {
   const { db, jobId, brandId, payload } = ctx;
+  const startTime = Date.now();
+  logger.info({ jobId, brandId, jobType: 'content_optimizer' }, 'Content_Optimizer starting');
 
   const brand = await db.select().from(brands).where(eq(brands.id, brandId)).limit(1);
   if (brand.length === 0) throw new Error(`Brand ${brandId} not found`);
@@ -152,7 +154,7 @@ export async function contentOptimizer(ctx: JobContext): Promise<void> {
     }
   }
 
-  logger.info({ jobId, brandId, pagesOptimized: pagesToOptimize.length }, 'Content optimization complete');
+  logger.info({ jobId, brandId, jobType: 'content_optimizer', pagesOptimized: pagesToOptimize.length, durationMs: Date.now() - startTime }, 'Content_Optimizer completed');
 }
 
 /**

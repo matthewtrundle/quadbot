@@ -119,6 +119,8 @@ const gscGroundingValidator: GroundingValidator<GscDigestOutput> = (output, inpu
 
 export async function gscDailyDigest(ctx: JobContext): Promise<void> {
   const { db, jobId, brandId } = ctx;
+  const startTime = Date.now();
+  logger.info({ jobId, brandId, jobType: 'gsc_daily_digest' }, 'GSC_Daily_Digest starting');
 
   const brand = await db.select().from(brands).where(eq(brands.id, brandId)).limit(1);
   if (brand.length === 0) throw new Error(`Brand ${brandId} not found`);
@@ -257,7 +259,7 @@ export async function gscDailyDigest(ctx: JobContext): Promise<void> {
   }
 
   logger.info(
-    { jobId, recommendationsCount: result.data.recommendations.length },
-    'GSC daily digest complete',
+    { jobId, brandId, jobType: 'gsc_daily_digest', recommendationsCount: result.data.recommendations.length, durationMs: Date.now() - startTime },
+    'GSC_Daily_Digest completed',
   );
 }

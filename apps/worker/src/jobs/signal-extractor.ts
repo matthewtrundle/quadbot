@@ -13,6 +13,8 @@ import { logger } from '../logger.js';
  */
 export async function signalExtractor(ctx: JobContext): Promise<void> {
   const { db, jobId, brandId, payload } = ctx;
+  const startTime = Date.now();
+  logger.info({ jobId, brandId, jobType: 'signal_extractor' }, 'Signal_Extractor starting');
 
   const recommendationId = payload.recommendation_id as string;
   if (!recommendationId) {
@@ -92,8 +94,10 @@ export async function signalExtractor(ctx: JobContext): Promise<void> {
   logger.info({
     jobId,
     brandId,
+    jobType: 'signal_extractor',
     domain: result.data.domain,
     signalType: result.data.signal_type,
     confidence: result.data.confidence,
-  }, 'Signal extracted');
+    durationMs: Date.now() - startTime,
+  }, 'Signal_Extractor completed');
 }

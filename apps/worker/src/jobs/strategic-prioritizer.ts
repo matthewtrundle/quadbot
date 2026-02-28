@@ -26,6 +26,8 @@ const strategicPrioritizerOutputSchema = z.object({
  */
 export async function strategicPrioritizer(ctx: JobContext): Promise<void> {
   const { db, jobId, brandId } = ctx;
+  const startTime = Date.now();
+  logger.info({ jobId, brandId, jobType: 'strategic_prioritizer' }, 'Strategic_Prioritizer starting');
 
   const brand = await db.select().from(brands).where(eq(brands.id, brandId)).limit(1);
   if (brand.length === 0) throw new Error(`Brand ${brandId} not found`);
@@ -189,8 +191,10 @@ export async function strategicPrioritizer(ctx: JobContext): Promise<void> {
   logger.info({
     jobId,
     brandId,
+    jobType: 'strategic_prioritizer',
     rankedCount: kept.length,
     droppedCount,
     adjustmentsApplied: result.data.adjustments.length,
-  }, 'Strategic prioritization complete');
+    durationMs: Date.now() - startTime,
+  }, 'Strategic_Prioritizer completed');
 }

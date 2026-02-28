@@ -8,11 +8,18 @@ import { Badge } from '@/components/ui/badge';
 import { Check, ExternalLink, AlertCircle } from 'lucide-react';
 import { ManualJobTrigger } from '@/components/manual-job-trigger';
 
+type CredentialConfig = {
+  gsc_sites_count?: number;
+  properties_count?: number;
+  accounts_count?: number;
+  [key: string]: unknown;
+};
+
 type Credential = {
   id: string;
   type: string;
   name: string;
-  config: Record<string, unknown>;
+  config: CredentialConfig;
   created_at: string;
 };
 
@@ -99,7 +106,7 @@ function SettingsContent() {
               <div className="space-y-2 text-sm">
                 <p className="text-muted-foreground">{gscCredential.name}</p>
                 <p className="text-muted-foreground">
-                  {(gscCredential.config as any)?.gsc_sites_count || 0} sites available
+                  {gscCredential.config?.gsc_sites_count || 0} sites available
                 </p>
               </div>
             ) : (
@@ -133,7 +140,7 @@ function SettingsContent() {
               <div className="space-y-2 text-sm">
                 <p className="text-muted-foreground">{analyticsCredential.name}</p>
                 <p className="text-muted-foreground">
-                  {(analyticsCredential.config as any)?.properties_count || 0} properties available
+                  {analyticsCredential.config?.properties_count || 0} properties available
                 </p>
               </div>
             ) : (
@@ -167,7 +174,7 @@ function SettingsContent() {
               <div className="space-y-2 text-sm">
                 <p className="text-muted-foreground">{adsCredential.name}</p>
                 <p className="text-muted-foreground">
-                  {(adsCredential.config as any)?.accounts_count || 0} accounts available
+                  {adsCredential.config?.accounts_count || 0} accounts available
                 </p>
               </div>
             ) : (

@@ -353,6 +353,8 @@ async function enrichTrendWithBrief(
 
 export async function trendScanIndustry(ctx: JobContext): Promise<void> {
   const { db, jobId, brandId } = ctx;
+  const startTime = Date.now();
+  logger.info({ jobId, brandId, jobType: 'trend_scan_industry' }, 'Trend_Scan starting');
 
   const brand = await db.select().from(brands).where(eq(brands.id, brandId)).limit(1);
   if (brand.length === 0) throw new Error(`Brand ${brandId} not found`);
@@ -572,7 +574,7 @@ export async function trendScanIndustry(ctx: JobContext): Promise<void> {
   }
 
   logger.info(
-    { jobId, rawCount: allRecommendations.length, filteredCount: finalRecommendations.length, filterApplied: !!filterMeta },
-    'Trend scan complete',
+    { jobId, brandId, jobType: 'trend_scan_industry', rawCount: allRecommendations.length, filteredCount: finalRecommendations.length, filterApplied: !!filterMeta, durationMs: Date.now() - startTime },
+    'Trend_Scan completed',
   );
 }

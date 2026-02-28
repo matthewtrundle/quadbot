@@ -14,6 +14,8 @@ import { logger } from '../logger.js';
  */
 export async function weeklySummaryEmail(ctx: JobContext): Promise<void> {
   const { db, jobId, brandId } = ctx;
+  const startTime = Date.now();
+  logger.info({ jobId, brandId, jobType: 'weekly_summary_email' }, 'Weekly_Summary_Email starting');
 
   const [brand] = await db.select().from(brands).where(eq(brands.id, brandId)).limit(1);
   if (!brand) throw new Error(`Brand ${brandId} not found`);
@@ -152,12 +154,13 @@ export async function weeklySummaryEmail(ctx: JobContext): Promise<void> {
   }
 
   logger.info({
-    jobId, brandId,
+    jobId, brandId, jobType: 'weekly_summary_email',
     resendId: result.data?.id,
     recs: weekRecs.length,
     approved: weekApproved.length,
     outcomes: weekOutcomes.length,
-  }, 'Weekly summary email sent');
+    durationMs: Date.now() - startTime,
+  }, 'Weekly_Summary_Email completed');
 }
 
 function buildWeeklySummaryHtml(data: {

@@ -19,6 +19,10 @@ import type { JobContext } from '../registry.js';
  * Finds eligible campaign_leads ready to send and enqueues outreach_send_email jobs.
  */
 export async function outreachCampaignScheduler(ctx: JobContext): Promise<void> {
+  const { jobId, brandId } = ctx;
+  const startTime = Date.now();
+  logger.info({ jobId, brandId, jobType: 'outreach_campaign_scheduler' }, 'Outreach_Campaign_Scheduler starting');
+
   const now = new Date();
   const todayStr = now.toISOString().slice(0, 10); // YYYY-MM-DD
 
@@ -210,7 +214,7 @@ export async function outreachCampaignScheduler(ctx: JobContext): Promise<void> 
     }
   }
 
-  logger.info({ totalEnqueued }, 'Outreach scheduler run complete');
+  logger.info({ jobId, brandId, jobType: 'outreach_campaign_scheduler', totalEnqueued, durationMs: Date.now() - startTime }, 'Outreach_Campaign_Scheduler completed');
 }
 
 function isWithinSendWindow(

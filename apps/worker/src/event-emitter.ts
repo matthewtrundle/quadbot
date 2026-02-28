@@ -65,7 +65,7 @@ export async function emitEvent(
     return eventId;
   } catch (err) {
     // Unique constraint violation = duplicate event, safe to ignore
-    if ((err as any)?.code === '23505') {
+    if ((err as { code?: string })?.code === '23505') {
       logger.debug({ type, brandId, dedupeKey }, 'Event deduplicated via constraint');
       return null;
     }

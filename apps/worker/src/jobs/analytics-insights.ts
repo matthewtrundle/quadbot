@@ -24,6 +24,8 @@ import {
  */
 export async function analyticsInsights(ctx: JobContext): Promise<void> {
   const { db, jobId, brandId } = ctx;
+  const startTime = Date.now();
+  logger.info({ jobId, brandId, jobType: 'analytics_insights' }, 'Analytics_Insights starting');
 
   const brand = await db.select().from(brands).where(eq(brands.id, brandId)).limit(1);
   if (brand.length === 0) throw new Error(`Brand ${brandId} not found`);
@@ -165,8 +167,8 @@ export async function analyticsInsights(ctx: JobContext): Promise<void> {
   }
 
   logger.info(
-    { jobId, brandId, recommendationsCount: result.data.recommendations.length },
-    'Analytics insights complete',
+    { jobId, brandId, jobType: 'analytics_insights', recommendationsCount: result.data.recommendations.length, durationMs: Date.now() - startTime },
+    'Analytics_Insights completed',
   );
 }
 

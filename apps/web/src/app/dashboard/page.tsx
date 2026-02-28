@@ -6,14 +6,14 @@ import { PriorityQueue } from '@/components/priority-queue';
 import { BrandHealthGrid } from '@/components/brand-health-grid';
 import { SignalFeed } from '@/components/signal-feed';
 import { TimeBudgetBar } from '@/components/time-budget-bar';
-import { getSession, isAdmin } from '@/lib/auth-session';
+import { getSession, isAdmin, type UserWithBrand } from '@/lib/auth-session';
 
 export const dynamic = 'force-dynamic';
 
 export default async function DashboardPage() {
   const session = await getSession();
   if (!session) redirect('/login');
-  const userBrandId = (session.user as any).brandId as string | null;
+  const userBrandId = (session.user as UserWithBrand).brandId ?? null;
   const admin = isAdmin(session);
 
   const brandFilter = !admin && userBrandId

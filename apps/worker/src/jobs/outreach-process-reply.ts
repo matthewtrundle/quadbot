@@ -24,7 +24,10 @@ import type { JobContext } from '../registry.js';
  * and optionally enqueues an AI reply job.
  */
 export async function outreachProcessReply(ctx: JobContext): Promise<void> {
-  const { brandId, payload } = ctx;
+  const { brandId, jobId, payload } = ctx;
+  const startTime = Date.now();
+  logger.info({ jobId, brandId, jobType: 'outreach_process_reply' }, 'Outreach_Process_Reply starting');
+
   const fromEmail = payload.from_email as string;
   const toEmail = payload.to_email as string;
   const subject = payload.subject as string | undefined;
@@ -231,11 +234,15 @@ export async function outreachProcessReply(ctx: JobContext): Promise<void> {
 
   logger.info(
     {
+      jobId,
+      brandId,
+      jobType: 'outreach_process_reply',
       conversationId: conversation.id,
       fromEmail,
       campaignId: matchedEmail.campaign_id,
       leadEmail: lead?.email,
+      durationMs: Date.now() - startTime,
     },
-    'Inbound reply processed successfully',
+    'Outreach_Process_Reply completed',
   );
 }

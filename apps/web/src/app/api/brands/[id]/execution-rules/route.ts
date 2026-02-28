@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { executionRules } from '@quadbot/db';
 import { eq } from 'drizzle-orm';
-import { getSession, isAdmin } from '@/lib/auth-session';
+import { getSession, isAdmin, type UserWithBrand } from '@/lib/auth-session';
 import { z } from 'zod';
 import { withRateLimit } from '@/lib/rate-limit';
 
@@ -21,7 +21,7 @@ export async function GET(
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { id: brandId } = await params;
-  const userBrandId = (session.user as any).brandId;
+  const userBrandId = (session.user as UserWithBrand).brandId;
   const admin = isAdmin(session);
   if (!admin && userBrandId !== brandId) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -49,7 +49,7 @@ const _POST = async function POST(
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { id: brandId } = await params;
-  const userBrandId = (session.user as any).brandId;
+  const userBrandId = (session.user as UserWithBrand).brandId;
   const admin = isAdmin(session);
   if (!admin && userBrandId !== brandId) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });

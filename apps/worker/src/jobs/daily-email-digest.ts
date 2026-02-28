@@ -13,6 +13,8 @@ import { logger } from '../logger.js';
  */
 export async function dailyEmailDigest(ctx: JobContext): Promise<void> {
   const { db, jobId, brandId } = ctx;
+  const startTime = Date.now();
+  logger.info({ jobId, brandId, jobType: 'daily_email_digest' }, 'Daily_Email_Digest starting');
 
   const [brand] = await db.select().from(brands).where(eq(brands.id, brandId)).limit(1);
   if (!brand) throw new Error(`Brand ${brandId} not found`);
@@ -93,11 +95,12 @@ export async function dailyEmailDigest(ctx: JobContext): Promise<void> {
   }
 
   logger.info({
-    jobId, brandId,
+    jobId, brandId, jobType: 'daily_email_digest',
     resendId: result.data?.id,
     newRecs: newRecs.length,
     pendingActions: pendingActions.length,
-  }, 'Daily email digest sent');
+    durationMs: Date.now() - startTime,
+  }, 'Daily_Email_Digest completed');
 }
 
 function buildDigestHtml(data: {

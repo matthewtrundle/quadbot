@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession, isAdmin } from '@/lib/auth-session';
+import { getSession, isAdmin, type UserWithBrand } from '@/lib/auth-session';
 import { db } from '@/lib/db';
 import { outreachAccounts, encrypt } from '@quadbot/db';
 import { eq } from 'drizzle-orm';
@@ -11,7 +11,7 @@ async function getBrandId(req: NextRequest): Promise<{ brandId: string } | NextR
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const brandId = new URL(req.url).searchParams.get('brandId');
   if (!brandId) return NextResponse.json({ error: 'brandId required' }, { status: 400 });
-  const userBrandId = (session.user as any).brandId as string | null;
+  const userBrandId = (session.user as UserWithBrand).brandId ?? null;
   if (!isAdmin(session) && userBrandId && userBrandId !== brandId) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }

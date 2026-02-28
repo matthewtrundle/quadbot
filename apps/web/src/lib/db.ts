@@ -19,8 +19,9 @@ export function getDb() {
 }
 
 // Convenience alias for import compatibility
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Proxy forwarding requires dynamic property access
 export const db = new Proxy({} as ReturnType<typeof createDb>, {
-  get(_, prop) {
-    return (getDb() as any)[prop];
+  get(_, prop: string | symbol) {
+    return (getDb() as unknown as Record<string | symbol, unknown>)[prop];
   },
 });

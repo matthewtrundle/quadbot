@@ -10,6 +10,8 @@ import { logger } from '../logger.js';
  */
 export async function evaluationScorer(ctx: JobContext): Promise<void> {
   const { db, jobId, brandId } = ctx;
+  const startTime = Date.now();
+  logger.info({ jobId, brandId, jobType: 'evaluation_scorer' }, 'Evaluation_Scorer starting');
 
   const now = new Date();
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -113,10 +115,12 @@ export async function evaluationScorer(ctx: JobContext): Promise<void> {
   logger.info({
     jobId,
     brandId,
+    jobType: 'evaluation_scorer',
     totalRecs: recs.length,
     acceptanceRate: Math.round(acceptanceRate * 100),
     calibrationError: calibrationError?.toFixed(3),
-  }, 'Evaluation scoring complete');
+    durationMs: Date.now() - startTime,
+  }, 'Evaluation_Scorer completed');
 }
 
 /**

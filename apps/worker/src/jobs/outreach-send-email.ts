@@ -25,7 +25,10 @@ import { renderTemplate, htmlToText } from '../lib/template-renderer.js';
  * Enqueued by the campaign scheduler with pre-calculated delay.
  */
 export async function outreachSendEmailJob(ctx: JobContext): Promise<void> {
-  const { brandId, payload } = ctx;
+  const { brandId, jobId, payload } = ctx;
+  const startTime = Date.now();
+  logger.info({ jobId, brandId, jobType: 'outreach_send_email' }, 'Outreach_Send_Email starting');
+
   const campaignLeadId = payload.campaign_lead_id as string;
   const delayMs = (payload.delay_ms as number) || 0;
 
@@ -319,12 +322,16 @@ export async function outreachSendEmailJob(ctx: JobContext): Promise<void> {
 
   logger.info(
     {
+      jobId,
+      brandId,
+      jobType: 'outreach_send_email',
       campaignLeadId: cl.id,
       emailId: emailRecord.id,
       stepOrder: step.step_order,
       to: lead.email,
+      durationMs: Date.now() - startTime,
     },
-    'Outreach email sent successfully',
+    'Outreach_Send_Email completed',
   );
 }
 

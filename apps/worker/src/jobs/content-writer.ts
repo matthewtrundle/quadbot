@@ -17,6 +17,8 @@ import { loadActivePrompt } from '../prompt-loader.js';
  */
 export async function contentWriter(ctx: JobContext): Promise<void> {
   const { db, brandId, jobId, payload } = ctx;
+  const startTime = Date.now();
+  logger.info({ jobId, brandId, jobType: 'content_writer' }, 'Content_Writer starting');
 
   const artifactId = payload.artifact_id as string;
   const platform = (payload.platform as string) || 'blog';
@@ -92,9 +94,11 @@ export async function contentWriter(ctx: JobContext): Promise<void> {
   logger.info({
     jobId,
     brandId,
+    jobType: 'content_writer',
     artifactId: generatedArtifact.id,
     title: result.data.title,
     wordCount: result.data.content_markdown.split(/\s+/).length,
     platform,
-  }, 'Content generated from brief');
+    durationMs: Date.now() - startTime,
+  }, 'Content_Writer completed');
 }

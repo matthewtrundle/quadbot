@@ -48,6 +48,8 @@ type BrandCapabilities = {
  */
 export async function capabilityGapAnalyzer(ctx: JobContext): Promise<void> {
   const { db, jobId, brandId } = ctx;
+  const startTime = Date.now();
+  logger.info({ jobId, brandId, jobType: 'capability_gap_analyzer' }, 'Capability_Gap_Analyzer starting');
 
   // If brandId is provided, analyze that brand. Otherwise, analyze system-wide.
   const isSystemWide = !brandId || brandId === 'system';
@@ -135,12 +137,15 @@ export async function capabilityGapAnalyzer(ctx: JobContext): Promise<void> {
   logger.info(
     {
       jobId,
+      brandId,
+      jobType: 'capability_gap_analyzer',
       scope: isSystemWide ? 'system' : brandId,
       newSuggestions: newSuggestionsCount,
       totalSuggestions: result.data.improvement_suggestions.length,
       metaObservations: result.data.meta_observations.length,
+      durationMs: Date.now() - startTime,
     },
-    'Capability gap analysis complete',
+    'Capability_Gap_Analyzer completed',
   );
 }
 

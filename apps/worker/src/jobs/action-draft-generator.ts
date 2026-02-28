@@ -118,6 +118,8 @@ function tryGenerateGscAction(
 
 export async function actionDraftGenerator(ctx: JobContext): Promise<void> {
   const { db, jobId, brandId, payload } = ctx;
+  const startTime = Date.now();
+  logger.info({ jobId, brandId, jobType: 'action_draft_generator' }, 'Action_Draft_Generator starting');
 
   const recommendationId = payload.recommendation_id as string;
   if (!recommendationId) throw new Error('recommendation_id required in payload');
@@ -255,7 +257,7 @@ export async function actionDraftGenerator(ctx: JobContext): Promise<void> {
   }
 
   logger.info(
-    { jobId, type: actionType, risk: actionRisk },
-    'Action draft generated',
+    { jobId, brandId, jobType: 'action_draft_generator', type: actionType, risk: actionRisk, durationMs: Date.now() - startTime },
+    'Action_Draft_Generator completed',
   );
 }

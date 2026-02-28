@@ -15,6 +15,8 @@ const INVERSE_METRICS = ['spam_rate', 'error_rate', 'bounce_rate'];
  */
 export async function outcomeCollector(ctx: JobContext): Promise<void> {
   const { db, jobId, brandId } = ctx;
+  const startTime = Date.now();
+  logger.info({ jobId, brandId, jobType: 'outcome_collector' }, 'Outcome_Collector starting');
 
   let collected = 0;
 
@@ -152,7 +154,7 @@ export async function outcomeCollector(ctx: JobContext): Promise<void> {
     }
   }
 
-  logger.info({ jobId, collected }, 'Multi-window outcome collection complete');
+  logger.info({ jobId, brandId, jobType: 'outcome_collector', collected, durationMs: Date.now() - startTime }, 'Outcome_Collector completed');
 }
 
 function getMetricSource(recSource: string): string {

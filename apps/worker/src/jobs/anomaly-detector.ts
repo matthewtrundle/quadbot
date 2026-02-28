@@ -29,6 +29,8 @@ const DEVIATION_THRESHOLDS = {
  */
 export async function anomalyDetector(ctx: JobContext): Promise<void> {
   const { db, jobId, brandId } = ctx;
+  const startTime = Date.now();
+  logger.info({ jobId, brandId, jobType: 'anomaly_detector' }, 'Anomaly_Detector starting');
 
   const [brand] = await db.select().from(brands).where(eq(brands.id, brandId)).limit(1);
   if (!brand) throw new Error(`Brand ${brandId} not found`);
@@ -157,6 +159,7 @@ export async function anomalyDetector(ctx: JobContext): Promise<void> {
   logger.info({
     jobId,
     brandId,
+    jobType: 'anomaly_detector',
     anomalies: anomalies.length,
     created,
     byType: {
@@ -164,5 +167,6 @@ export async function anomalyDetector(ctx: JobContext): Promise<void> {
       drops: anomalies.filter((a) => a.type === 'drop').length,
       zeros: anomalies.filter((a) => a.type === 'zero').length,
     },
-  }, 'Anomaly detection complete');
+    durationMs: Date.now() - startTime,
+  }, 'Anomaly_Detector completed');
 }

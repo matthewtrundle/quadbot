@@ -19,6 +19,8 @@ import { contentWriter } from './content-writer.js';
  */
 export async function contentAutomation(ctx: JobContext): Promise<void> {
   const { db, brandId, jobId, payload } = ctx;
+  const startTime = Date.now();
+  logger.info({ jobId, brandId, jobType: 'content_automation' }, 'Content_Automation starting');
 
   const maxPosts = (payload.max_posts as number) || 3;
 
@@ -123,4 +125,6 @@ export async function contentAutomation(ctx: JobContext): Promise<void> {
       // Continue with next brief
     }
   }
+
+  logger.info({ jobId, brandId, jobType: 'content_automation', briefsProcessed: briefsWithoutContent.length, durationMs: Date.now() - startTime }, 'Content_Automation completed');
 }

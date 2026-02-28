@@ -22,6 +22,8 @@ type SourceStats = {
  */
 export async function sourceQualityScorer(ctx: JobContext): Promise<void> {
   const { db, jobId, brandId } = ctx;
+  const startTime = Date.now();
+  logger.info({ jobId, brandId, jobType: 'source_quality_scorer' }, 'Source_Quality_Scorer starting');
 
   const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
 
@@ -130,11 +132,13 @@ export async function sourceQualityScorer(ctx: JobContext): Promise<void> {
   logger.info({
     jobId,
     brandId,
+    jobType: 'source_quality_scorer',
     sources: sourceStats.length,
     stats: sourceStats.map((s) => ({
       source: s.source,
       quality: s.quality_score,
       acceptance: s.acceptance_rate,
     })),
-  }, 'Source quality scoring complete');
+    durationMs: Date.now() - startTime,
+  }, 'Source_Quality_Scorer completed');
 }

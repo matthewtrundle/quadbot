@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession, isAdmin } from '@/lib/auth-session';
+import { getSession, isAdmin, type UserWithBrand } from '@/lib/auth-session';
 import { db } from '@/lib/db';
 import { webhooks } from '@quadbot/db';
 import { eq, and } from 'drizzle-orm';
@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
   const brandId = req.nextUrl.searchParams.get('brand_id');
   if (!brandId) return NextResponse.json({ error: 'brand_id required' }, { status: 400 });
 
-  const userBrandId = (session.user as any).brandId as string | null;
+  const userBrandId = (session.user as UserWithBrand).brandId ?? null;
   const admin = isAdmin(session);
   if (!admin && userBrandId && userBrandId !== brandId) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid URL' }, { status: 400 });
   }
 
-  const userBrandId = (session.user as any).brandId as string | null;
+  const userBrandId = (session.user as UserWithBrand).brandId ?? null;
   const admin = isAdmin(session);
   if (!admin && userBrandId && userBrandId !== brand_id) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -110,7 +110,7 @@ export async function DELETE(req: NextRequest) {
 
   if (!wh) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const userBrandId = (session.user as any).brandId as string | null;
+  const userBrandId = (session.user as UserWithBrand).brandId ?? null;
   const admin = isAdmin(session);
   if (!admin && userBrandId && userBrandId !== wh.brand_id) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });

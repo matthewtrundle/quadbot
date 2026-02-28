@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getSession, isAdmin } from '@/lib/auth-session';
+import { getSession, isAdmin, type UserWithBrand } from '@/lib/auth-session';
 import { db } from '@/lib/db';
 import { brands, actionDrafts } from '@quadbot/db';
 import { eq, and } from 'drizzle-orm';
@@ -7,7 +7,7 @@ import { eq, and } from 'drizzle-orm';
 export async function GET() {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const userBrandId = (session.user as any).brandId as string | null;
+  const userBrandId = (session.user as UserWithBrand).brandId ?? null;
   const admin = isAdmin(session);
 
   const allBrands = !admin && userBrandId

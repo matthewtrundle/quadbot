@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession, isAdmin } from '@/lib/auth-session';
+import { getSession, isAdmin, type UserWithBrand } from '@/lib/auth-session';
 import { db } from '@/lib/db';
 import { llmUsage, brands, recommendations } from '@quadbot/db';
 import { eq, gte, desc, sql, and, isNotNull } from 'drizzle-orm';
@@ -23,7 +23,7 @@ function getPeriodStart(period: string): Date {
 export async function GET(request: NextRequest) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const userBrandId = (session.user as any).brandId as string | null;
+  const userBrandId = (session.user as UserWithBrand).brandId ?? null;
   const admin = isAdmin(session);
 
   const searchParams = request.nextUrl.searchParams;

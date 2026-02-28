@@ -64,11 +64,15 @@ function getClientIdentifier(req: NextRequest): string {
   );
 }
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/** Context object passed to Next.js route handlers (e.g. dynamic route params). */
+type RouteContext = { params: Promise<Record<string, string>> };
+
+/* eslint-disable @typescript-eslint/no-explicit-any -- RouteHandler must accept varied param shapes from Next.js dynamic routes */
 type RouteHandler = (
   req: NextRequest,
   context: any,
 ) => Promise<NextResponse> | NextResponse;
+/* eslint-enable @typescript-eslint/no-explicit-any */
 
 /**
  * Wrap an API route handler with rate limiting.
@@ -85,7 +89,7 @@ export function withRateLimit<T extends RouteHandler>(
 ): T {
   const { maxRequests = 30, windowMs = 60_000 } = opts;
 
-  const wrapped = async (req: NextRequest, context: any) => {
+  const wrapped = async (req: NextRequest, context: RouteContext) => {
     try {
       const identifier = getClientIdentifier(req);
       const result = await checkRateLimit(identifier, { maxRequests, windowMs });

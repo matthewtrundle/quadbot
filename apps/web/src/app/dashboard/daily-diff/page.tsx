@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { getSession, isAdmin } from '@/lib/auth-session';
+import { getSession, isAdmin, type UserWithBrand } from '@/lib/auth-session';
 import { db } from '@/lib/db';
 import { recommendations, outcomes, actionDrafts, signals, brands } from '@quadbot/db';
 import { desc, gte, eq, and } from 'drizzle-orm';
@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 export default async function DailyDiffPage() {
   const session = await getSession();
   if (!session) redirect('/login');
-  const userBrandId = (session.user as any).brandId as string | null;
+  const userBrandId = (session.user as UserWithBrand).brandId ?? null;
   const admin = isAdmin(session);
 
   const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);

@@ -44,7 +44,7 @@ export async function emitEvent(
 
     return eventId;
   } catch (err) {
-    if ((err as any)?.code === '23505') return null;
+    if ((err as { code?: string })?.code === '23505') return null;
     throw err;
   }
 }

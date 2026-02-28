@@ -43,6 +43,8 @@ const MIN_BRANDS_FOR_BENCHMARK = 3; // Need at least 3 brands to produce meaning
 
 export async function benchmarkGenerator(ctx: JobContext): Promise<void> {
   const { db, jobId, brandId } = ctx;
+  const startTime = Date.now();
+  logger.info({ jobId, brandId, jobType: 'benchmark_generator' }, 'Benchmark_Generator starting');
 
   const [brand] = await db.select().from(brands).where(eq(brands.id, brandId)).limit(1);
   if (!brand) throw new Error(`Brand ${brandId} not found`);
@@ -263,11 +265,12 @@ export async function benchmarkGenerator(ctx: JobContext): Promise<void> {
   }
 
   logger.info({
-    jobId, brandId, industry,
+    jobId, brandId, jobType: 'benchmark_generator', industry,
     benchmarks: benchmarks.length,
     recsCreated,
     brandsInIndustry: sameIndustryBrandIds.length,
-  }, 'Benchmark generation complete');
+    durationMs: Date.now() - startTime,
+  }, 'Benchmark_Generator completed');
 }
 
 function computePercentile(sorted: number[], p: number): number {

@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { getSession } from '@/lib/auth-session';
+import { getSession, type UserWithBrand } from '@/lib/auth-session';
 
 export default async function Home() {
   const session = await getSession();
@@ -8,7 +8,7 @@ export default async function Home() {
     redirect('/login');
   }
 
-  const brandId = (session.user as any).brandId;
+  const brandId = (session.user as UserWithBrand).brandId;
   if (!brandId) {
     redirect('/brands');
   }

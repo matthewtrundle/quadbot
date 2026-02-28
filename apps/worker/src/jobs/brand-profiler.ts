@@ -69,8 +69,9 @@ export async function brandProfiler(ctx: JobContext): Promise<void> {
   const [brand] = await db.select().from(brands).where(eq(brands.id, brandId)).limit(1);
   if (!brand) throw new Error(`Brand ${brandId} not found`);
 
+  const startTime = Date.now();
   const brandName = brand.name;
-  logger.info({ jobId, brandId, brandName }, 'Starting brand profiler');
+  logger.info({ jobId, brandId, jobType: 'brand_profiler', brandName }, 'Brand_Profiler starting');
 
   // Fetch website content
   const websiteContent = await fetchBrandWebsite(brandName);
@@ -133,7 +134,7 @@ export async function brandProfiler(ctx: JobContext): Promise<void> {
     .where(eq(brands.id, brandId));
 
   logger.info(
-    { jobId, brandId, industry: guardrails.industry, keywordCount: guardrails.keywords.length },
-    'Brand profiler completed — guardrails updated',
+    { jobId, brandId, jobType: 'brand_profiler', industry: guardrails.industry, keywordCount: guardrails.keywords.length, durationMs: Date.now() - startTime },
+    'Brand_Profiler completed',
   );
 }

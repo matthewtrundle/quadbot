@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession, isAdmin } from '@/lib/auth-session';
+import { getSession, isAdmin, type UserWithBrand } from '@/lib/auth-session';
 import { db } from '@/lib/db';
 import { notifications } from '@quadbot/db';
 import { eq, and, desc } from 'drizzle-orm';
@@ -9,13 +9,13 @@ export async function GET(req: NextRequest) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const brandId = req.nextUrl.searchParams.get('brand_id') || (session.user as any).brandId;
+  const brandId = req.nextUrl.searchParams.get('brand_id') || (session.user as UserWithBrand).brandId;
   if (!brandId) {
     return NextResponse.json({ error: 'brand_id required' }, { status: 400 });
   }
 
   // Non-admin users can only see their own brand's notifications
-  if (!isAdmin(session) && brandId !== (session.user as any).brandId) {
+  if (!isAdmin(session) && brandId !== (session.user as UserWithBrand).brandId) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -55,7 +55,7 @@ const _PATCH = async function PATCH(req: NextRequest) {
 
   if (mark_all_read && brand_id) {
     // Non-admin users can only mark their own brand's notifications
-    if (!isAdmin(session) && brand_id !== (session.user as any).brandId) {
+    if (!isAdmin(session) && brand_id !== (session.user as UserWithBrand).brandId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
     await db

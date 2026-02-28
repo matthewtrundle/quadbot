@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { getSession, isAdmin } from '@/lib/auth-session';
+import { getSession, isAdmin, type UserWithBrand } from '@/lib/auth-session';
 import { db } from '@/lib/db';
 import { improvementSuggestions, brands } from '@quadbot/db';
 import { desc, eq, isNull, or } from 'drizzle-orm';
@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 export default async function ImprovementsPage() {
   const session = await getSession();
   if (!session) redirect('/login');
-  const userBrandId = (session.user as any).brandId as string | null;
+  const userBrandId = (session.user as UserWithBrand).brandId ?? null;
   const admin = isAdmin(session);
 
   // Get all improvement suggestions ordered by priority and votes

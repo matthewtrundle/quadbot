@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { getSession, isAdmin } from '@/lib/auth-session';
+import { getSession, isAdmin, type UserWithBrand } from '@/lib/auth-session';
 import { db } from '@/lib/db';
 import { brands } from '@quadbot/db';
 import { eq } from 'drizzle-orm';
@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 export default async function BrandsPage() {
   const session = await getSession();
   if (!session) redirect('/login');
-  const userBrandId = (session.user as any).brandId as string | null;
+  const userBrandId = (session.user as UserWithBrand).brandId ?? null;
   const admin = isAdmin(session);
 
   const allBrands = !admin && userBrandId

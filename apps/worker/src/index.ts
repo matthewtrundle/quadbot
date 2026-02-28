@@ -12,7 +12,7 @@ import { startExecutionLoop } from './execution-loop.js';
 import { startCronScheduler } from './cron.js';
 import { startEventProcessor } from './event-processor.js';
 import { startJobReaper } from './job-reaper.js';
-import { startHealthServer } from './health-server.js';
+import { startHealthServer, recordJobCompletion } from './health-server.js';
 import { seedPrompts } from './seed-prompts.js';
 import { seedEventRules } from './seed-event-rules.js';
 import { registerAllExecutors } from './executors/index.js';
@@ -180,6 +180,7 @@ async function handleMessage(message: string): Promise<void> {
       .set({ status: 'succeeded', updated_at: new Date() })
       .where(eq(jobs.id, jobId));
 
+    recordJobCompletion();
     logger.info({ jobId, type, attempts }, 'Job completed successfully');
   } catch (err) {
     logger.error({ err, jobId, type }, 'Job handler failed');
@@ -203,7 +204,11 @@ async function handleMessage(message: string): Promise<void> {
       const redis = getRedis(config.REDIS_URL);
       await moveToDeadLetter(redis, message);
     } else {
-      // Re-enqueue for retry — mark queued AND push back to Redis
+      // Re-enqueue for retry with exponential backoff delay
+      // Delay: 1s, 4s, 16s, 64s (4^(attempt-1) seconds)
+      const backoffMs = Math.pow(4, attempts - 1) * 1000;
+      const cappedBackoffMs = Math.min(backoffMs, 120_000); // Cap at 2 minutes
+
       await db
         .update(jobs)
         .set({
@@ -213,9 +218,16 @@ async function handleMessage(message: string): Promise<void> {
         })
         .where(eq(jobs.id, jobId));
 
-      const redis = getRedis(config.REDIS_URL);
-      await enqueue(redis, { jobId, type, payload });
-      logger.info({ jobId, type, attempts }, 'Re-enqueued job for retry');
+      logger.info({ jobId, type, attempts, backoffMs: cappedBackoffMs }, 'Scheduling retry with backoff');
+      setTimeout(async () => {
+        try {
+          const redis = getRedis(config.REDIS_URL);
+          await enqueue(redis, { jobId, type, payload });
+          logger.info({ jobId, type, attempts }, 'Re-enqueued job for retry');
+        } catch (enqueueErr) {
+          logger.error({ err: enqueueErr, jobId, type }, 'Failed to re-enqueue job for retry');
+        }
+      }, cappedBackoffMs);
     }
   }
 }

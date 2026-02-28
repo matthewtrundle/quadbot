@@ -14,6 +14,8 @@ import { getValidAccessToken } from '../lib/gsc-api.js';
  */
 export async function metricSnapshotCollector(ctx: JobContext): Promise<void> {
   const { db, jobId, brandId } = ctx;
+  const startTime = Date.now();
+  logger.info({ jobId, brandId, jobType: 'metric_snapshot' }, 'Metric_Snapshot_Collector starting');
 
   const brand = await db.select().from(brands).where(eq(brands.id, brandId)).limit(1);
   if (brand.length === 0) throw new Error(`Brand ${brandId} not found`);
@@ -80,8 +82,7 @@ export async function metricSnapshotCollector(ctx: JobContext): Promise<void> {
   // Insert all snapshots
   if (snapshots.length > 0) {
     await db.insert(metricSnapshots).values(snapshots);
-    logger.info({ jobId, brandId, snapshotCount: snapshots.length }, 'Metric snapshots captured');
-  } else {
-    logger.info({ jobId, brandId }, 'No metrics available to capture (no valid credentials)');
   }
+
+  logger.info({ jobId, brandId, jobType: 'metric_snapshot', snapshotCount: snapshots.length, durationMs: Date.now() - startTime }, 'Metric_Snapshot_Collector completed');
 }

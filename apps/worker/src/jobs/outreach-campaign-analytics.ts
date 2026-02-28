@@ -14,7 +14,10 @@ import type { JobContext } from '../registry.js';
  * Aggregates email stats, writes metric snapshots, detects anomalies.
  */
 export async function outreachCampaignAnalytics(ctx: JobContext): Promise<void> {
-  const { brandId } = ctx;
+  const { brandId, jobId } = ctx;
+  const startTime = Date.now();
+  logger.info({ jobId, brandId, jobType: 'outreach_campaign_analytics' }, 'Outreach_Campaign_Analytics starting');
+
   const now = new Date();
 
   // 1. Get all campaigns for this brand (or all brands if system-wide)
@@ -136,5 +139,5 @@ export async function outreachCampaignAnalytics(ctx: JobContext): Promise<void> 
     }
   }
 
-  logger.info({ brandId, campaignCount: allCampaigns.length }, 'Outreach analytics complete');
+  logger.info({ jobId, brandId, jobType: 'outreach_campaign_analytics', campaignCount: allCampaigns.length, durationMs: Date.now() - startTime }, 'Outreach_Campaign_Analytics completed');
 }

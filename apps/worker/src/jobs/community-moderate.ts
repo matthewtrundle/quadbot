@@ -10,6 +10,8 @@ import { EventType } from '@quadbot/shared';
 
 export async function communityModeratePost(ctx: JobContext): Promise<void> {
   const { db, jobId, brandId, payload } = ctx;
+  const startTime = Date.now();
+  logger.info({ jobId, brandId, jobType: 'community_moderate_post' }, 'Community_Moderate starting');
 
   const brand = await db.select().from(brands).where(eq(brands.id, brandId)).limit(1);
   if (brand.length === 0) throw new Error(`Brand ${brandId} not found`);
@@ -70,7 +72,7 @@ export async function communityModeratePost(ctx: JobContext): Promise<void> {
   );
 
   logger.info(
-    { jobId, decision: result.data.decision, confidence: result.data.confidence },
-    'Community moderation complete',
+    { jobId, brandId, jobType: 'community_moderate_post', decision: result.data.decision, confidence: result.data.confidence, durationMs: Date.now() - startTime },
+    'Community_Moderate completed',
   );
 }

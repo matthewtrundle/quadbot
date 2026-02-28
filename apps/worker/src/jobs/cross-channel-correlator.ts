@@ -20,6 +20,8 @@ import { EventType, IntegrationType } from '@quadbot/shared';
  */
 export async function crossChannelCorrelator(ctx: JobContext): Promise<void> {
   const { db, jobId, brandId } = ctx;
+  const startTime = Date.now();
+  logger.info({ jobId, brandId, jobType: 'cross_channel_correlator' }, 'Cross_Channel_Correlator starting');
 
   const brand = await db.select().from(brands).where(eq(brands.id, brandId)).limit(1);
   if (brand.length === 0) throw new Error(`Brand ${brandId} not found`);
@@ -150,10 +152,12 @@ export async function crossChannelCorrelator(ctx: JobContext): Promise<void> {
     {
       jobId,
       brandId,
+      jobType: 'cross_channel_correlator',
       correlationsFound: result.data.correlations.length,
       recommendationsCount: result.data.unified_recommendations.length,
+      durationMs: Date.now() - startTime,
     },
-    'Cross-channel correlation complete',
+    'Cross_Channel_Correlator completed',
   );
 }
 

@@ -10,7 +10,9 @@ import { logger } from '../logger.js';
  * Measures: acceptance_rate, avg outcome delta, confidence accuracy
  */
 export async function promptScorer(ctx: JobContext): Promise<void> {
-  const { db: database, jobId } = ctx;
+  const { db: database, jobId, brandId } = ctx;
+  const startTime = Date.now();
+  logger.info({ jobId, brandId, jobType: 'prompt_scorer' }, 'Prompt_Scorer starting');
 
   const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
 
@@ -95,5 +97,5 @@ export async function promptScorer(ctx: JobContext): Promise<void> {
     }, 'Prompt scored');
   }
 
-  logger.info({ jobId }, 'Prompt scoring complete');
+  logger.info({ jobId, brandId, jobType: 'prompt_scorer', durationMs: Date.now() - startTime }, 'Prompt_Scorer completed');
 }
