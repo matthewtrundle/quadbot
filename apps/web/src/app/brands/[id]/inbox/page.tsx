@@ -9,7 +9,7 @@ export default async function InboxPage({ params }: { params: Promise<{ id: stri
   const { id } = await params;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let recs: any[] = [];
+  let recs: any[];
   try {
     // Sort by priority_rank (ascending, lower = higher priority) when available,
     // then by created_at DESC for unranked. Exclude dropped recs (priority_rank = -1).

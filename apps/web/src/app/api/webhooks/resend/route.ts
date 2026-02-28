@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
         .where(eq(outreachEmails.id, email.id));
       break;
 
-    case 'email.bounced':
+    case 'email.bounced': {
       await db
         .update(outreachEmails)
         .set({ status: 'bounced', bounced_at: now, error: event.data?.bounce_type || 'bounced' })
@@ -108,8 +108,9 @@ export async function POST(req: NextRequest) {
         })
         .where(eq(outreachAccounts.id, email.outreach_account_id));
       break;
+    }
 
-    case 'email.complained':
+    case 'email.complained': {
       await db
         .update(outreachEmails)
         .set({ status: 'complained', complained_at: now })
@@ -141,6 +142,7 @@ export async function POST(req: NextRequest) {
         })
         .where(eq(outreachAccounts.id, email.outreach_account_id));
       break;
+    }
   }
 
   return NextResponse.json({ ok: true });

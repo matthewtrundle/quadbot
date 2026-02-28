@@ -8,7 +8,10 @@
   "scripts": {
     "dev": "turbo dev",
     "build": "turbo build",
-    "lint": "turbo lint",
+    "lint": "eslint apps/ packages/ --max-warnings 150",
+    "lint:fix": "eslint apps/ packages/ --fix",
+    "format": "prettier --write 'apps/**/*.{ts,tsx}' 'packages/**/*.ts'",
+    "format:check": "prettier --check 'apps/**/*.{ts,tsx}' 'packages/**/*.ts'",
     "worker": "turbo dev --filter=@quadbot/worker",
     "db:migrate": "turbo db:migrate --filter=@quadbot/db",
     "db:seed": "turbo db:seed --filter=@quadbot/db",
@@ -20,14 +23,19 @@
     "ops:check:full": "node --import tsx scripts/ops-check/check-all.ts full"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@quadbot/db": "workspace:*",
     "@quadbot/shared": "workspace:*",
     "dotenv": "^16.4.0",
     "drizzle-orm": "^0.36.0",
+    "eslint": "^10.0.2",
+    "eslint-config-prettier": "^10.1.8",
     "ioredis": "^5.4.0",
+    "prettier": "^3.8.1",
     "tsx": "^4.19.0",
     "turbo": "^2.3.0",
     "typescript": "^5.7.0",
+    "typescript-eslint": "^8.56.1",
     "vitest": "^4.0.18"
   },
   "packageManager": "pnpm@9.15.0"
