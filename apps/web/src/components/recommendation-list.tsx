@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 type Recommendation = {
   id: string;
@@ -26,6 +27,31 @@ const priorityColors: Record<string, 'default' | 'secondary' | 'destructive' | '
 
 export function RecommendationList({ recommendations }: { recommendations: Recommendation[] }) {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [priorityFilter, setPriorityFilter] = useState<string>('all');
+  const [sourceFilter, setSourceFilter] = useState<string>('all');
+
+  const uniqueSources = useMemo(
+    () => Array.from(new Set(recommendations.map((r) => r.source))).sort(),
+    [recommendations],
+  );
+
+  const filtered = useMemo(() => {
+    let result = recommendations;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(
+        (r) => r.title.toLowerCase().includes(q) || r.body.toLowerCase().includes(q),
+      );
+    }
+    if (priorityFilter !== 'all') {
+      result = result.filter((r) => r.priority === priorityFilter);
+    }
+    if (sourceFilter !== 'all') {
+      result = result.filter((r) => r.source === sourceFilter);
+    }
+    return result;
+  }, [recommendations, searchQuery, priorityFilter, sourceFilter]);
 
   if (recommendations.length === 0) {
     return (
@@ -43,11 +69,45 @@ export function RecommendationList({ recommendations }: { recommendations: Recom
     );
   }
 
-  const visible = recommendations.slice(0, visibleCount);
-  const hasMore = visibleCount < recommendations.length;
+  const visible = filtered.slice(0, visibleCount);
+  const hasMore = visibleCount < filtered.length;
 
   return (
     <div className="space-y-4">
+      {/* Filter bar */}
+      <div className="flex flex-wrap items-center gap-3">
+        <Input
+          placeholder="Search recommendations..."
+          value={searchQuery}
+          onChange={(e) => { setSearchQuery(e.target.value); setVisibleCount(PAGE_SIZE); }}
+          className="max-w-xs h-9 text-sm"
+        />
+        <select
+          value={priorityFilter}
+          onChange={(e) => { setPriorityFilter(e.target.value); setVisibleCount(PAGE_SIZE); }}
+          className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+        >
+          <option value="all">All priorities</option>
+          <option value="critical">Critical</option>
+          <option value="high">High</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+        </select>
+        <select
+          value={sourceFilter}
+          onChange={(e) => { setSourceFilter(e.target.value); setVisibleCount(PAGE_SIZE); }}
+          className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+        >
+          <option value="all">All sources</option>
+          {uniqueSources.map((src) => (
+            <option key={src} value={src}>{src}</option>
+          ))}
+        </select>
+        <span className="text-xs text-muted-foreground ml-auto">
+          {filtered.length} of {recommendations.length}
+        </span>
+      </div>
+
       {visible.map((rec) => (
         <Link key={rec.id} href={`/recommendations/${rec.id}`} className="block">
           <Card className="hover:border-primary/30 transition-all">
@@ -73,13 +133,13 @@ export function RecommendationList({ recommendations }: { recommendations: Recom
             variant="outline"
             onClick={() => setVisibleCount((prev) => prev + PAGE_SIZE)}
           >
-            Show more ({recommendations.length - visibleCount} remaining)
+            Show more ({filtered.length - visibleCount} remaining)
           </Button>
         </div>
       )}
-      {!hasMore && recommendations.length > PAGE_SIZE && (
+      {!hasMore && filtered.length > PAGE_SIZE && (
         <p className="text-center text-xs text-muted-foreground">
-          Showing all {recommendations.length} recommendations
+          Showing all {filtered.length} recommendations
         </p>
       )}
     </div>

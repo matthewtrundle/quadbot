@@ -6,6 +6,7 @@ import { PriorityQueue } from '@/components/priority-queue';
 import { BrandHealthGrid } from '@/components/brand-health-grid';
 import { SignalFeed } from '@/components/signal-feed';
 import { TimeBudgetBar } from '@/components/time-budget-bar';
+import { DashboardCharts } from '@/components/dashboard-charts';
 import { getSession, isAdmin, type UserWithBrand } from '@/lib/auth-session';
 
 export const dynamic = 'force-dynamic';
@@ -86,6 +87,18 @@ export default async function DashboardPage() {
     .orderBy(desc(signals.created_at))
     .limit(10);
 
+  // Get recommendations from last 30 days for charts
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const chartRecs = await db
+    .select({
+      priority: recommendations.priority,
+      source: recommendations.source,
+      created_at: recommendations.created_at,
+    })
+    .from(recommendations)
+    .where(and(gte(recommendations.created_at, thirtyDaysAgo), brandFilter))
+    .orderBy(desc(recommendations.created_at));
+
   return (
     <div className="space-y-6">
       {/* Welcome header */}
@@ -114,6 +127,10 @@ export default async function DashboardPage() {
             <SignalFeed signals={recentSignals} />
           </div>
         </div>
+      </div>
+
+      <div className="animate-fade-in-up" style={{ animationDelay: '500ms' }}>
+        <DashboardCharts recommendations={chartRecs} />
       </div>
     </div>
   );

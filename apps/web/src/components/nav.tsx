@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { Building2, LayoutDashboard, CalendarClock, ChevronDown, Download, DollarSign, Settings, Sparkles, LogOut } from 'lucide-react';
 import { useSession, signOut } from '@/lib/auth-client';
 import { NotificationBell } from './notification-bell';
+import { ThemeToggle } from './theme-toggle';
 
 /** Client-side user type with custom additional fields from better-auth config. */
 type ClientUserWithBrand = {
@@ -195,9 +196,12 @@ export function Nav() {
               </button>
             </div>
           )}
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Sparkles className="h-3 w-3 text-quad-cyan" />
-            <span>QuadBot v2 — Intelligence Layer</span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Sparkles className="h-3 w-3 text-quad-cyan" />
+              <span>QuadBot v2 — Intelligence Layer</span>
+            </div>
+            <ThemeToggle />
           </div>
         </div>
       </div>
