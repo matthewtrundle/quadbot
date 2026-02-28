@@ -1,4 +1,4 @@
-import { recommendations, brands } from '@quadbot/db';
+import { recommendations, brands, playbooks } from '@quadbot/db';
 import { eq, and, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 import type { JobContext } from '../registry.js';
@@ -7,16 +7,18 @@ import { loadActivePrompt } from '../prompt-loader.js';
 import { logger } from '../logger.js';
 import { computeBaseScore, applyClaudeDelta, estimateReviewMinutes } from '../scoring.js';
 import { getCrossBrandContext } from '../cross-brand-context.js';
-import { getPlaybookContext } from '../playbook-engine.js';
+import { getPlaybookContext, executePlaybook } from '../playbook-engine.js';
 
 const strategicPrioritizerOutputSchema = z.object({
-  adjustments: z.array(z.object({
-    recommendation_id: z.string(),
-    delta_rank: z.number().min(-2).max(2),
-    effort_estimate: z.enum(['minutes', 'hours', 'days']),
-    reasoning: z.string(),
-    drop: z.boolean().optional(),
-  })),
+  adjustments: z.array(
+    z.object({
+      recommendation_id: z.string(),
+      delta_rank: z.number().min(-2).max(2),
+      effort_estimate: z.enum(['minutes', 'hours', 'days']),
+      reasoning: z.string(),
+      drop: z.boolean().optional(),
+    }),
+  ),
 });
 
 /**
@@ -36,12 +38,7 @@ export async function strategicPrioritizer(ctx: JobContext): Promise<void> {
   const pendingRecs = await db
     .select()
     .from(recommendations)
-    .where(
-      and(
-        eq(recommendations.brand_id, brandId),
-        isNull(recommendations.priority_rank),
-      ),
-    );
+    .where(and(eq(recommendations.brand_id, brandId), isNull(recommendations.priority_rank)));
 
   if (pendingRecs.length === 0) {
     logger.info({ jobId, brandId }, 'No pending recommendations to prioritize');
@@ -71,7 +68,11 @@ export async function strategicPrioritizer(ctx: JobContext): Promise<void> {
   const playbookContext = await getPlaybookContext(
     db,
     brandId,
-    pendingRecs.map((r) => ({ source: r.source, priority: r.priority, type: (r.data as Record<string, string>)?.type })),
+    pendingRecs.map((r) => ({
+      source: r.source,
+      priority: r.priority,
+      type: (r.data as Record<string, string>)?.type,
+    })),
   );
 
   // Step 4: Call Claude for bounded adjustments
@@ -119,9 +120,7 @@ export async function strategicPrioritizer(ctx: JobContext): Promise<void> {
   );
 
   // Step 5: Apply adjustments + hard relevance gate
-  const adjustmentMap = new Map(
-    result.data.adjustments.map((a) => [a.recommendation_id, a]),
-  );
+  const adjustmentMap = new Map(result.data.adjustments.map((a) => [a.recommendation_id, a]));
 
   const MIN_FINAL_SCORE = 0.2;
   let droppedCount = 0;
@@ -142,18 +141,17 @@ export async function strategicPrioritizer(ctx: JobContext): Promise<void> {
   }
 
   // Build final scored list, excluding Claude-dropped and below-threshold recs
-  const finalScored = scored
-    .map((rec) => {
-      const adjustment = adjustmentMap.get(rec.id);
-      const deltaRank = adjustment?.delta_rank || 0;
-      return {
-        id: rec.id,
-        finalScore: applyClaudeDelta(rec.computed_base_score, deltaRank),
-        effortEstimate: adjustment?.effort_estimate || rec.effort_estimate || 'hours',
-        drop: adjustment?.drop === true,
-        reasoning: adjustment?.reasoning || '',
-      };
-    });
+  const finalScored = scored.map((rec) => {
+    const adjustment = adjustmentMap.get(rec.id);
+    const deltaRank = adjustment?.delta_rank || 0;
+    return {
+      id: rec.id,
+      finalScore: applyClaudeDelta(rec.computed_base_score, deltaRank),
+      effortEstimate: adjustment?.effort_estimate || rec.effort_estimate || 'hours',
+      drop: adjustment?.drop === true,
+      reasoning: adjustment?.reasoning || '',
+    };
+  });
 
   // Partition into kept vs dropped
   const kept = finalScored.filter((r) => !r.drop && r.finalScore >= MIN_FINAL_SCORE);
@@ -188,13 +186,85 @@ export async function strategicPrioritizer(ctx: JobContext): Promise<void> {
     );
   }
 
-  logger.info({
-    jobId,
-    brandId,
-    jobType: 'strategic_prioritizer',
-    rankedCount: kept.length,
-    droppedCount,
-    adjustmentsApplied: result.data.adjustments.length,
-    durationMs: Date.now() - startTime,
-  }, 'Strategic_Prioritizer completed');
+  logger.info(
+    {
+      jobId,
+      brandId,
+      jobType: 'strategic_prioritizer',
+      rankedCount: kept.length,
+      droppedCount,
+      adjustmentsApplied: result.data.adjustments.length,
+      durationMs: Date.now() - startTime,
+    },
+    'Strategic_Prioritizer completed',
+  );
+
+  // Step 6: Execute playbooks for kept recommendations
+  try {
+    const activePlaybooks = await db
+      .select()
+      .from(playbooks)
+      .where(and(eq(playbooks.brand_id, brandId), eq(playbooks.is_active, true)));
+
+    if (activePlaybooks.length > 0) {
+      const priorityLevels: Record<string, number> = { low: 1, medium: 2, high: 3, critical: 4 };
+      let playbookActionCount = 0;
+
+      // Build a lookup of kept recommendation IDs to their original rec data
+      const keptRecIds = new Set(kept.map((k) => k.id));
+      const keptRecs = scored.filter((r) => keptRecIds.has(r.id));
+
+      for (const rec of keptRecs) {
+        const recType = (rec.data as Record<string, string>)?.type;
+
+        for (const playbook of activePlaybooks) {
+          const conditions = playbook.trigger_conditions as {
+            sources?: string[];
+            min_priority?: string;
+            recommendation_types?: string[];
+          };
+
+          let matches = false;
+
+          if (conditions.sources && conditions.sources.includes(rec.source)) {
+            matches = true;
+          }
+
+          if (conditions.min_priority) {
+            const recLevel = priorityLevels[rec.priority] || 0;
+            const minLevel = priorityLevels[conditions.min_priority] || 0;
+            if (recLevel >= minLevel) {
+              matches = true;
+            }
+          }
+
+          if (conditions.recommendation_types && recType) {
+            if (conditions.recommendation_types.includes(recType)) {
+              matches = true;
+            }
+          }
+
+          if (matches) {
+            await executePlaybook(db, brandId, rec.id, playbook);
+            const actionsInPlaybook = (playbook.actions as unknown[])?.length || 0;
+            playbookActionCount += actionsInPlaybook;
+          }
+        }
+      }
+
+      if (playbookActionCount > 0) {
+        logger.info(
+          {
+            jobId,
+            brandId,
+            playbooksChecked: activePlaybooks.length,
+            actionDraftsCreated: playbookActionCount,
+          },
+          'Playbook execution completed — action drafts created',
+        );
+      }
+    }
+  } catch (err) {
+    logger.error({ jobId, brandId, err }, 'Playbook execution failed (non-fatal)');
+  }
 }

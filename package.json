@@ -20,7 +20,8 @@
     "ops:check": "node --import tsx scripts/ops-check/check-all.ts",
     "ops:check:infra": "node --import tsx scripts/ops-check/check-all.ts infra",
     "ops:check:flow": "node --import tsx scripts/ops-check/check-all.ts flow",
-    "ops:check:full": "node --import tsx scripts/ops-check/check-all.ts full"
+    "ops:check:full": "node --import tsx scripts/ops-check/check-all.ts full",
+    "prepare": "husky"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -30,7 +31,9 @@
     "drizzle-orm": "^0.36.0",
     "eslint": "^10.0.2",
     "eslint-config-prettier": "^10.1.8",
+    "husky": "^9.1.7",
     "ioredis": "^5.4.0",
+    "lint-staged": "^16.3.0",
     "prettier": "^3.8.1",
     "tsx": "^4.19.0",
     "turbo": "^2.3.0",
@@ -38,5 +41,13 @@
     "typescript-eslint": "^8.56.1",
     "vitest": "^4.0.18"
   },
-  "packageManager": "pnpm@9.15.0"
+  "packageManager": "pnpm@9.15.0",
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
+  }
 }
