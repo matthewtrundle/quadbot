@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { outreachAccounts, encrypt } from '@quadbot/db';
 import { eq } from 'drizzle-orm';
 import { createOutreachAccountSchema } from '@quadbot/shared';
+import { withRateLimit } from '@/lib/rate-limit';
 
 async function getBrandId(req: NextRequest): Promise<{ brandId: string } | NextResponse> {
   const session = await getSession();
@@ -41,7 +42,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(accounts);
 }
 
-export async function POST(req: NextRequest) {
+const _POST = async function POST(req: NextRequest) {
   const result = await getBrandId(req);
   if (result instanceof NextResponse) return result;
 
@@ -71,4 +72,5 @@ export async function POST(req: NextRequest) {
     daily_limit: created.daily_limit,
     status: created.status,
   }, { status: 201 });
-}
+};
+export const POST = withRateLimit(_POST);

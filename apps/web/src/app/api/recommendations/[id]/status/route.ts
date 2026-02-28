@@ -4,12 +4,13 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { recommendations } from '@quadbot/db';
 import { eq } from 'drizzle-orm';
+import { withRateLimit } from '@/lib/rate-limit';
 
 const statusSchema = z.object({
   status: z.enum(['active', 'dismissed', 'bookmarked']),
 });
 
-export async function PATCH(
+const _PATCH = async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -46,4 +47,5 @@ export async function PATCH(
       { status: 500 },
     );
   }
-}
+};
+export const PATCH = withRateLimit(_PATCH);

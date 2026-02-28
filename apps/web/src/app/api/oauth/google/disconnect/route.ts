@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { brandIntegrations } from '@quadbot/db';
 import { eq, and } from 'drizzle-orm';
+import { withRateLimit } from '@/lib/rate-limit';
 
-export async function POST(req: NextRequest) {
+const _POST = async function POST(req: NextRequest) {
   const body = await req.json();
   const { brand_id } = body;
 
@@ -21,4 +22,5 @@ export async function POST(req: NextRequest) {
     );
 
   return NextResponse.json({ success: true });
-}
+};
+export const POST = withRateLimit(_POST);

@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { campaigns, campaignLeads, leads, outreachAccounts } from '@quadbot/db';
 import { eq, and, sql } from 'drizzle-orm';
 import { addLeadsToCampaignSchema } from '@quadbot/shared';
+import { withRateLimit } from '@/lib/rate-limit';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
@@ -40,7 +41,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   });
 }
 
-export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+const _POST = async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const { id: campaignId } = await params;
@@ -85,4 +86,5 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .where(eq(campaigns.id, campaignId));
 
   return NextResponse.json({ added, skipped }, { status: 201 });
-}
+};
+export const POST = withRateLimit(_POST);

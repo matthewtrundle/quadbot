@@ -3,8 +3,9 @@ import { getSession } from '@/lib/auth-session';
 import { db } from '@/lib/db';
 import { recommendations } from '@quadbot/db';
 import { eq } from 'drizzle-orm';
+import { withRateLimit } from '@/lib/rate-limit';
 
-export async function POST(
+const _POST = async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -47,4 +48,5 @@ export async function POST(
     .where(eq(recommendations.id, id));
 
   return NextResponse.json({ ok: true, feedback });
-}
+};
+export const POST = withRateLimit(_POST);

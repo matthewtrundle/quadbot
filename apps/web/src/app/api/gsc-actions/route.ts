@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth-session';
 import { z } from 'zod';
 import { getGscCredentials, requestIndexing, inspectUrl, pingSitemap } from '@/lib/gsc-actions';
+import { withRateLimit } from '@/lib/rate-limit';
 
 const actionSchema = z.object({
   action: z.enum(['inspect', 'index', 'sitemap']),
@@ -9,7 +10,7 @@ const actionSchema = z.object({
   brand_id: z.string().uuid(),
 });
 
-export async function POST(request: NextRequest) {
+const _POST = async function POST(request: NextRequest) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -50,4 +51,7 @@ export async function POST(request: NextRequest) {
     const message = err instanceof Error ? err.message : 'GSC action failed';
     return NextResponse.json({ error: message }, { status: 502 });
   }
-}
+
+  return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
+};
+export const POST = withRateLimit(_POST);

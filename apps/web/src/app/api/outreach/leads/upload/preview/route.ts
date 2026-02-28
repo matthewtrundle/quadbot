@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth-session';
 import Papa from 'papaparse';
+import { withRateLimit } from '@/lib/rate-limit';
 
 const FIELD_MAP: Record<string, string> = {
   email: 'email',
@@ -31,7 +32,7 @@ const FIELD_MAP: Record<string, string> = {
   city: 'location',
 };
 
-export async function POST(req: NextRequest) {
+const _POST = async function POST(req: NextRequest) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -58,4 +59,5 @@ export async function POST(req: NextRequest) {
     preview_rows: parsed.data.slice(0, 5),
     total_rows: csvText.split('\n').length - 1,
   });
-}
+};
+export const POST = withRateLimit(_POST);

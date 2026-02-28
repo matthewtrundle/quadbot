@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { brands, brandIntegrations, sharedCredentials } from '@quadbot/db';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
+import { withRateLimit } from '@/lib/rate-limit';
 
 const importSchema = z.object({
   sharedCredentialId: z.string().uuid(),
@@ -28,7 +29,7 @@ type ImportResult = {
  * Bulk creates brands from selected GSC sites.
  * Each brand gets a GSC integration linked to the shared credential.
  */
-export async function POST(req: NextRequest) {
+const _POST = async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const parsed = importSchema.safeParse(body);
@@ -114,4 +115,5 @@ export async function POST(req: NextRequest) {
       { status: 500 },
     );
   }
-}
+};
+export const POST = withRateLimit(_POST);

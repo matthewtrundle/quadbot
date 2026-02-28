@@ -4,13 +4,14 @@ import { db } from '@/lib/db';
 import { improvementSuggestions, improvementOutcomes } from '@quadbot/db';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
+import { withRateLimit } from '@/lib/rate-limit';
 
 const statusSchema = z.object({
   status: z.enum(['pending', 'approved', 'dismissed', 'implemented']),
   feedback: z.string().optional(),
 });
 
-export async function POST(
+const _POST = async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -61,4 +62,5 @@ export async function POST(
     }
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
+};
+export const POST = withRateLimit(_POST);

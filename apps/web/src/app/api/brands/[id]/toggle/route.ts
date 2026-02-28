@@ -3,13 +3,14 @@ import { getSession, isAdmin } from '@/lib/auth-session';
 import { db } from '@/lib/db';
 import { brands } from '@quadbot/db';
 import { eq } from 'drizzle-orm';
+import { withRateLimit } from '@/lib/rate-limit';
 
 /**
  * POST /api/brands/[id]/toggle
  *
  * Toggle a brand's active status
  */
-export async function POST(
+const _POST = async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -51,4 +52,5 @@ export async function POST(
     console.error('Failed to toggle brand:', error);
     return NextResponse.json({ error: 'Failed to toggle brand' }, { status: 500 });
   }
-}
+};
+export const POST = withRateLimit(_POST);

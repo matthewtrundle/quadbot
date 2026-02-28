@@ -3,6 +3,7 @@ import { getSession } from '@/lib/auth-session';
 import { db } from '@/lib/db';
 import { leadLists, leads } from '@quadbot/db';
 import { eq } from 'drizzle-orm';
+import { withRateLimit } from '@/lib/rate-limit';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
@@ -16,7 +17,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   return NextResponse.json({ ...list, leads: listLeads });
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+const _DELETE = async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const { id } = await params;
@@ -24,4 +25,5 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   const [deleted] = await db.delete(leadLists).where(eq(leadLists.id, id)).returning();
   if (!deleted) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   return NextResponse.json({ deleted: true });
-}
+};
+export const DELETE = withRateLimit(_DELETE);

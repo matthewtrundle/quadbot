@@ -114,14 +114,14 @@ export function startCronScheduler(redis: Redis): void {
 
   // Phase 8: Capability Gap Analyzer - weekly on Mondays at 6:00 AM
   cron.schedule('0 6 * * 1', async () => {
-    logger.info('Cron: triggering capability gap analyzer (system-wide)');
-    await enqueueSystemWideJob(redis, JobType.CAPABILITY_GAP_ANALYZER);
+    logger.info('Cron: triggering capability gap analyzer for all brands');
+    await enqueueForAllBrands(redis, JobType.CAPABILITY_GAP_ANALYZER);
   });
 
   // Outreach: Campaign Scheduler - every 2 minutes
   cron.schedule('*/2 * * * *', async () => {
-    logger.info('Cron: triggering outreach campaign scheduler');
-    await enqueueSystemWideJob(redis, JobType.OUTREACH_CAMPAIGN_SCHEDULER);
+    logger.info('Cron: triggering outreach campaign scheduler for all brands');
+    await enqueueForAllBrands(redis, JobType.OUTREACH_CAMPAIGN_SCHEDULER);
   });
 
   // Outreach: Campaign Analytics - daily at 6:00 AM
@@ -218,26 +218,3 @@ async function decaySignalWeights(): Promise<void> {
   }
 }
 
-async function enqueueSystemWideJob(redis: Redis, jobType: string): Promise<void> {
-  try {
-    const jobId = randomUUID();
-
-    await db.insert(jobs).values({
-      id: jobId,
-      brand_id: null as any, // System-wide job, no specific brand
-      type: jobType,
-      status: 'queued',
-      payload: {},
-    });
-
-    await enqueue(redis, {
-      jobId,
-      type: jobType,
-      payload: { brand_id: 'system' },
-    });
-
-    logger.info({ jobType, jobId }, 'Enqueued system-wide cron job');
-  } catch (err) {
-    logger.error({ err, jobType }, 'Failed to enqueue system-wide cron job');
-  }
-}

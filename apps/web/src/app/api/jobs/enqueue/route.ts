@@ -4,10 +4,10 @@ import { jobs } from '@quadbot/db';
 import { jobCreateSchema } from '@quadbot/shared';
 import { enqueueJob } from '@/lib/queue';
 import { authenticateRequest } from '@/lib/auth-api-keys';
-import { checkRateLimit } from '@/lib/rate-limit';
+import { checkRateLimit, withRateLimit } from '@/lib/rate-limit';
 import { randomUUID } from 'node:crypto';
 
-export async function POST(req: NextRequest) {
+const _POST = async function POST(req: NextRequest) {
   // Auth: require valid API key
   const auth = await authenticateRequest(req);
   if (!auth) {
@@ -54,4 +54,5 @@ export async function POST(req: NextRequest) {
   });
 
   return NextResponse.json({ jobId, status: 'queued' }, { status: 201 });
-}
+};
+export const POST = withRateLimit(_POST);

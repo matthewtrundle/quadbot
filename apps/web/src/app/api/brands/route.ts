@@ -6,6 +6,7 @@ import { eq } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { brandCreateSchema, brandUpdateSchema } from '@quadbot/shared';
 import { enqueueJob } from '@/lib/queue';
+import { withRateLimit } from '@/lib/rate-limit';
 
 export async function GET() {
   const session = await getSession();
@@ -19,7 +20,7 @@ export async function GET() {
   return NextResponse.json({ brands: allBrands });
 }
 
-export async function POST(req: NextRequest) {
+const _POST = async function POST(req: NextRequest) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -60,9 +61,9 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json(brand, { status: 201 });
-}
+};
 
-export async function PATCH(req: NextRequest) {
+const _PATCH = async function PATCH(req: NextRequest) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const userBrandId = (session.user as any).brandId as string | null;
@@ -95,4 +96,6 @@ export async function PATCH(req: NextRequest) {
   }
 
   return NextResponse.json(updated);
-}
+};
+export const POST = withRateLimit(_POST);
+export const PATCH = withRateLimit(_PATCH);

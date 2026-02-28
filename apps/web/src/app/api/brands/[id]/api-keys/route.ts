@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { apiKeys, generateApiKey } from '@quadbot/db';
 import { eq, and } from 'drizzle-orm';
 import { z } from 'zod';
+import { withRateLimit } from '@/lib/rate-limit';
 
 const createKeySchema = z.object({
   name: z.string().min(1).max(255),
@@ -41,7 +42,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   return NextResponse.json(keys);
 }
 
-export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+const _POST = async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: brandId } = await params;
   const denied = await verifyBrandAccess(brandId);
   if (denied) return denied;
@@ -77,9 +78,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     },
     { status: 201 },
   );
-}
+};
 
-export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+const _DELETE = async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: brandId } = await params;
   const denied = await verifyBrandAccess(brandId);
   if (denied) return denied;
@@ -100,4 +101,6 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   }
 
   return NextResponse.json({ deleted: true });
-}
+};
+export const POST = withRateLimit(_POST);
+export const DELETE = withRateLimit(_DELETE);

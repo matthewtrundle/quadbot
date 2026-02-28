@@ -8,7 +8,7 @@ import {
   improvementSuggestions,
   evaluationRuns,
 } from '@quadbot/db';
-import { eq, and, gte, desc, count } from 'drizzle-orm';
+import { eq, and, gte, desc, count, isNull } from 'drizzle-orm';
 import type { JobContext } from '../registry.js';
 import { callClaude } from '../claude.js';
 import { loadActivePrompt } from '../prompt-loader.js';
@@ -73,7 +73,7 @@ export async function capabilityGapAnalyzer(ctx: JobContext): Promise<void> {
     .where(
       and(
         eq(improvementSuggestions.status, 'pending'),
-        isSystemWide ? eq(improvementSuggestions.brand_id, null as any) : eq(improvementSuggestions.brand_id, brandId),
+        isSystemWide ? isNull(improvementSuggestions.brand_id) : eq(improvementSuggestions.brand_id, brandId),
       ),
     );
 

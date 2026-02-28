@@ -3,6 +3,7 @@ import { getSession, isAdmin } from '@/lib/auth-session';
 import { db } from '@/lib/db';
 import { notifications } from '@quadbot/db';
 import { eq, and, desc } from 'drizzle-orm';
+import { withRateLimit } from '@/lib/rate-limit';
 
 export async function GET(req: NextRequest) {
   const session = await getSession();
@@ -45,7 +46,7 @@ export async function GET(req: NextRequest) {
   });
 }
 
-export async function PATCH(req: NextRequest) {
+const _PATCH = async function PATCH(req: NextRequest) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -75,4 +76,5 @@ export async function PATCH(req: NextRequest) {
   }
 
   return NextResponse.json({ error: 'notification_id or mark_all_read+brand_id required' }, { status: 400 });
-}
+};
+export const PATCH = withRateLimit(_PATCH);

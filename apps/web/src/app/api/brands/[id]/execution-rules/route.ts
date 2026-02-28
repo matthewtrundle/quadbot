@@ -4,6 +4,7 @@ import { executionRules } from '@quadbot/db';
 import { eq } from 'drizzle-orm';
 import { getSession, isAdmin } from '@/lib/auth-session';
 import { z } from 'zod';
+import { withRateLimit } from '@/lib/rate-limit';
 
 const executionRulesSchema = z.object({
   auto_execute: z.boolean(),
@@ -40,7 +41,7 @@ export async function GET(
   });
 }
 
-export async function POST(
+const _POST = async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -94,4 +95,5 @@ export async function POST(
   }
 
   return NextResponse.json(result);
-}
+};
+export const POST = withRateLimit(_POST);

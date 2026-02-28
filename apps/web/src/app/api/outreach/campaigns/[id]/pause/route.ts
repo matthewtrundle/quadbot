@@ -3,8 +3,9 @@ import { getSession } from '@/lib/auth-session';
 import { db } from '@/lib/db';
 import { campaigns } from '@quadbot/db';
 import { eq } from 'drizzle-orm';
+import { withRateLimit } from '@/lib/rate-limit';
 
-export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+const _POST = async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const { id } = await params;
@@ -17,4 +18,5 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   if (!updated) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   return NextResponse.json(updated);
-}
+};
+export const POST = withRateLimit(_POST);

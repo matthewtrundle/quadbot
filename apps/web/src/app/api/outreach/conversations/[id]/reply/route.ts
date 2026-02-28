@@ -9,8 +9,9 @@ import { eq, and, sql, desc } from 'drizzle-orm';
 import { sendReplySchema } from '@quadbot/shared';
 import { Resend } from 'resend';
 import { decrypt } from '@quadbot/db';
+import { withRateLimit } from '@/lib/rate-limit';
 
-export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+const _POST = async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const { id: conversationId } = await params;
@@ -109,4 +110,5 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .where(eq(outreachConversations.id, conversationId));
 
   return NextResponse.json(message, { status: 201 });
-}
+};
+export const POST = withRateLimit(_POST);

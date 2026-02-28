@@ -6,6 +6,7 @@ import { eq } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { enqueueJob } from '@/lib/queue';
 import { z } from 'zod';
+import { withRateLimit } from '@/lib/rate-limit';
 
 const triggerSchema = z.object({
   brandId: z.string().uuid(),
@@ -27,7 +28,7 @@ const triggerSchema = z.object({
  * POST /api/jobs/trigger
  * Manually trigger a job for testing purposes
  */
-export async function POST(req: NextRequest) {
+const _POST = async function POST(req: NextRequest) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -85,7 +86,8 @@ export async function POST(req: NextRequest) {
     console.error('Job trigger error:', error);
     return NextResponse.json({ error: 'Failed to trigger job' }, { status: 500 });
   }
-}
+};
+export const POST = withRateLimit(_POST);
 
 /**
  * GET /api/jobs/trigger

@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { leadLists } from '@quadbot/db';
 import { eq } from 'drizzle-orm';
 import { createLeadListSchema } from '@quadbot/shared';
+import { withRateLimit } from '@/lib/rate-limit';
 
 export async function GET(req: NextRequest) {
   const session = await getSession();
@@ -15,7 +16,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(lists);
 }
 
-export async function POST(req: NextRequest) {
+const _POST = async function POST(req: NextRequest) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const brandId = new URL(req.url).searchParams.get('brandId');
@@ -31,4 +32,5 @@ export async function POST(req: NextRequest) {
     .returning();
 
   return NextResponse.json(created, { status: 201 });
-}
+};
+export const POST = withRateLimit(_POST);

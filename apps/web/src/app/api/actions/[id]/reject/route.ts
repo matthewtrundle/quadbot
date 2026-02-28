@@ -3,18 +3,36 @@ import { db } from '@/lib/db';
 import { actionDrafts } from '@quadbot/db';
 import { eq } from 'drizzle-orm';
 import { requireActionDraftAccess } from '@/lib/auth-api-keys';
+import { getSession } from '@/lib/auth-session';
 import { emitEvent } from '@/lib/events';
 import { EventType } from '@quadbot/shared';
+import { withRateLimit } from '@/lib/rate-limit';
 
-export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+const _POST = async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  // Brand scope guard (only if API key provided; UI requests without key still pass)
+  // Brand scope guard — API key or session-based
   const authHeader = req.headers.get('authorization');
   if (authHeader) {
     const auth = await requireActionDraftAccess(id, req);
     if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+  } else {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const userBrandId = (session.user as Record<string, unknown>).brandId as string | null;
+    if (userBrandId) {
+      const [draft] = await db
+        .select({ brand_id: actionDrafts.brand_id })
+        .from(actionDrafts)
+        .where(eq(actionDrafts.id, id))
+        .limit(1);
+      if (!draft || draft.brand_id !== userBrandId) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
     }
   }
 
@@ -37,4 +55,5 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   );
 
   return NextResponse.json(updated);
-}
+};
+export const POST = withRateLimit(_POST);

@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { leads, leadLists } from '@quadbot/db';
 import { eq, sql } from 'drizzle-orm';
 import Papa from 'papaparse';
+import { withRateLimit } from '@/lib/rate-limit';
 
 const FIELD_MAP: Record<string, string> = {
   email: 'email',
@@ -39,7 +40,7 @@ const STANDARD_FIELDS = new Set([
   'linkedin_url', 'phone', 'industry', 'employee_count', 'location',
 ]);
 
-export async function POST(req: NextRequest) {
+const _POST = async function POST(req: NextRequest) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -155,7 +156,8 @@ export async function POST(req: NextRequest) {
     duplicates,
     errors,
   }, { status: 201 });
-}
+};
+export const POST = withRateLimit(_POST);
 
 function autoMapColumns(fields: string[]): Record<string, string> {
   const mapping: Record<string, string> = {};

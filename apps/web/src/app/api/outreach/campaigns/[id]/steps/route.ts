@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { campaignSequenceSteps } from '@quadbot/db';
 import { eq } from 'drizzle-orm';
 import { createSequenceStepSchema, bulkSequenceStepsSchema } from '@quadbot/shared';
+import { withRateLimit } from '@/lib/rate-limit';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
@@ -19,7 +20,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   return NextResponse.json(steps);
 }
 
-export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+const _POST = async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const { id: campaignId } = await params;
@@ -34,9 +35,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .returning();
 
   return NextResponse.json(created, { status: 201 });
-}
+};
+export const POST = withRateLimit(_POST);
 
-export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+const _PUT = async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const { id: campaignId } = await params;
@@ -58,4 +60,5 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 
   return NextResponse.json(created);
-}
+};
+export const PUT = withRateLimit(_PUT);

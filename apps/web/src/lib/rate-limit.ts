@@ -1,4 +1,5 @@
 import { Redis } from '@upstash/redis';
+import { NextRequest, NextResponse } from 'next/server';
 
 let _redis: Redis | null = null;
 
@@ -23,13 +24,13 @@ export type RateLimitResult = {
  * Per-brand buckets with configurable window and max requests.
  */
 export async function checkRateLimit(
-  brandId: string,
+  identifier: string,
   { maxRequests = 60, windowMs = 60_000 }: { maxRequests?: number; windowMs?: number } = {},
 ): Promise<RateLimitResult> {
   const redis = getRedis();
   const now = Date.now();
   const windowStart = now - windowMs;
-  const key = `quadbot:rate_limit:${brandId}`;
+  const key = `quadbot:rate_limit:${identifier}`;
 
   // Use a sorted set: score = timestamp, member = unique request id
   const requestId = `${now}:${Math.random().toString(36).slice(2, 8)}`;
@@ -49,4 +50,68 @@ export async function checkRateLimit(
   const resetAt = now + windowMs;
 
   return { allowed, remaining, resetAt };
+}
+
+/**
+ * Extract a rate limit identifier from the request.
+ * Uses IP address as the identifier for rate limiting.
+ */
+function getClientIdentifier(req: NextRequest): string {
+  return (
+    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+    req.headers.get('x-real-ip') ||
+    'unknown'
+  );
+}
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+type RouteHandler = (
+  req: NextRequest,
+  context: any,
+) => Promise<NextResponse> | NextResponse;
+
+/**
+ * Wrap an API route handler with rate limiting.
+ * Applies per-IP rate limiting using a sliding window.
+ *
+ * @param handler - The route handler to wrap
+ * @param opts - Rate limit options
+ * @param opts.maxRequests - Max requests per window (default: 30 for mutations)
+ * @param opts.windowMs - Window size in ms (default: 60000)
+ */
+export function withRateLimit<T extends RouteHandler>(
+  handler: T,
+  opts: { maxRequests?: number; windowMs?: number } = {},
+): T {
+  const { maxRequests = 30, windowMs = 60_000 } = opts;
+
+  const wrapped = async (req: NextRequest, context: any) => {
+    try {
+      const identifier = getClientIdentifier(req);
+      const result = await checkRateLimit(identifier, { maxRequests, windowMs });
+
+      if (!result.allowed) {
+        return NextResponse.json(
+          { error: 'Too many requests' },
+          {
+            status: 429,
+            headers: {
+              'Retry-After': String(Math.ceil((result.resetAt - Date.now()) / 1000)),
+              'X-RateLimit-Limit': String(maxRequests),
+              'X-RateLimit-Remaining': '0',
+              'X-RateLimit-Reset': String(result.resetAt),
+            },
+          },
+        );
+      }
+
+      const response = await handler(req, context);
+      return response;
+    } catch {
+      // If rate limiting fails (Redis down), allow the request through
+      return handler(req, context);
+    }
+  };
+
+  return wrapped as T;
 }

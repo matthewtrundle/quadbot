@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { campaigns, campaignSequenceSteps, campaignLeads, outreachEmails } from '@quadbot/db';
 import { eq, sql } from 'drizzle-orm';
 import { updateCampaignSchema } from '@quadbot/shared';
+import { withRateLimit } from '@/lib/rate-limit';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
@@ -49,7 +50,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   });
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+const _PATCH = async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const { id } = await params;
@@ -66,9 +67,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   if (!updated) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   return NextResponse.json(updated);
-}
+};
+export const PATCH = withRateLimit(_PATCH);
 
-export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+const _DELETE = async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const { id } = await params;
@@ -76,4 +78,5 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   const [deleted] = await db.delete(campaigns).where(eq(campaigns.id, id)).returning();
   if (!deleted) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   return NextResponse.json({ deleted: true });
-}
+};
+export const DELETE = withRateLimit(_DELETE);
