@@ -8,3 +8,5 @@ dist
 google-credentials.json
 .vercel
 .mcp.json
+.worktrees
+.playwright-mcp
