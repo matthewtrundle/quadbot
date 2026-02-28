@@ -29,13 +29,7 @@ export async function emitEvent(
       const existing = await db
         .select({ id: events.id })
         .from(events)
-        .where(
-          and(
-            eq(events.brand_id, brandId),
-            eq(events.type, type),
-            eq(events.dedupe_key, dedupeKey),
-          ),
-        )
+        .where(and(eq(events.brand_id, brandId), eq(events.type, type), eq(events.dedupe_key, dedupeKey)))
         .limit(1);
 
       if (existing.length > 0) {
@@ -55,6 +49,9 @@ export async function emitEvent(
     });
 
     logger.info({ eventId, type, brandId, dedupeKey }, 'Event emitted');
+
+    // Push event to SSE Redis list for real-time dashboard (non-blocking)
+    pushToSSEQueue(brandId, type, payload).catch(() => {});
 
     // Dispatch matching event rules
     await dispatchEventRules(eventId, type, brandId, payload);
@@ -116,9 +113,23 @@ async function dispatchEventRules(
       payload: { brand_id: brandId, ...payload, _event_id: eventId },
     });
 
-    logger.info(
-      { eventId, ruleId: rule.id, jobType: rule.job_type, brandId },
-      'Event rule triggered, job enqueued',
-    );
+    logger.info({ eventId, ruleId: rule.id, jobType: rule.job_type, brandId }, 'Event rule triggered, job enqueued');
+  }
+}
+
+/**
+ * Push event to Redis list for SSE streaming.
+ * Events expire after 5 minutes (TTL set on each push).
+ */
+async function pushToSSEQueue(brandId: string, type: string, payload: Record<string, unknown>): Promise<void> {
+  try {
+    const redis = getRedis(config.REDIS_URL);
+    const queueKey = `quadbot:sse_events:${brandId}`;
+    const event = JSON.stringify({ type, brandId, payload, ts: Date.now() });
+    await redis.lpush(queueKey, event);
+    // Set TTL so stale events auto-cleanup (5 minutes)
+    await redis.expire(queueKey, 300);
+  } catch {
+    // Non-blocking — SSE is best-effort
   }
 }

@@ -47,6 +47,14 @@ export const JobType = {
   OUTREACH_PROCESS_REPLY: 'outreach_process_reply',
   OUTREACH_AI_REPLY: 'outreach_ai_reply',
   OUTREACH_CAMPAIGN_ANALYTICS: 'outreach_campaign_analytics',
+  // Phase 2: Next-Level Features
+  EMBEDDING_INDEXER: 'embedding_indexer',
+  CONTENT_DECAY_DETECTOR: 'content_decay_detector',
+  INTERNAL_LINKING: 'internal_linking',
+  HUBSPOT_SYNC: 'hubspot_sync',
+  SOCIAL_POST_PUBLISHER: 'social_post_publisher',
+  COMPETITOR_MONITOR: 'competitor_monitor',
+  SCHEMA_ORG_ANALYZER: 'schema_org_analyzer',
 } as const;
 export type JobType = (typeof JobType)[keyof typeof JobType];
 
@@ -81,6 +89,12 @@ export const IntegrationType = {
   GOOGLE_ANALYTICS: 'google_analytics',
   GOOGLE_BUSINESS_PROFILE: 'google_business_profile',
   COMMUNITY_WEBHOOK: 'community_webhook',
+  // Phase 2: Next-Level Features
+  SLACK_WEBHOOK: 'slack_webhook',
+  DISCORD_WEBHOOK: 'discord_webhook',
+  HUBSPOT: 'hubspot',
+  TWITTER: 'twitter',
+  LINKEDIN: 'linkedin',
 } as const;
 export type IntegrationType = (typeof IntegrationType)[keyof typeof IntegrationType];
 
@@ -100,6 +114,9 @@ export const EventType = {
   OUTREACH_AI_REPLY_DRAFTED: 'outreach.ai_reply.drafted',
   OUTREACH_AI_REPLY_SENT: 'outreach.ai_reply.sent',
   OUTREACH_CAMPAIGN_COMPLETED: 'outreach.campaign.completed',
+  // Phase 2: Next-Level Features
+  JOB_COMPLETED: 'job.completed',
+  ANOMALY_DETECTED: 'anomaly.detected',
 } as const;
 export type EventType = (typeof EventType)[keyof typeof EventType];
 

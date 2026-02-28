@@ -2,8 +2,9 @@ import { metricSnapshots, recommendations, brands, jobs } from '@quadbot/db';
 import { eq, and, gte, desc } from 'drizzle-orm';
 import type { JobContext } from '../registry.js';
 import { logger } from '../logger.js';
+import { detectTrend } from '../lib/trend-analysis.js';
 
-type AnomalyType = 'spike' | 'drop' | 'zero' | 'pattern_break';
+type AnomalyType = 'spike' | 'drop' | 'zero' | 'pattern_break' | 'sustained_trend';
 
 type Anomaly = {
   metric_key: string;
@@ -16,10 +17,10 @@ type Anomaly = {
 };
 
 const DEVIATION_THRESHOLDS = {
-  low: 0.20,     // 20% deviation
-  medium: 0.40,  // 40% deviation
-  high: 0.60,    // 60% deviation
-  critical: 0.80, // 80% deviation
+  low: 0.2, // 20% deviation
+  medium: 0.4, // 40% deviation
+  high: 0.6, // 60% deviation
+  critical: 0.8, // 80% deviation
 };
 
 /**
@@ -41,12 +42,7 @@ export async function anomalyDetector(ctx: JobContext): Promise<void> {
   const snapshots = await db
     .select()
     .from(metricSnapshots)
-    .where(
-      and(
-        eq(metricSnapshots.brand_id, brandId),
-        gte(metricSnapshots.captured_at, thirtyDaysAgo),
-      ),
-    )
+    .where(and(eq(metricSnapshots.brand_id, brandId), gte(metricSnapshots.captured_at, thirtyDaysAgo)))
     .orderBy(desc(metricSnapshots.captured_at));
 
   if (snapshots.length < 7) {
@@ -109,25 +105,111 @@ export async function anomalyDetector(ctx: JobContext): Promise<void> {
     });
   }
 
+  // Pass 2: Trend detection on 30-day series
+  for (const [key, values] of grouped) {
+    if (values.length < 7) continue;
+
+    const [source, metric_key] = key.split(':');
+
+    // Values are sorted newest-first, reverse for chronological order
+    const chronological = [...values].reverse().map((v) => v.value);
+    const trend = detectTrend(chronological);
+
+    // Flag accelerating decline: negative slope with strong R-squared
+    if (trend.direction === 'down' && trend.rSquared > 0.6) {
+      // Check if already flagged by z-score pass
+      const alreadyFlagged = anomalies.some((a) => a.metric_key === metric_key && a.source === source);
+      if (!alreadyFlagged) {
+        const deviationPct = Math.abs(trend.rateOfChange);
+        let severity: Anomaly['severity'];
+        if (deviationPct >= DEVIATION_THRESHOLDS.critical * 100) severity = 'critical';
+        else if (deviationPct >= DEVIATION_THRESHOLDS.high * 100) severity = 'high';
+        else if (deviationPct >= DEVIATION_THRESHOLDS.medium * 100) severity = 'medium';
+        else severity = 'low';
+
+        anomalies.push({
+          metric_key,
+          source,
+          type: 'sustained_trend',
+          current_value: chronological[chronological.length - 1],
+          expected_value: chronological[0],
+          deviation_pct: Math.round(deviationPct),
+          severity,
+        });
+      }
+    }
+
+    // Flag accelerating growth as opportunity
+    if (trend.direction === 'up' && trend.rSquared > 0.6 && trend.rateOfChange > 30) {
+      const alreadyFlagged = anomalies.some((a) => a.metric_key === metric_key && a.source === source);
+      if (!alreadyFlagged) {
+        anomalies.push({
+          metric_key,
+          source,
+          type: 'sustained_trend',
+          current_value: chronological[chronological.length - 1],
+          expected_value: chronological[0],
+          deviation_pct: Math.round(trend.rateOfChange),
+          severity: 'medium',
+        });
+      }
+    }
+  }
+
   // Create recommendations for high/critical anomalies
   let created = 0;
   for (const anomaly of anomalies) {
     if (anomaly.severity === 'low') continue; // Skip low anomalies
 
-    const directionLabel = anomaly.type === 'spike' ? 'increase' : anomaly.type === 'zero' ? 'drop to zero' : 'decrease';
-    const title = `Anomaly detected: ${anomaly.metric_key} ${directionLabel} (${anomaly.deviation_pct}% deviation)`;
-    const body = `**${anomaly.source}** metric \`${anomaly.metric_key}\` shows a significant ${directionLabel}.
+    let directionLabel: string;
+    if (anomaly.type === 'sustained_trend') {
+      directionLabel = anomaly.current_value > anomaly.expected_value ? 'sustained growth' : 'sustained decline';
+    } else if (anomaly.type === 'spike') {
+      directionLabel = 'increase';
+    } else if (anomaly.type === 'zero') {
+      directionLabel = 'drop to zero';
+    } else {
+      directionLabel = 'decrease';
+    }
+
+    const title =
+      anomaly.type === 'sustained_trend'
+        ? `Trend detected: ${anomaly.metric_key} ${directionLabel} (${anomaly.deviation_pct}% over 30 days)`
+        : `Anomaly detected: ${anomaly.metric_key} ${directionLabel} (${anomaly.deviation_pct}% deviation)`;
+
+    let body: string;
+    if (anomaly.type === 'sustained_trend') {
+      const isDecline = anomaly.current_value < anomaly.expected_value;
+      body = `**${anomaly.source}** metric \`${anomaly.metric_key}\` shows a ${directionLabel} over the past 30 days.
+
+**What happened:** Value moved from ${anomaly.expected_value} to ${anomaly.current_value}, a ${anomaly.deviation_pct}% change with high statistical confidence.
+
+**Why it matters:** ${
+        isDecline
+          ? 'A sustained decline suggests a structural issue rather than a temporary fluctuation. This requires strategic intervention.'
+          : 'Sustained growth indicates a positive trend worth reinforcing. Understanding the drivers can help replicate success.'
+      }
+
+**What to do:**
+1. ${isDecline ? 'Investigate root causes — content freshness, competitive changes, or technical issues' : 'Identify what is driving this growth'}
+2. ${isDecline ? 'Compare against competitor trends for the same period' : 'Consider scaling efforts in this area'}
+3. ${isDecline ? 'Develop a recovery plan targeting the declining metric' : 'Document learnings and apply to other metrics'}`;
+    } else {
+      body = `**${anomaly.source}** metric \`${anomaly.metric_key}\` shows a significant ${directionLabel}.
 
 **What happened:** Current value is ${anomaly.current_value}, but the 30-day average is ${anomaly.expected_value}. This represents a ${anomaly.deviation_pct}% deviation from normal.
 
-**Why it matters:** ${anomaly.type === 'drop' || anomaly.type === 'zero'
-  ? 'This drop could indicate a technical issue, lost traffic source, or competitive displacement.'
-  : 'This spike could represent a growth opportunity, viral content, or a data quality issue worth investigating.'}
+**Why it matters:** ${
+        anomaly.type === 'drop' || anomaly.type === 'zero'
+          ? 'This drop could indicate a technical issue, lost traffic source, or competitive displacement.'
+          : 'This spike could represent a growth opportunity, viral content, or a data quality issue worth investigating.'
+      }
 
 **What to do:**
 1. Investigate the root cause of this ${directionLabel}
 2. Check for recent changes to campaigns, content, or technical infrastructure
 3. ${anomaly.type === 'drop' ? 'Consider reverting recent changes if applicable' : 'Consider capitalizing on positive momentum'}`;
+    }
 
     const priorityMap: Record<string, 'low' | 'medium' | 'high' | 'critical'> = {
       medium: 'medium',
@@ -142,7 +224,7 @@ export async function anomalyDetector(ctx: JobContext): Promise<void> {
       priority: priorityMap[anomaly.severity] || 'medium',
       title,
       body,
-      confidence: Math.min(0.5 + (anomaly.deviation_pct / 200), 0.95),
+      confidence: Math.min(0.5 + anomaly.deviation_pct / 200, 0.95),
       data: {
         anomaly_type: anomaly.type,
         rec_type: anomaly.type === 'drop' || anomaly.type === 'zero' ? 'warning' : 'opportunity',
@@ -156,17 +238,21 @@ export async function anomalyDetector(ctx: JobContext): Promise<void> {
     created++;
   }
 
-  logger.info({
-    jobId,
-    brandId,
-    jobType: 'anomaly_detector',
-    anomalies: anomalies.length,
-    created,
-    byType: {
-      spikes: anomalies.filter((a) => a.type === 'spike').length,
-      drops: anomalies.filter((a) => a.type === 'drop').length,
-      zeros: anomalies.filter((a) => a.type === 'zero').length,
+  logger.info(
+    {
+      jobId,
+      brandId,
+      jobType: 'anomaly_detector',
+      anomalies: anomalies.length,
+      created,
+      byType: {
+        spikes: anomalies.filter((a) => a.type === 'spike').length,
+        drops: anomalies.filter((a) => a.type === 'drop').length,
+        zeros: anomalies.filter((a) => a.type === 'zero').length,
+        sustained_trends: anomalies.filter((a) => a.type === 'sustained_trend').length,
+      },
+      durationMs: Date.now() - startTime,
     },
-    durationMs: Date.now() - startTime,
-  }, 'Anomaly_Detector completed');
+    'Anomaly_Detector completed',
+  );
 }

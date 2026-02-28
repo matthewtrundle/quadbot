@@ -2,12 +2,14 @@ import { recommendations, brands, playbooks } from '@quadbot/db';
 import { eq, and, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 import type { JobContext } from '../registry.js';
-import { callClaude } from '../claude.js';
+import { callClaude, callClaudeWithTools } from '../claude.js';
 import { loadActivePrompt } from '../prompt-loader.js';
 import { logger } from '../logger.js';
 import { computeBaseScore, applyClaudeDelta, estimateReviewMinutes } from '../scoring.js';
 import { getCrossBrandContext } from '../cross-brand-context.js';
 import { getPlaybookContext, executePlaybook } from '../playbook-engine.js';
+import { retrieveContext } from '../lib/rag-pipeline.js';
+import { TOOL_DEFINITIONS, executeTool } from '../lib/claude-tools.js';
 
 const strategicPrioritizerOutputSchema = z.object({
   adjustments: z.array(
@@ -104,7 +106,24 @@ export async function strategicPrioritizer(ctx: JobContext): Promise<void> {
     priority: rec.priority,
   }));
 
-  const result = await callClaude(
+  // Retrieve RAG context for brand knowledge (non-blocking, best-effort)
+  let ragContext: string | undefined;
+  try {
+    const rag = await retrieveContext(db, {
+      brandId,
+      query: `Strategic prioritization for ${brand[0].name} recommendations`,
+      sourceTypes: ['recommendation', 'artifact'],
+      maxChunks: 3,
+    });
+    ragContext = rag?.formatted;
+  } catch {
+    // RAG is optional — continue without it
+  }
+
+  const toolContext = { db, brandId };
+  const toolExecutor = (name: string, input: Record<string, unknown>) => executeTool(name, input, toolContext);
+
+  const result = await callClaudeWithTools(
     prompt,
     {
       brand_name: brand[0].name,
@@ -116,7 +135,9 @@ export async function strategicPrioritizer(ctx: JobContext): Promise<void> {
       time_budget: brand[0].time_budget_minutes_per_day || 30,
     },
     strategicPrioritizerOutputSchema,
-    { signalContext, playbookContext, trackUsage: { db, brandId, jobId } },
+    TOOL_DEFINITIONS,
+    toolExecutor,
+    { signalContext, playbookContext, ragContext, trackUsage: { db, brandId, jobId } },
   );
 
   // Step 5: Apply adjustments + hard relevance gate

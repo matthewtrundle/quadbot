@@ -7,22 +7,14 @@ import { loadActivePrompt } from '../prompt-loader.js';
 import { logger } from '../logger.js';
 import { emitEvent } from '../event-emitter.js';
 import { EventType } from '@quadbot/shared';
-import {
-  loadGscCredentials,
-  refreshAccessToken,
-  fetchGscSearchAnalytics,
-  type GscTokens,
-} from '../lib/gsc-api.js';
+import { loadGscCredentials, refreshAccessToken, fetchGscSearchAnalytics, type GscTokens } from '../lib/gsc-api.js';
 import { persistRefreshedTokens } from '../lib/token-persistence.js';
+import { retrieveContext } from '../lib/rag-pipeline.js';
 
 /**
  * Get a valid GSC access token, refreshing and persisting if expired.
  */
-async function getValidGscToken(
-  db: JobContext['db'],
-  brandId: string,
-  credentials: GscTokens,
-): Promise<string> {
+async function getValidGscToken(db: JobContext['db'], brandId: string, credentials: GscTokens): Promise<string> {
   const expiresAt = new Date(credentials.expires_at);
   const bufferMs = 5 * 60 * 1000;
 
@@ -42,19 +34,11 @@ async function getValidGscToken(
 /**
  * Get the GSC site URL from brand integration config.
  */
-async function getGscSiteUrl(
-  db: JobContext['db'],
-  brandId: string,
-): Promise<string | null> {
+async function getGscSiteUrl(db: JobContext['db'], brandId: string): Promise<string | null> {
   const [integration] = await db
     .select({ config: brandIntegrations.config })
     .from(brandIntegrations)
-    .where(
-      and(
-        eq(brandIntegrations.brand_id, brandId),
-        eq(brandIntegrations.type, 'google_search_console'),
-      ),
-    )
+    .where(and(eq(brandIntegrations.brand_id, brandId), eq(brandIntegrations.type, 'google_search_console')))
     .limit(1);
 
   const config = integration?.config as Record<string, unknown> | undefined;
@@ -172,7 +156,15 @@ export async function gscDailyDigest(ctx: JobContext): Promise<void> {
     gscThisWeek = JSON.stringify(thisWeekData);
     gscLastWeek = JSON.stringify(lastWeekData);
     logger.info(
-      { jobId, brandId, siteUrl, thisWeek: `${fmt(thisWeekStart)}..${fmt(thisWeekEnd)}`, lastWeek: `${fmt(lastWeekStart)}..${fmt(lastWeekEnd)}`, thisWeekRows: thisWeekData.length, lastWeekRows: lastWeekData.length },
+      {
+        jobId,
+        brandId,
+        siteUrl,
+        thisWeek: `${fmt(thisWeekStart)}..${fmt(thisWeekEnd)}`,
+        lastWeek: `${fmt(lastWeekStart)}..${fmt(lastWeekEnd)}`,
+        thisWeekRows: thisWeekData.length,
+        lastWeekRows: lastWeekData.length,
+      },
       'Fetched real GSC data (7-day rolling windows)',
     );
   } catch (err) {
@@ -197,27 +189,43 @@ export async function gscDailyDigest(ctx: JobContext): Promise<void> {
     gsc_last_week: gscLastWeek,
   };
 
-  const result = await callClaude(
-    prompt,
-    variables,
-    gscDigestOutputSchema,
-    { groundingValidator: gscGroundingValidator, trackUsage: { db, brandId, jobId } },
-  );
+  // Retrieve RAG context for brand knowledge (non-blocking, best-effort)
+  let ragContext: string | undefined;
+  try {
+    const rag = await retrieveContext(db, {
+      brandId,
+      query: `GSC search performance analysis for ${brand[0].name}`,
+      sourceTypes: ['recommendation', 'artifact'],
+      maxChunks: 3,
+    });
+    ragContext = rag?.formatted;
+  } catch {
+    // RAG is optional — continue without it
+  }
+
+  const result = await callClaude(prompt, variables, gscDigestOutputSchema, {
+    groundingValidator: gscGroundingValidator,
+    ragContext,
+    trackUsage: { db, brandId, jobId },
+  });
 
   // Insert summary recommendation
-  const [summaryRec] = await db.insert(recommendations).values({
-    brand_id: brandId,
-    job_id: jobId,
-    source: 'gsc_daily_digest',
-    priority: 'medium',
-    title: 'GSC Daily Digest',
-    body: result.data.summary,
-    data: {
-      top_changes: result.data.top_changes,
-      recommendations_count: result.data.recommendations.length,
-    },
-    model_meta: result.model_meta,
-  }).returning();
+  const [summaryRec] = await db
+    .insert(recommendations)
+    .values({
+      brand_id: brandId,
+      job_id: jobId,
+      source: 'gsc_daily_digest',
+      priority: 'medium',
+      title: 'GSC Daily Digest',
+      body: result.data.summary,
+      data: {
+        top_changes: result.data.top_changes,
+        recommendations_count: result.data.recommendations.length,
+      },
+      model_meta: result.model_meta,
+    })
+    .returning();
 
   await emitEvent(
     EventType.RECOMMENDATION_CREATED,
@@ -229,25 +237,28 @@ export async function gscDailyDigest(ctx: JobContext): Promise<void> {
 
   // Insert individual recommendations
   for (const rec of result.data.recommendations) {
-    const [inserted] = await db.insert(recommendations).values({
-      brand_id: brandId,
-      job_id: jobId,
-      source: 'gsc_daily_digest',
-      priority: rec.priority,
-      confidence: rec.confidence ?? null,
-      title: rec.title,
-      body: rec.description,
-      data: {
-        type: rec.type,
-        impact_summary: rec.impact_summary ?? null,
-        evidence: rec.evidence ?? null,
-        next_steps: rec.next_steps ?? null,
-        affected_queries: rec.affected_queries ?? null,
-        affected_pages: rec.affected_pages ?? null,
-        top_changes: result.data.top_changes,
-      },
-      model_meta: result.model_meta,
-      }).returning();
+    const [inserted] = await db
+      .insert(recommendations)
+      .values({
+        brand_id: brandId,
+        job_id: jobId,
+        source: 'gsc_daily_digest',
+        priority: rec.priority,
+        confidence: rec.confidence ?? null,
+        title: rec.title,
+        body: rec.description,
+        data: {
+          type: rec.type,
+          impact_summary: rec.impact_summary ?? null,
+          evidence: rec.evidence ?? null,
+          next_steps: rec.next_steps ?? null,
+          affected_queries: rec.affected_queries ?? null,
+          affected_pages: rec.affected_pages ?? null,
+          top_changes: result.data.top_changes,
+        },
+        model_meta: result.model_meta,
+      })
+      .returning();
 
     await emitEvent(
       EventType.RECOMMENDATION_CREATED,
@@ -259,7 +270,13 @@ export async function gscDailyDigest(ctx: JobContext): Promise<void> {
   }
 
   logger.info(
-    { jobId, brandId, jobType: 'gsc_daily_digest', recommendationsCount: result.data.recommendations.length, durationMs: Date.now() - startTime },
+    {
+      jobId,
+      brandId,
+      jobType: 'gsc_daily_digest',
+      recommendationsCount: result.data.recommendations.length,
+      durationMs: Date.now() - startTime,
+    },
     'GSC_Daily_Digest completed',
   );
 }

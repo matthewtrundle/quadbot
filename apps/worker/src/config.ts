@@ -7,6 +7,14 @@ const envSchema = z.object({
   ENCRYPTION_KEY: z.string().min(64),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   WORKER_PORT: z.coerce.number().default(4000),
+  // Phase 2: Embedding APIs (optional)
+  VOYAGE_API_KEY: z.string().optional(),
+  OPENAI_API_KEY: z.string().optional(),
+  // Phase 2: OpenTelemetry (optional)
+  OTEL_EXPORTER_OTLP_ENDPOINT: z.string().optional(),
+  // Phase 2: GrowthBook (optional)
+  GROWTHBOOK_API_HOST: z.string().optional(),
+  GROWTHBOOK_CLIENT_KEY: z.string().optional(),
 });
 
 export const config = envSchema.parse(process.env);

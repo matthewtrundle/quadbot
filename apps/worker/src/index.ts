@@ -59,6 +59,15 @@ import { outreachSendEmailJob } from './jobs/outreach-send-email.js';
 import { outreachProcessReply } from './jobs/outreach-process-reply.js';
 import { outreachAiReply } from './jobs/outreach-ai-reply.js';
 import { outreachCampaignAnalytics } from './jobs/outreach-campaign-analytics.js';
+// Phase 2: Next-Level Features
+import { embeddingIndexer } from './jobs/embedding-indexer.js';
+import { contentDecayDetector } from './jobs/content-decay-detector.js';
+import { internalLinking } from './jobs/internal-linking.js';
+// Wave 3: External Integrations
+import { hubspotSync } from './jobs/hubspot-sync.js';
+import { socialPostPublisher } from './jobs/social-post-publisher.js';
+import { competitorMonitor } from './jobs/competitor-monitor.js';
+import { schemaOrgAnalyzer } from './jobs/schema-org-analyzer.js';
 
 // Register job handlers
 registerHandler(JobType.COMMUNITY_MODERATE_POST, communityModeratePost);
@@ -104,6 +113,15 @@ registerHandler(JobType.OUTREACH_SEND_EMAIL, outreachSendEmailJob);
 registerHandler(JobType.OUTREACH_PROCESS_REPLY, outreachProcessReply);
 registerHandler(JobType.OUTREACH_AI_REPLY, outreachAiReply);
 registerHandler(JobType.OUTREACH_CAMPAIGN_ANALYTICS, outreachCampaignAnalytics);
+// Phase 2: Next-Level Features handlers
+registerHandler(JobType.EMBEDDING_INDEXER, embeddingIndexer);
+registerHandler(JobType.CONTENT_DECAY_DETECTOR, contentDecayDetector);
+registerHandler(JobType.INTERNAL_LINKING, internalLinking);
+// Wave 3: External Integrations handlers
+registerHandler(JobType.HUBSPOT_SYNC, hubspotSync);
+registerHandler(JobType.SOCIAL_POST_PUBLISHER, socialPostPublisher);
+registerHandler(JobType.COMPETITOR_MONITOR, competitorMonitor);
+registerHandler(JobType.SCHEMA_ORG_ANALYZER, schemaOrgAnalyzer);
 
 async function handleMessage(message: string): Promise<void> {
   let parsed;
@@ -165,20 +183,14 @@ async function handleMessage(message: string): Promise<void> {
     }
 
     // Set running with incremented attempts
-    await db
-      .update(jobs)
-      .set({ status: 'running', attempts, updated_at: new Date() })
-      .where(eq(jobs.id, jobId));
+    await db.update(jobs).set({ status: 'running', attempts, updated_at: new Date() }).where(eq(jobs.id, jobId));
 
     const brandId = (payload.brand_id as string) || job.brand_id;
     const redis = getRedis(config.REDIS_URL);
 
     await handler({ db, redis, jobId, brandId, payload: payload as Record<string, unknown> });
 
-    await db
-      .update(jobs)
-      .set({ status: 'succeeded', updated_at: new Date() })
-      .where(eq(jobs.id, jobId));
+    await db.update(jobs).set({ status: 'succeeded', updated_at: new Date() }).where(eq(jobs.id, jobId));
 
     recordJobCompletion();
     logger.info({ jobId, type, attempts }, 'Job completed successfully');

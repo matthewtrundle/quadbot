@@ -9,6 +9,7 @@ export * from './ads-enable-campaign.js';
 export * from './ads-adjust-budget.js';
 export * from './update-meta.js';
 export * from './content-publisher.js';
+export * from './social-post.js';
 
 import { registerExecutor } from './registry.js';
 import { gscIndexRequestExecutor } from './gsc-index-request.js';
@@ -20,6 +21,7 @@ import { adsEnableCampaignExecutor } from './ads-enable-campaign.js';
 import { adsAdjustBudgetExecutor } from './ads-adjust-budget.js';
 import { updateMetaExecutor } from './update-meta.js';
 import { contentPublisherExecutor } from './content-publisher.js';
+import { socialPostExecutor } from './social-post.js';
 
 /**
  * Register all executors with the registry.
@@ -35,4 +37,5 @@ export function registerAllExecutors(): void {
   registerExecutor(adsAdjustBudgetExecutor);
   registerExecutor(updateMetaExecutor);
   registerExecutor(contentPublisherExecutor);
+  registerExecutor(socialPostExecutor);
 }

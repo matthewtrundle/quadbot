@@ -130,6 +130,42 @@ export function startCronScheduler(redis: Redis): void {
     await enqueueForAllBrands(redis, JobType.OUTREACH_CAMPAIGN_ANALYTICS);
   });
 
+  // Phase 2: Embedding Indexer - daily at 3:00 AM
+  cron.schedule('0 3 * * *', async () => {
+    logger.info('Cron: triggering embedding indexer for all brands');
+    await enqueueForAllBrands(redis, JobType.EMBEDDING_INDEXER);
+  });
+
+  // Phase 2: Content Decay Detector - weekly Mondays at 7:00 AM
+  cron.schedule('0 7 * * 1', async () => {
+    logger.info('Cron: triggering content decay detector for all brands');
+    await enqueueForAllBrands(redis, JobType.CONTENT_DECAY_DETECTOR);
+  });
+
+  // Phase 2: Internal Linking Suggestions - weekly Wednesdays at 6:00 AM
+  cron.schedule('0 6 * * 3', async () => {
+    logger.info('Cron: triggering internal linking for all brands');
+    await enqueueForAllBrands(redis, JobType.INTERNAL_LINKING);
+  });
+
+  // Wave 3: HubSpot Sync - every 4 hours
+  cron.schedule('0 */4 * * *', async () => {
+    logger.info('Cron: triggering HubSpot sync for all brands');
+    await enqueueForAllBrands(redis, JobType.HUBSPOT_SYNC);
+  });
+
+  // Wave 3: Competitor Monitor - weekly Sundays at 2:00 AM
+  cron.schedule('0 2 * * 0', async () => {
+    logger.info('Cron: triggering competitor monitor for all brands');
+    await enqueueForAllBrands(redis, JobType.COMPETITOR_MONITOR);
+  });
+
+  // Wave 3: Schema.org Analyzer - monthly 1st at 4:00 AM
+  cron.schedule('0 4 1 * *', async () => {
+    logger.info('Cron: triggering schema.org analyzer for all brands');
+    await enqueueForAllBrands(redis, JobType.SCHEMA_ORG_ANALYZER);
+  });
+
   // Signal Decay - daily at 5:00 AM
   // Exponential decay: decay_weight = e^(-age_days / HALF_LIFE_DAYS * ln(2))
   // Half-life of 30 days means a 30-day-old signal has 50% weight.
@@ -143,10 +179,7 @@ export function startCronScheduler(redis: Redis): void {
 async function enqueueForAllBrands(redis: Redis, jobType: string): Promise<void> {
   let allBrands;
   try {
-    allBrands = await db
-      .select({ id: brands.id })
-      .from(brands)
-      .where(eq(brands.is_active, true));
+    allBrands = await db.select({ id: brands.id }).from(brands).where(eq(brands.is_active, true));
   } catch (err) {
     logger.error({ err, jobType }, 'Failed to fetch brands for cron enqueue');
     return;
@@ -217,4 +250,3 @@ async function decaySignalWeights(): Promise<void> {
     logger.error({ err }, 'Failed to decay signal weights');
   }
 }
-

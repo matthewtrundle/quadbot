@@ -17,19 +17,11 @@ export type GscTokens = {
  * Load GSC credentials for a brand integration.
  * Supports both direct credentials and shared credentials.
  */
-export async function loadGscCredentials(
-  db: Database,
-  brandId: string,
-): Promise<GscTokens | null> {
+export async function loadGscCredentials(db: Database, brandId: string): Promise<GscTokens | null> {
   const [integration] = await db
     .select()
     .from(brandIntegrations)
-    .where(
-      and(
-        eq(brandIntegrations.brand_id, brandId),
-        eq(brandIntegrations.type, 'google_search_console'),
-      ),
-    )
+    .where(and(eq(brandIntegrations.brand_id, brandId), eq(brandIntegrations.type, 'google_search_console')))
     .limit(1);
 
   if (!integration) {
@@ -84,7 +76,7 @@ export async function refreshAccessToken(refreshToken: string): Promise<GscToken
     throw new Error(`Token refresh failed: ${error}`);
   }
 
-  const data = await response.json() as { access_token: string; expires_in: number };
+  const data = (await response.json()) as { access_token: string; expires_in: number };
 
   return {
     access_token: data.access_token,
@@ -96,10 +88,7 @@ export async function refreshAccessToken(refreshToken: string): Promise<GscToken
 /**
  * Get a valid access token, refreshing and persisting if needed
  */
-export async function getValidAccessToken(
-  db: Database,
-  brandId: string,
-): Promise<string | null> {
+export async function getValidAccessToken(db: Database, brandId: string): Promise<string | null> {
   const credentials = await loadGscCredentials(db, brandId);
   if (!credentials) {
     return null;
@@ -223,6 +212,7 @@ export async function inspectUrl(
  */
 export type GscQueryRow = {
   query: string;
+  keys?: string[];
   clicks: number;
   impressions: number;
   ctr: number;
@@ -234,6 +224,7 @@ export async function fetchGscSearchAnalytics(
   siteUrl: string,
   startDate: string,
   endDate: string,
+  dimension: 'query' | 'page' = 'query',
 ): Promise<GscQueryRow[]> {
   const response = await fetch(
     `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`,
@@ -246,7 +237,7 @@ export async function fetchGscSearchAnalytics(
       body: JSON.stringify({
         startDate,
         endDate,
-        dimensions: ['query'],
+        dimensions: [dimension],
         rowLimit: 500,
       }),
     },
@@ -257,7 +248,7 @@ export async function fetchGscSearchAnalytics(
     throw new Error(`GSC Search Analytics API failed: ${error}`);
   }
 
-  const data = await response.json() as {
+  const data = (await response.json()) as {
     rows?: Array<{ keys: string[]; clicks: number; impressions: number; ctr: number; position: number }>;
   };
 
@@ -267,6 +258,7 @@ export async function fetchGscSearchAnalytics(
 
   return data.rows.map((row) => ({
     query: row.keys[0],
+    keys: row.keys,
     clicks: row.clicks,
     impressions: row.impressions,
     ctr: row.ctr,

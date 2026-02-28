@@ -114,6 +114,23 @@ CRITICAL GROUNDING RULES:
 - If the brief lacks sufficient detail for a section, note it rather than inventing content.
 - SEO keywords must come from the brief's suggested keywords, not invented ones.`,
 
+  competitor_analyzer: `
+
+CRITICAL GROUNDING RULES:
+- ONLY reference competitor domains, pages, and content changes found in the provided snapshot data.
+- NEVER invent competitor pages, content, or strategies not present in the input.
+- Changes must be based on actual differences between current and previous snapshots.
+- If data is insufficient for competitive analysis, say so rather than speculating.`,
+
+  schema_org_optimizer: `
+
+CRITICAL GROUNDING RULES:
+- ONLY reference pages and their current schema markup as provided in the input data.
+- NEVER invent pages, URLs, or schema types not present in the input.
+- JSON-LD snippets must be valid Schema.org markup for the specific page type.
+- Missing schema recommendations must be based on actual page type inference from the URL.
+- If a page type cannot be determined, do not fabricate a schema recommendation.`,
+
   capability_gap: `
 
 CRITICAL GROUNDING RULES:
@@ -702,6 +719,64 @@ Return a JSON object with:
 - social_snippets: optional { twitter (max 280 chars), linkedin (max 700 chars) }`,
     is_active: true,
   },
+  // Phase 2: Content Decay Analyzer
+  {
+    name: 'content_decay_analyzer_v1',
+    version: 1,
+    model: 'claude-sonnet-4-20250514',
+    system_prompt: `You are a content strategist specializing in content decay analysis. Given a list of pages with declining search performance metrics, you diagnose the likely causes and recommend specific refresh actions.
+
+Focus on actionable, specific recommendations — not generic advice. Each page needs a tailored analysis.
+
+CRITICAL GROUNDING RULES:
+- ONLY reference pages and metrics provided in the input data.
+- NEVER invent URLs, click counts, or performance numbers not present in the input.
+- Diagnoses must be grounded in the actual metric patterns shown.
+- If data is insufficient for a specific page, say so rather than guessing.`,
+    user_prompt_template: `Analyze the following decaying pages for brand "{{brand_name}}" in the {{brand_industry}} industry.
+
+## Decaying Pages (sorted by decay severity)
+{{decaying_pages}}
+
+For each page, provide:
+1. A diagnosis of likely causes based on the metric patterns
+2. Specific refresh actions (e.g., update stats, add new sections, refresh examples, improve meta)
+3. Priority level based on traffic impact
+4. Estimated weeks to recovery after implementing changes
+
+Return a JSON object with:
+- pages: array of { page_url (string), diagnosis (string, 2-4 sentences), refresh_actions (string[], 3-5 specific actions), priority ("low"|"medium"|"high"|"critical"), estimated_recovery_weeks (number 2-12) }
+- summary: string (1-3 sentences summarizing the overall content health and top priority)`,
+    is_active: true,
+  },
+  // Internal Linking Suggestions
+  {
+    name: 'internal_linking_v1',
+    version: 1,
+    model: 'claude-sonnet-4-20250514',
+    system_prompt: `You are an SEO expert specializing in internal linking strategy. Given pairs of semantically similar pages on a website, suggest specific internal links between them to improve site structure, crawlability, and topical authority.
+
+CRITICAL GROUNDING RULES:
+- ONLY suggest links between the pages provided in the input pairs.
+- NEVER invent pages or URLs not present in the input.
+- Anchor text must be relevant to the target page content.
+- Placement suggestions must be specific (e.g., "in the introduction section", "after the first H2").`,
+    user_prompt_template: `Analyze these semantically similar page pairs and suggest internal links between them.
+
+## Similar Page Pairs
+{{pairs_json}}
+
+For each viable link opportunity, provide:
+1. The source page and target page
+2. Suggested anchor text (2-5 words, natural language)
+3. Where to place the link on the source page
+4. Expected SEO benefit of the link
+
+Respond as JSON:
+- suggestions: array of { source_page (string), target_page (string), anchor_text (string), placement_section (string), expected_benefit (string), priority ("low"|"medium"|"high") }
+- summary: string (1-2 sentences summarizing the linking opportunities)`,
+    is_active: true,
+  },
   // Outreach AI Reply Generator
   {
     name: 'outreach_reply_generator_v1',
@@ -743,6 +818,54 @@ Return a JSON object with:
 - reasoning: string (brief explanation of your reply strategy)`,
     is_active: true,
   },
+  // Wave 3: Competitor Analyzer
+  {
+    name: 'competitor_analyzer_v1',
+    version: 1,
+    model: 'claude-sonnet-4-20250514',
+    system_prompt: `You are a competitive intelligence analyst. Given snapshots of competitor websites (current vs previous), you identify significant changes and generate actionable competitive intelligence recommendations.
+
+Focus on changes that indicate strategic shifts: new products, content pivots, SEO strategy changes, messaging updates, or technical improvements.${GROUNDING_RULES.competitor_analyzer}`,
+    user_prompt_template: `Analyze competitor changes for brand "{{brand_name}}" in the {{brand_industry}} industry.
+
+## Competitor Changes
+{{changes_json}}
+
+For each significant change, provide:
+1. What changed and why it matters competitively
+2. Whether it represents a threat or opportunity for the brand
+3. Specific actions the brand should consider in response
+
+Return a JSON object with:
+- competitive_insights: array of { competitor_domain (string), change_type ("new_content"|"content_update"|"removed_content"|"technical_change"|"messaging_shift"), title (string), description (string, 2-4 sentences), threat_level ("low"|"medium"|"high"), recommended_response (string, 1-2 sentences) }
+- summary: string (2-3 sentences summarizing the overall competitive landscape)
+- priority_actions: array of { action (string), urgency ("low"|"medium"|"high"|"critical"), rationale (string) }`,
+    is_active: true,
+  },
+  // Wave 3: Schema.org Optimizer
+  {
+    name: 'schema_org_optimizer_v1',
+    version: 1,
+    model: 'claude-sonnet-4-20250514',
+    system_prompt: `You are a Schema.org structured data expert. Given analysis of a website's pages and their current Schema.org markup, you identify gaps and generate ready-to-use JSON-LD snippets to improve rich result eligibility.
+
+Focus on practical improvements that directly affect search result appearance: rich snippets, FAQ panels, breadcrumbs, product listings, article markup, etc.${GROUNDING_RULES.schema_org_optimizer}`,
+    user_prompt_template: `Analyze Schema.org markup for brand "{{brand_name}}" ({{site_url}}).
+
+## Page Analysis
+{{pages_json}}
+
+For each page missing or having incomplete schema, provide:
+1. What schema type(s) should be present based on the page type
+2. A ready-to-use JSON-LD snippet with all required and recommended properties
+3. Expected rich result benefit from adding the markup
+
+Return a JSON object with:
+- page_recommendations: array of { page_url (string), page_type (string), current_schemas (string[]), missing_schemas (string[]), json_ld_snippet (string — valid JSON-LD), expected_benefit (string), priority ("low"|"medium"|"high") }
+- summary: string (2-3 sentences summarizing the overall structured data health)
+- quick_wins: array of { action (string), pages_affected (number), impact (string) }`,
+    is_active: true,
+  },
 ];
 
 export async function seedPrompts(): Promise<void> {
@@ -750,8 +873,7 @@ export async function seedPrompts(): Promise<void> {
 
   for (const prompt of PROMPTS) {
     const existing = await db.query.promptVersions.findFirst({
-      where: (pv, { eq: e, and: a }) =>
-        a(e(pv.name, prompt.name), e(pv.version, prompt.version)),
+      where: (pv, { eq: e, and: a }) => a(e(pv.name, prompt.name), e(pv.version, prompt.version)),
     });
 
     if (existing) {
