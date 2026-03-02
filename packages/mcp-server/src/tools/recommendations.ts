@@ -9,6 +9,56 @@ import { getRedis } from '../redis.js';
 
 export function registerRecommendationTools(server: McpServer) {
   server.tool(
+    'dismiss_recommendation',
+    'Dismiss a recommendation by ID',
+    {
+      recommendationId: z.string().uuid().describe('Recommendation UUID to dismiss'),
+      reason: z.string().optional().describe('Optional reason for dismissing'),
+    },
+    async ({ recommendationId, reason }) => {
+      const [existing] = await db
+        .select()
+        .from(recommendations)
+        .where(eq(recommendations.id, recommendationId))
+        .limit(1);
+
+      if (!existing) {
+        return { content: [{ type: 'text', text: 'Recommendation not found' }], isError: true };
+      }
+
+      await db
+        .update(recommendations)
+        .set({
+          status: 'dismissed',
+          dismissed_at: new Date(),
+          data: {
+            ...((existing.data as Record<string, unknown>) || {}),
+            ...(reason ? { dismissal_reason: reason } : {}),
+          },
+        })
+        .where(eq(recommendations.id, recommendationId));
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(
+              {
+                success: true,
+                recommendationId,
+                status: 'dismissed',
+                reason: reason || null,
+              },
+              null,
+              2,
+            ),
+          },
+        ],
+      };
+    },
+  );
+
+  server.tool(
     'list_recommendations',
     'List recommendations with optional filters',
     {
@@ -39,36 +89,25 @@ export function registerRecommendationTools(server: McpServer) {
     'Get full recommendation with related actions, outcomes, and artifacts',
     { recommendationId: z.string().uuid().describe('Recommendation UUID') },
     async ({ recommendationId }) => {
-      const [rec] = await db
-        .select()
-        .from(recommendations)
-        .where(eq(recommendations.id, recommendationId))
-        .limit(1);
+      const [rec] = await db.select().from(recommendations).where(eq(recommendations.id, recommendationId)).limit(1);
 
       if (!rec) {
         return { content: [{ type: 'text', text: 'Recommendation not found' }], isError: true };
       }
 
-      const actions = await db
-        .select()
-        .from(actionDrafts)
-        .where(eq(actionDrafts.recommendation_id, recommendationId));
+      const actions = await db.select().from(actionDrafts).where(eq(actionDrafts.recommendation_id, recommendationId));
 
-      const recOutcomes = await db
-        .select()
-        .from(outcomes)
-        .where(eq(outcomes.recommendation_id, recommendationId));
+      const recOutcomes = await db.select().from(outcomes).where(eq(outcomes.recommendation_id, recommendationId));
 
-      const recArtifacts = await db
-        .select()
-        .from(artifacts)
-        .where(eq(artifacts.recommendation_id, recommendationId));
+      const recArtifacts = await db.select().from(artifacts).where(eq(artifacts.recommendation_id, recommendationId));
 
       return {
-        content: [{
-          type: 'text',
-          text: JSON.stringify({ ...rec, actions, outcomes: recOutcomes, artifacts: recArtifacts }, null, 2),
-        }],
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({ ...rec, actions, outcomes: recOutcomes, artifacts: recArtifacts }, null, 2),
+          },
+        ],
       };
     },
   );
@@ -106,11 +145,7 @@ export function registerRecommendationTools(server: McpServer) {
     'Get a single artifact with full content and linked recommendation',
     { artifactId: z.string().uuid().describe('Artifact UUID') },
     async ({ artifactId }) => {
-      const [artifact] = await db
-        .select()
-        .from(artifacts)
-        .where(eq(artifacts.id, artifactId))
-        .limit(1);
+      const [artifact] = await db.select().from(artifacts).where(eq(artifacts.id, artifactId)).limit(1);
 
       if (!artifact) {
         return { content: [{ type: 'text', text: 'Artifact not found' }], isError: true };
@@ -127,10 +162,12 @@ export function registerRecommendationTools(server: McpServer) {
       }
 
       return {
-        content: [{
-          type: 'text',
-          text: JSON.stringify({ ...artifact, recommendation: linkedRecommendation }, null, 2),
-        }],
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({ ...artifact, recommendation: linkedRecommendation }, null, 2),
+          },
+        ],
       };
     },
   );
@@ -143,11 +180,7 @@ export function registerRecommendationTools(server: McpServer) {
       platform: z.enum(['blog', 'social', 'email']).describe('Target platform for the content'),
     },
     async ({ artifactId, platform }) => {
-      const [artifact] = await db
-        .select()
-        .from(artifacts)
-        .where(eq(artifacts.id, artifactId))
-        .limit(1);
+      const [artifact] = await db.select().from(artifacts).where(eq(artifacts.id, artifactId)).limit(1);
 
       if (!artifact) {
         return { content: [{ type: 'text', text: 'Artifact not found' }], isError: true };
@@ -155,7 +188,9 @@ export function registerRecommendationTools(server: McpServer) {
 
       if (artifact.type !== 'trend_content_brief') {
         return {
-          content: [{ type: 'text', text: `This tool only works with trend_content_brief artifacts. Got: ${artifact.type}` }],
+          content: [
+            { type: 'text', text: `This tool only works with trend_content_brief artifacts. Got: ${artifact.type}` },
+          ],
           isError: true,
         };
       }
@@ -182,12 +217,13 @@ export function registerRecommendationTools(server: McpServer) {
         .join('\n');
 
       const outline = brief.content_outline
-        .map((s) => `### ${s.heading}\n${s.key_points.map((p) => `- ${p}`).join('\n')}\n(~${s.estimated_word_count} words)`)
+        .map(
+          (s) =>
+            `### ${s.heading}\n${s.key_points.map((p) => `- ${p}`).join('\n')}\n(~${s.estimated_word_count} words)`,
+        )
         .join('\n\n');
 
-      const keywords = brief.suggested_keywords
-        .map((k) => `- ${k.keyword} (${k.priority}, ${k.intent})`)
-        .join('\n');
+      const keywords = brief.suggested_keywords.map((k) => `- ${k.keyword} (${k.priority}, ${k.intent})`).join('\n');
 
       let platformSpecific = '';
 
@@ -235,10 +271,12 @@ Publish Window: ${brief.timeliness.publish_window}
 Trend Stage: ${brief.timeliness.trend_lifecycle_stage}`;
 
       return {
-        content: [{
-          type: 'text',
-          text: prompt,
-        }],
+        content: [
+          {
+            type: 'text',
+            text: prompt,
+          },
+        ],
       };
     },
   );
@@ -253,11 +291,7 @@ Trend Stage: ${brief.timeliness.trend_lifecycle_stage}`;
     },
     async ({ artifactId, platform, targetWordCount }) => {
       // Verify artifact exists and is the right type
-      const [artifact] = await db
-        .select()
-        .from(artifacts)
-        .where(eq(artifacts.id, artifactId))
-        .limit(1);
+      const [artifact] = await db.select().from(artifacts).where(eq(artifacts.id, artifactId)).limit(1);
 
       if (!artifact) {
         return { content: [{ type: 'text', text: 'Artifact not found' }], isError: true };
@@ -271,11 +305,7 @@ Trend Stage: ${brief.timeliness.trend_lifecycle_stage}`;
       }
 
       // Verify brand exists
-      const [brand] = await db
-        .select()
-        .from(brands)
-        .where(eq(brands.id, artifact.brand_id))
-        .limit(1);
+      const [brand] = await db.select().from(brands).where(eq(brands.id, artifact.brand_id)).limit(1);
 
       if (!brand) {
         return { content: [{ type: 'text', text: 'Brand not found for this artifact' }], isError: true };
@@ -307,19 +337,25 @@ Trend Stage: ${brief.timeliness.trend_lifecycle_stage}`;
       await redis.sadd('quadbot:known_brands', artifact.brand_id);
 
       return {
-        content: [{
-          type: 'text',
-          text: JSON.stringify({
-            success: true,
-            jobId,
-            jobType: JobType.CONTENT_WRITER,
-            brandId: artifact.brand_id,
-            brandName: brand.name,
-            artifactTitle: artifact.title,
-            platform: platform || 'blog',
-            targetWordCount: targetWordCount || 1500,
-          }, null, 2),
-        }],
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(
+              {
+                success: true,
+                jobId,
+                jobType: JobType.CONTENT_WRITER,
+                brandId: artifact.brand_id,
+                brandName: brand.name,
+                artifactTitle: artifact.title,
+                platform: platform || 'blog',
+                targetWordCount: targetWordCount || 1500,
+              },
+              null,
+              2,
+            ),
+          },
+        ],
       };
     },
   );

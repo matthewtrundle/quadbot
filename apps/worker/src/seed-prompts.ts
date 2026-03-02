@@ -369,7 +369,7 @@ Return a JSON object with:
   // Trend Relevance + Sensitivity Filter
   {
     name: 'trend_relevance_filter_v1',
-    version: 3,
+    version: 4,
     model: 'claude-sonnet-4-20250514',
     system_prompt: `You are a trend relevance and sensitivity filter for a brand's content recommendations. You evaluate trending topics against a brand's profile to determine:
 
@@ -385,7 +385,15 @@ SENSITIVITY CATEGORIES (always flag these):
 - Child exploitation or endangerment
 - Health crises or pandemics (unless the brand is in healthcare)
 
-A trend can be relevant but still sensitive. Filter OUT trends that are sensitive OR irrelevant.${GROUNDING_RULES.trend_filter}
+A trend can be relevant but still sensitive. Filter OUT trends that are sensitive OR irrelevant.
+
+KEYWORD MATCH VALIDATION:
+- If the trend was found via keyword search, verify the keyword appears in MEANINGFUL context
+- Reject if keyword match is incidental (e.g., person's name, team name, unrelated product)
+- The article must actually BE ABOUT the keyword topic, not just mention it in passing
+- Score 0.0 relevance if the keyword match is a false positive
+- Example: "Texas tortillas" matching a football article about "Texas Tech" = false positive (relevance 0.0)
+- Example: "tortilla" matching an article about "best breakfast tacos in Austin" = true positive${GROUNDING_RULES.trend_filter}
 
 Return structured JSON evaluating each trend.`,
     user_prompt_template: `Filter the following trending topics for brand relevance and sensitivity.

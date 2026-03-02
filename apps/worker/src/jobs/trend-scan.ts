@@ -1,6 +1,11 @@
 import { recommendations, brands, brandIntegrations, artifacts } from '@quadbot/db';
-import { eq, and } from 'drizzle-orm';
-import { trendFilterOutputSchema, trendContentBriefSchema, type BrandGuardrails, type TrendFilterItem } from '@quadbot/shared';
+import { eq, and, sql, gt } from 'drizzle-orm';
+import {
+  trendFilterOutputSchema,
+  trendContentBriefSchema,
+  type BrandGuardrails,
+  type TrendFilterItem,
+} from '@quadbot/shared';
 import type { JobContext } from '../registry.js';
 import { callClaude } from '../claude.js';
 import { loadActivePrompt } from '../prompt-loader.js';
@@ -8,6 +13,7 @@ import { logger } from '../logger.js';
 import { searchNews, getTopHeadlines, searchBrandMentions, type NewsArticle } from '../lib/news-api.js';
 import { getTrendingFromSubreddits, searchReddit, INDUSTRY_SUBREDDITS, type RedditPost } from '../lib/reddit-api.js';
 import { brandProfiler } from './brand-profiler.js';
+import { getConfidenceThreshold } from '../lib/recommendation-utils.js';
 
 type BrandConfig = {
   industry?: string;
@@ -26,12 +32,7 @@ async function getBrandConfig(ctx: JobContext, guardrails: BrandGuardrails | nul
   const [integration] = await db
     .select()
     .from(brandIntegrations)
-    .where(
-      and(
-        eq(brandIntegrations.brand_id, brandId),
-        eq(brandIntegrations.type, 'trend_config'),
-      ),
-    )
+    .where(and(eq(brandIntegrations.brand_id, brandId), eq(brandIntegrations.type, 'trend_config')))
     .limit(1);
 
   if (integration?.config) {
@@ -60,7 +61,10 @@ async function getBrandConfig(ctx: JobContext, guardrails: BrandGuardrails | nul
 /**
  * Analyze news for content opportunities
  */
-function analyzeNewsForContent(articles: NewsArticle[], brandName: string): {
+function analyzeNewsForContent(
+  articles: NewsArticle[],
+  brandName: string,
+): {
   opportunities: Array<{ title: string; description: string; url: string; priority: 'low' | 'medium' | 'high' }>;
 } {
   const opportunities = articles
@@ -81,14 +85,24 @@ function analyzeNewsForContent(articles: NewsArticle[], brandName: string): {
  */
 function analyzeRedditForContent(
   postsBySubreddit: Map<string, RedditPost[]>,
-): Array<{ title: string; description: string; subreddit: string; score: number; priority: 'low' | 'medium' | 'high' }> {
-  const ideas: Array<{ title: string; description: string; subreddit: string; score: number; priority: 'low' | 'medium' | 'high' }> = [];
+): Array<{
+  title: string;
+  description: string;
+  subreddit: string;
+  score: number;
+  priority: 'low' | 'medium' | 'high';
+}> {
+  const ideas: Array<{
+    title: string;
+    description: string;
+    subreddit: string;
+    score: number;
+    priority: 'low' | 'medium' | 'high';
+  }> = [];
 
   for (const [subreddit, posts] of postsBySubreddit) {
     // Find high-engagement posts
-    const hotPosts = posts
-      .filter((p) => p.score > 100 && p.num_comments > 20)
-      .slice(0, 2);
+    const hotPosts = posts.filter((p) => p.score > 100 && p.num_comments > 20).slice(0, 2);
 
     for (const post of hotPosts) {
       ideas.push({
@@ -112,7 +126,12 @@ function analyzeBrandMentions(
   competitorArticles: Map<string, NewsArticle[]>,
   brandName: string,
 ): Array<{ title: string; description: string; type: 'brand' | 'competitor'; priority: 'low' | 'medium' | 'high' }> {
-  const mentions: Array<{ title: string; description: string; type: 'brand' | 'competitor'; priority: 'low' | 'medium' | 'high' }> = [];
+  const mentions: Array<{
+    title: string;
+    description: string;
+    type: 'brand' | 'competitor';
+    priority: 'low' | 'medium' | 'high';
+  }> = [];
 
   // Brand mentions
   for (const article of brandArticles.slice(0, 3)) {
@@ -128,9 +147,7 @@ function analyzeBrandMentions(
   for (const [competitor, articles] of competitorArticles) {
     if (articles.length > 0) {
       const topArticles = articles.slice(0, 3);
-      const articleList = topArticles
-        .map((a, i) => `${i + 1}. "${a.title}" — ${a.source.name}`)
-        .join('\n');
+      const articleList = topArticles.map((a, i) => `${i + 1}. "${a.title}" — ${a.source.name}`).join('\n');
       mentions.push({
         title: `Competitor news: ${competitor}`,
         description: `${competitor} appeared in ${articles.length} article(s).\n\n**Key coverage:**\n${articleList}\n\n**Why this matters:** Competitor activity signals market shifts, new features, or strategic pivots that may affect your positioning.\n\n**Suggested actions:**\n- Analyze competitor messaging for differentiation opportunities\n- Check if coverage highlights features you also offer (potential content angle)\n- Monitor for follow-up coverage indicating a larger trend`,
@@ -148,7 +165,12 @@ function analyzeBrandMentions(
  * Returns only relevant, non-sensitive trends. Falls back to unfiltered on error.
  */
 async function filterTrendsWithLLM(
-  allRecommendations: Array<{ title: string; body: string; priority: 'low' | 'medium' | 'high' | 'critical'; data: Record<string, unknown> }>,
+  allRecommendations: Array<{
+    title: string;
+    body: string;
+    priority: 'low' | 'medium' | 'high' | 'critical';
+    data: Record<string, unknown>;
+  }>,
   guardrails: BrandGuardrails,
   brandName: string,
   jobId: string,
@@ -198,11 +220,16 @@ async function filterTrendsWithLLM(
 
     // Keep only relevant + non-sensitive trends with sufficient confidence.
     // If the LLM didn't evaluate a trend, EXCLUDE it (safe default).
-    const MIN_RELEVANCE_CONFIDENCE = 0.6;
-    const filtered = allRecommendations.filter((_, i) => {
+    // Use type-specific thresholds (e.g., content_opportunity requires 0.75, others 0.6)
+    const filtered = allRecommendations.filter((rec, i) => {
       const verdict = filterMap.get(i);
       if (!verdict) return false; // LLM didn't evaluate → exclude
-      return verdict.relevant && !verdict.sensitive && verdict.relevance_confidence >= MIN_RELEVANCE_CONFIDENCE;
+      if (!verdict.relevant || verdict.sensitive) return false;
+
+      // Apply type-specific confidence threshold
+      const recType = rec.data.type as string | undefined;
+      const threshold = getConfidenceThreshold('trend_scan', recType);
+      return verdict.relevance_confidence >= threshold;
     });
 
     // Update priorities based on LLM assessment
@@ -220,13 +247,26 @@ async function filterTrendsWithLLM(
     const removedCount = allRecommendations.length - filtered.length;
     const sensitiveCount = result.data.filtered_trends.filter((t) => t.sensitive).length;
     const irrelevantCount = result.data.filtered_trends.filter((t) => !t.relevant).length;
-    const lowConfidenceCount = result.data.filtered_trends.filter(
-      (t) => t.relevant && !t.sensitive && t.relevance_confidence < MIN_RELEVANCE_CONFIDENCE,
-    ).length;
+    // Count low confidence using type-specific thresholds
+    const lowConfidenceCount = allRecommendations.filter((rec, i) => {
+      const verdict = filterMap.get(i);
+      if (!verdict || !verdict.relevant || verdict.sensitive) return false;
+      const recType = rec.data.type as string | undefined;
+      const threshold = getConfidenceThreshold('trend_scan', recType);
+      return verdict.relevance_confidence < threshold;
+    }).length;
 
     logger.info(
-      { jobId, total: allRecommendations.length, kept: filtered.length, removed: removedCount, sensitive: sensitiveCount, irrelevant: irrelevantCount, lowConfidence: lowConfidenceCount },
-      'LLM trend filter applied',
+      {
+        jobId,
+        total: allRecommendations.length,
+        kept: filtered.length,
+        removed: removedCount,
+        sensitive: sensitiveCount,
+        irrelevant: irrelevantCount,
+        lowConfidence: lowConfidenceCount,
+      },
+      'LLM trend filter applied (type-specific thresholds)',
     );
 
     return {
@@ -240,7 +280,10 @@ async function filterTrendsWithLLM(
         sensitive: sensitiveCount,
         irrelevant: irrelevantCount,
         low_confidence: lowConfidenceCount,
-        min_confidence_threshold: MIN_RELEVANCE_CONFIDENCE,
+        confidence_thresholds: {
+          content_opportunity: getConfidenceThreshold('trend_scan', 'content_opportunity'),
+          default: getConfidenceThreshold('trend_scan'),
+        },
       },
     };
   } catch (err) {
@@ -254,7 +297,10 @@ async function filterTrendsWithLLM(
 /**
  * Ensure guardrails are populated, running brand profiler if needed (lazy auto-detect).
  */
-async function ensureGuardrails(ctx: JobContext, brand: { id: string; name: string; guardrails: Record<string, unknown> | null }): Promise<BrandGuardrails | null> {
+async function ensureGuardrails(
+  ctx: JobContext,
+  brand: { id: string; name: string; guardrails: Record<string, unknown> | null },
+): Promise<BrandGuardrails | null> {
   const guardrails = brand.guardrails as Partial<BrandGuardrails> | null;
 
   // Check if guardrails are already populated with meaningful data
@@ -293,7 +339,9 @@ function gatherSourceEvidence(data: Record<string, unknown>): string {
   const articles = data.articles as Array<{ title?: string; url?: string; source?: string }> | undefined;
   if (articles?.length) {
     for (const article of articles) {
-      parts.push(`- Article: "${article.title || 'untitled'}" (${article.source || 'unknown source'}) — ${article.url || 'no URL'}`);
+      parts.push(
+        `- Article: "${article.title || 'untitled'}" (${article.source || 'unknown source'}) — ${article.url || 'no URL'}`,
+      );
     }
   }
 
@@ -433,9 +481,7 @@ export async function trendScanIndustry(ctx: JobContext): Promise<void> {
     const keywordNews = await searchNews({ query: keyword, pageSize: 5 });
     if (keywordNews.length > 0) {
       const articleList = keywordNews.slice(0, 3);
-      const articlesSection = articleList
-        .map((a, i) => `${i + 1}. "${a.title}" — ${a.source.name}`)
-        .join('\n');
+      const articlesSection = articleList.map((a, i) => `${i + 1}. "${a.title}" — ${a.source.name}`).join('\n');
       allRecommendations.push({
         title: `Industry update: ${keyword}`,
         body: `Found ${keywordNews.length} recent articles about "${keyword}".\n\n**Key articles:**\n${articlesSection}\n\n**Why this matters:** Staying informed on "${keyword}" trends helps ${brandName} identify content opportunities and competitive shifts in the ${industry} space.\n\n**Suggested actions:**\n- Review the top articles for content inspiration\n- Consider creating a response piece or industry commentary\n- Monitor for follow-up coverage that may affect your audience`,
@@ -473,11 +519,39 @@ export async function trendScanIndustry(ctx: JobContext): Promise<void> {
     const mentionAnalysis = analyzeBrandMentions(mentions.brand, mentions.competitors, brandName);
 
     for (const mention of mentionAnalysis) {
+      // Deduplicate competitor mentions: skip if we already have a mention for this competitor in the last 7 days
+      if (mention.type === 'competitor') {
+        const competitorName = mention.title.replace('Competitor news: ', '');
+        const recentMentions = await db
+          .select({ id: recommendations.id })
+          .from(recommendations)
+          .where(
+            and(
+              eq(recommendations.brand_id, brandId),
+              eq(recommendations.source, 'trend_scan'),
+              sql`${recommendations.data}->>'mention_type' = 'competitor'`,
+              sql`${recommendations.data}->>'competitor_name' = ${competitorName}`,
+              gt(recommendations.created_at, sql`NOW() - INTERVAL '7 days'`),
+            ),
+          )
+          .limit(1);
+
+        if (recentMentions.length > 0) {
+          logger.debug({ jobId, competitorName }, 'Skipping duplicate competitor mention');
+          continue;
+        }
+      }
+
       allRecommendations.push({
         title: mention.title,
         body: mention.description,
         priority: mention.priority,
-        data: { type: 'brand_monitoring', mention_type: mention.type },
+        data: {
+          type: 'brand_monitoring',
+          mention_type: mention.type,
+          // Store competitor name for deduplication lookup
+          ...(mention.type === 'competitor' ? { competitor_name: mention.title.replace('Competitor news: ', '') } : {}),
+        },
       });
     }
 
@@ -508,32 +582,19 @@ export async function trendScanIndustry(ctx: JobContext): Promise<void> {
       priority: 'low',
       title: 'Trend Scan Complete',
       body: `Scanned industry news and Reddit for ${brandName}. ${allRecommendations.length > 0 ? `Found ${allRecommendations.length} trends but none were relevant to your brand profile.` : 'No significant trending topics detected requiring immediate action.'}`,
-      data: { subreddits_scanned: subreddits, industry, has_news_api: !!process.env.NEWS_API_KEY, has_reddit_api: !!process.env.REDDIT_CLIENT_ID, filter_applied: !!filterMeta, raw_count: allRecommendations.length },
-      model_meta: filterMeta,
-    });
-  } else {
-    // Insert summary
-    await db.insert(recommendations).values({
-      brand_id: brandId,
-      job_id: jobId,
-      source: 'trend_scan',
-      priority: 'medium',
-      title: `Trend Scan: ${finalRecommendations.length} relevant items found`,
-      body: `Discovered ${finalRecommendations.length} relevant trending topics for ${brandName}${allRecommendations.length > finalRecommendations.length ? ` (filtered from ${allRecommendations.length} raw trends)` : ''}.`,
       data: {
-        total_items: finalRecommendations.length,
-        raw_items: allRecommendations.length,
+        subreddits_scanned: subreddits,
+        industry,
+        has_news_api: !!process.env.NEWS_API_KEY,
+        has_reddit_api: !!process.env.REDDIT_CLIENT_ID,
         filter_applied: !!filterMeta,
-        by_type: {
-          content_opportunities: finalRecommendations.filter((r) => r.data.type === 'content_opportunity').length,
-          industry_awareness: finalRecommendations.filter((r) => r.data.type === 'industry_awareness').length,
-          brand_monitoring: finalRecommendations.filter((r) => r.data.type === 'brand_monitoring').length,
-        },
+        raw_count: allRecommendations.length,
       },
       model_meta: filterMeta,
     });
-
+  } else {
     // Insert individual recommendations and enrich content opportunities with briefs
+    // Note: Summary recommendations removed — they were metadata noise, not actionable
     for (const rec of finalRecommendations) {
       const isContentOpportunity = rec.data.type === 'content_opportunity';
 
@@ -543,16 +604,19 @@ export async function trendScanIndustry(ctx: JobContext): Promise<void> {
         briefContent = await enrichTrendWithBrief(rec, guardrails, brandName, jobId, db, brandId);
       }
 
-      const [inserted] = await db.insert(recommendations).values({
-        brand_id: brandId,
-        job_id: jobId,
-        source: 'trend_scan',
-        priority: rec.priority,
-        title: rec.title,
-        body: rec.body,
-        data: { ...rec.data, has_content_brief: !!briefContent },
-        model_meta: filterMeta,
-      }).returning({ id: recommendations.id });
+      const [inserted] = await db
+        .insert(recommendations)
+        .values({
+          brand_id: brandId,
+          job_id: jobId,
+          source: 'trend_scan',
+          priority: rec.priority,
+          title: rec.title,
+          body: rec.body,
+          data: { ...rec.data, has_content_brief: !!briefContent },
+          model_meta: filterMeta,
+        })
+        .returning({ id: recommendations.id });
 
       // Store brief as an artifact linked to the recommendation
       if (briefContent && inserted) {
@@ -574,7 +638,15 @@ export async function trendScanIndustry(ctx: JobContext): Promise<void> {
   }
 
   logger.info(
-    { jobId, brandId, jobType: 'trend_scan_industry', rawCount: allRecommendations.length, filteredCount: finalRecommendations.length, filterApplied: !!filterMeta, durationMs: Date.now() - startTime },
+    {
+      jobId,
+      brandId,
+      jobType: 'trend_scan_industry',
+      rawCount: allRecommendations.length,
+      filteredCount: finalRecommendations.length,
+      filterApplied: !!filterMeta,
+      durationMs: Date.now() - startTime,
+    },
     'Trend_Scan completed',
   );
 }
