@@ -289,7 +289,7 @@ export default function ${componentName}() {
               ]}
             />
             <div className="mt-6">
-              <span className="inline-block bg-salsa-600 text-cream-50 text-sm font-medium px-3 py-1 rounded-full mb-4">
+              <span className="inline-block bg-sunset-900/20 text-sunset-400 text-sm font-medium px-3 py-1 rounded-full mb-4">
                 ${escapeForTemplate(post.category)}
               </span>
               <div className="flex items-center gap-4 text-cream-200 text-sm mb-4">

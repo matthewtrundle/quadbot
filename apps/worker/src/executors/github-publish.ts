@@ -1,4 +1,4 @@
-import { artifacts, brands, contentPublishConfigs, decrypt } from '@quadbot/db';
+import { actionDrafts, artifacts, brands, contentPublishConfigs, decrypt } from '@quadbot/db';
 import { eq, and } from 'drizzle-orm';
 import type { Executor, ExecutorContext, ExecutorResult } from './types.js';
 import { createBlogPostPR } from '../lib/github-cms.js';
@@ -181,6 +181,26 @@ export const githubPublishExecutor: Executor = {
         .where(eq(contentPublishConfigs.id, publishConfig.id));
 
       const publishedUrl = siteUrl ? `${siteUrl.replace(/\/$/, '')}/blog/${slug}` : `/blog/${slug}`;
+
+      // 10. Auto-create GSC index request so Google indexes the new page
+      if (publishedUrl.startsWith('http') && artifact.recommendation_id) {
+        try {
+          await db.insert(actionDrafts).values({
+            brand_id: brandId,
+            recommendation_id: artifact.recommendation_id,
+            type: 'gsc-index-request',
+            payload: { url: publishedUrl, action: 'URL_UPDATED' },
+            risk: 'low',
+            guardrails_applied: { auto_generated: true, source: 'github-publish' },
+            requires_approval: false,
+            status: 'approved',
+          });
+          logger.info({ brandId, url: publishedUrl }, 'Auto-created GSC index request for published blog post');
+        } catch (gscErr) {
+          // Non-fatal — log and continue
+          logger.warn({ brandId, url: publishedUrl, err: gscErr }, 'Failed to create GSC index request');
+        }
+      }
 
       logger.info(
         {
