@@ -24,6 +24,12 @@ const DEFAULT_RULES = [
     conditions: {},
     enabled: true,
   },
+  {
+    event_type: EventType.CONTENT_DECAY_DETECTED,
+    job_type: JobType.CONTENT_AUTOMATION,
+    conditions: {},
+    enabled: true,
+  },
 ];
 
 export async function seedEventRules(): Promise<void> {
@@ -33,18 +39,11 @@ export async function seedEventRules(): Promise<void> {
     // Check if a global rule for this event_type → job_type already exists
     const existing = await db.query.eventRules.findFirst({
       where: (er, { eq: e, and: a, isNull }) =>
-        a(
-          e(er.event_type, rule.event_type),
-          e(er.job_type, rule.job_type),
-          isNull(er.brand_id),
-        ),
+        a(e(er.event_type, rule.event_type), e(er.job_type, rule.job_type), isNull(er.brand_id)),
     });
 
     if (existing) {
-      logger.debug(
-        { eventType: rule.event_type, jobType: rule.job_type },
-        'Event rule already exists',
-      );
+      logger.debug({ eventType: rule.event_type, jobType: rule.job_type }, 'Event rule already exists');
       continue;
     }
 
@@ -56,9 +55,6 @@ export async function seedEventRules(): Promise<void> {
       enabled: rule.enabled,
     });
 
-    logger.info(
-      { eventType: rule.event_type, jobType: rule.job_type },
-      'Seeded global event rule',
-    );
+    logger.info({ eventType: rule.event_type, jobType: rule.job_type }, 'Seeded global event rule');
   }
 }

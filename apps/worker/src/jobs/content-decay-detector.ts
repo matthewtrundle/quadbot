@@ -255,6 +255,21 @@ export async function contentDecayDetector(ctx: JobContext): Promise<void> {
     created++;
   }
 
+  // Emit decay event to trigger content automation pipeline
+  if (created > 0) {
+    await emitEvent(
+      EventType.CONTENT_DECAY_DETECTED,
+      brandId,
+      {
+        decaying_page_count: created,
+        top_page: top10[0]?.page,
+        max_decay_score: top10[0]?.decay_score,
+      },
+      `decay:${brandId}:${new Date().toISOString().split('T')[0]}`,
+      'content_decay_detector',
+    );
+  }
+
   logger.info(
     {
       jobId,

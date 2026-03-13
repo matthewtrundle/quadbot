@@ -95,6 +95,8 @@ export const IntegrationType = {
   HUBSPOT: 'hubspot',
   TWITTER: 'twitter',
   LINKEDIN: 'linkedin',
+  // CMS Connectors
+  GITHUB_CMS: 'github_cms',
 } as const;
 export type IntegrationType = (typeof IntegrationType)[keyof typeof IntegrationType];
 
@@ -117,6 +119,7 @@ export const EventType = {
   // Phase 2: Next-Level Features
   JOB_COMPLETED: 'job.completed',
   ANOMALY_DETECTED: 'anomaly.detected',
+  CONTENT_DECAY_DETECTED: 'content_decay.detected',
 } as const;
 export type EventType = (typeof EventType)[keyof typeof EventType];
 
