@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Github, Check, ExternalLink } from 'lucide-react';
+import { GitBranch, Check, ExternalLink } from 'lucide-react';
 
 interface PublishConfig {
   id: string;
@@ -54,7 +54,6 @@ export default function GitHubSettingsPage() {
 
   useEffect(() => {
     fetchConfigs();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [brandId]);
 
   async function fetchConfigs() {
@@ -112,7 +111,7 @@ export default function GitHubSettingsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-semibold flex items-center gap-2">
-            <Github className="h-5 w-5" />
+            <GitBranch className="h-5 w-5" />
             GitHub CMS Configuration
           </h2>
           <p className="text-sm text-muted-foreground mt-1">
@@ -130,7 +129,7 @@ export default function GitHubSettingsPage() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Github className="h-4 w-4" />
+                <GitBranch className="h-4 w-4" />
                 <CardTitle className="text-base">
                   {cfg.config.owner}/{cfg.config.repo}
                 </CardTitle>

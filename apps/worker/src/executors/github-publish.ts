@@ -119,7 +119,6 @@ export const githubPublishExecutor: Executor = {
     const metaDescription = content.meta_description as string;
     const markdown = content.content_markdown as string;
     const excerpt = content.excerpt as string;
-    const tags = content.tags as string[];
 
     if (!markdown || !slug) {
       return { success: false, error: 'Artifact missing content_markdown or slug' };
