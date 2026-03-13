@@ -154,6 +154,12 @@ export function startCronScheduler(redis: Redis): void {
     await enqueueForAllBrands(redis, JobType.HUBSPOT_SYNC);
   });
 
+  // PageSpeed check — weekly on Mondays at 6 AM
+  cron.schedule('0 6 * * 1', async () => {
+    logger.info('Cron: triggering pagespeed monitor for all brands');
+    await enqueueForAllBrands(redis, JobType.PAGESPEED_MONITOR);
+  });
+
   // Wave 3: Competitor Monitor - weekly Sundays at 2:00 AM
   cron.schedule('0 2 * * 0', async () => {
     logger.info('Cron: triggering competitor monitor for all brands');

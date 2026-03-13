@@ -68,6 +68,8 @@ import { hubspotSync } from './jobs/hubspot-sync.js';
 import { socialPostPublisher } from './jobs/social-post-publisher.js';
 import { competitorMonitor } from './jobs/competitor-monitor.js';
 import { schemaOrgAnalyzer } from './jobs/schema-org-analyzer.js';
+// PageSpeed / Core Web Vitals
+import { pagespeedMonitor } from './jobs/pagespeed-monitor.js';
 
 // Register job handlers
 registerHandler(JobType.COMMUNITY_MODERATE_POST, communityModeratePost);
@@ -122,6 +124,8 @@ registerHandler(JobType.HUBSPOT_SYNC, hubspotSync);
 registerHandler(JobType.SOCIAL_POST_PUBLISHER, socialPostPublisher);
 registerHandler(JobType.COMPETITOR_MONITOR, competitorMonitor);
 registerHandler(JobType.SCHEMA_ORG_ANALYZER, schemaOrgAnalyzer);
+// PageSpeed / Core Web Vitals
+registerHandler(JobType.PAGESPEED_MONITOR, pagespeedMonitor);
 
 async function handleMessage(message: string): Promise<void> {
   let parsed;
