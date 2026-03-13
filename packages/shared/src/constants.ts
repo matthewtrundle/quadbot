@@ -55,6 +55,7 @@ export const JobType = {
   SOCIAL_POST_PUBLISHER: 'social_post_publisher',
   COMPETITOR_MONITOR: 'competitor_monitor',
   SCHEMA_ORG_ANALYZER: 'schema_org_analyzer',
+  PAGESPEED_MONITOR: 'pagespeed_monitor',
 } as const;
 export type JobType = (typeof JobType)[keyof typeof JobType];
 

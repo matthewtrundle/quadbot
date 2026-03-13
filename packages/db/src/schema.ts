@@ -903,3 +903,35 @@ export const competitorSnapshots = pgTable(
     index('idx_competitor_snapshots_domain').on(table.brand_id, table.competitor_domain),
   ],
 );
+
+// === CMS / Publishing Configuration ===
+
+export const contentPublishConfigs = pgTable(
+  'content_publish_configs',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    brand_id: uuid('brand_id')
+      .notNull()
+      .references(() => brands.id, { onDelete: 'cascade' }),
+    type: varchar('type', { length: 50 }).notNull(),
+    name: varchar('name', { length: 255 }).notNull(),
+    config: jsonb('config')
+      .$type<{
+        owner: string;
+        repo: string;
+        branch: string;
+        blog_directory: string;
+        content_format: 'nextjs_page' | 'mdx' | 'markdown';
+        site_url: string;
+        auto_merge: boolean;
+        template_path?: string;
+      }>()
+      .notNull(),
+    github_token_encrypted: text('github_token_encrypted'),
+    is_active: boolean('is_active').default(true).notNull(),
+    last_published_at: timestamp('last_published_at', { withTimezone: true }),
+    created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index('idx_content_publish_configs_brand').on(table.brand_id)],
+);
