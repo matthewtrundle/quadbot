@@ -18,15 +18,19 @@ export type GscSitesResponse = {
 };
 
 /**
- * Exchange authorization code for OAuth tokens
+ * Exchange authorization code for OAuth tokens.
+ * The redirectUri must match exactly what was used in the initial auth request.
  */
-export async function exchangeCodeForTokens(code: string): Promise<GoogleTokens> {
+export async function exchangeCodeForTokens(code: string, redirectUri?: string): Promise<GoogleTokens> {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  const redirectUri = process.env.GOOGLE_IMPORT_REDIRECT_URI || `${process.env.NEXT_PUBLIC_APP_URL}/api/oauth/google/import/callback`;
+  const resolvedRedirectUri =
+    redirectUri ||
+    process.env.GOOGLE_IMPORT_REDIRECT_URI ||
+    `${process.env.NEXT_PUBLIC_APP_URL}/api/oauth/google/import/callback`;
 
-  if (!clientId || !clientSecret) {
-    throw new Error('GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be configured');
+  if (!clientId || !clientSecret || !resolvedRedirectUri) {
+    throw new Error('GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and redirect URI must be configured');
   }
 
   const response = await fetch('https://oauth2.googleapis.com/token', {
@@ -36,7 +40,7 @@ export async function exchangeCodeForTokens(code: string): Promise<GoogleTokens>
       code,
       client_id: clientId,
       client_secret: clientSecret,
-      redirect_uri: redirectUri,
+      redirect_uri: resolvedRedirectUri,
       grant_type: 'authorization_code',
     }),
   });
