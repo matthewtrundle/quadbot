@@ -1,4 +1,4 @@
-import { artifacts, actionDrafts } from '@quadbot/db';
+import { artifacts, actionDrafts, contentPublishConfigs } from '@quadbot/db';
 import { eq, and, sql } from 'drizzle-orm';
 import { EventType } from '@quadbot/shared';
 import type { JobContext } from '../registry.js';
@@ -50,10 +50,14 @@ export async function contentAutomation(ctx: JobContext): Promise<void> {
     return;
   }
 
-  logger.info({
-    jobId, brandId,
-    count: briefsWithoutContent.length,
-  }, 'Processing content briefs');
+  logger.info(
+    {
+      jobId,
+      brandId,
+      count: briefsWithoutContent.length,
+    },
+    'Processing content briefs',
+  );
 
   for (const brief of briefsWithoutContent) {
     try {
@@ -70,12 +74,7 @@ export async function contentAutomation(ctx: JobContext): Promise<void> {
       const [generated] = await db
         .select()
         .from(artifacts)
-        .where(
-          and(
-            eq(artifacts.parent_artifact_id, brief.id),
-            eq(artifacts.type, 'generated_content'),
-          ),
-        )
+        .where(and(eq(artifacts.parent_artifact_id, brief.id), eq(artifacts.type, 'generated_content')))
         .limit(1);
 
       if (!generated) {
@@ -85,13 +84,29 @@ export async function contentAutomation(ctx: JobContext): Promise<void> {
 
       // Create publish action draft (only if we have a recommendation_id)
       if (brief.recommendation_id) {
+        // Check if brand has a GitHub publish config
+        const [githubConfig] = await db
+          .select({ id: contentPublishConfigs.id })
+          .from(contentPublishConfigs)
+          .where(
+            and(
+              eq(contentPublishConfigs.brand_id, brandId),
+              eq(contentPublishConfigs.type, 'github'),
+              eq(contentPublishConfigs.is_active, true),
+            ),
+          )
+          .limit(1);
+
+        const executorType = githubConfig ? 'github-publish' : 'content-publisher';
+        const publishPayload = githubConfig
+          ? { artifact_id: generated.id, publish_config_id: githubConfig.id }
+          : { artifact_id: generated.id };
+
         await db.insert(actionDrafts).values({
           brand_id: brandId,
           recommendation_id: brief.recommendation_id,
-          type: 'content-publisher',
-          payload: {
-            artifact_id: generated.id,
-          },
+          type: executorType,
+          payload: publishPayload,
           risk: 'medium',
           guardrails_applied: {},
           requires_approval: true,
@@ -102,7 +117,7 @@ export async function contentAutomation(ctx: JobContext): Promise<void> {
           EventType.ACTION_DRAFT_CREATED,
           brandId,
           {
-            type: 'content-publisher',
+            type: executorType,
             artifact_id: generated.id,
             title: generated.title,
           },
@@ -111,14 +126,16 @@ export async function contentAutomation(ctx: JobContext): Promise<void> {
         );
       }
 
-      logger.info({
-        jobId,
-        brandId,
-        briefId: brief.id,
-        generatedId: generated.id,
-        title: generated.title,
-      }, 'Content generated and publish draft created');
-
+      logger.info(
+        {
+          jobId,
+          brandId,
+          briefId: brief.id,
+          generatedId: generated.id,
+          title: generated.title,
+        },
+        'Content generated and publish draft created',
+      );
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Unknown error';
       logger.error({ jobId, brandId, briefId: brief.id, error: msg }, 'Content automation failed for brief');
@@ -126,5 +143,14 @@ export async function contentAutomation(ctx: JobContext): Promise<void> {
     }
   }
 
-  logger.info({ jobId, brandId, jobType: 'content_automation', briefsProcessed: briefsWithoutContent.length, durationMs: Date.now() - startTime }, 'Content_Automation completed');
+  logger.info(
+    {
+      jobId,
+      brandId,
+      jobType: 'content_automation',
+      briefsProcessed: briefsWithoutContent.length,
+      durationMs: Date.now() - startTime,
+    },
+    'Content_Automation completed',
+  );
 }
