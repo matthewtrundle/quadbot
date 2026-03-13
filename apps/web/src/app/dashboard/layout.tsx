@@ -9,6 +9,7 @@ const tabs = [
   { href: '/dashboard/daily-diff', label: 'Daily Diff' },
   { href: '/dashboard/improvements', label: 'Improvements' },
   { href: '/dashboard/usage', label: 'Usage & Costs' },
+  { href: '/dashboard/benchmarks', label: 'Benchmarks' },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -25,9 +26,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
             <h1 className="text-2xl font-semibold tracking-tight">Mission Control</h1>
           </div>
-          <p className="text-sm text-muted-foreground">
-            AI-powered brand intelligence at a glance
-          </p>
+          <p className="text-sm text-muted-foreground">AI-powered brand intelligence at a glance</p>
         </div>
         <div className="flex items-center gap-2 rounded-full bg-success/10 px-3 py-1.5">
           <span className="h-2 w-2 animate-pulse rounded-full bg-success" />
@@ -38,9 +37,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Tab navigation */}
       <nav className="flex gap-1 border-b border-border/50">
         {tabs.map((tab) => {
-          const isActive = tab.exact
-            ? pathname === tab.href
-            : pathname.startsWith(tab.href);
+          const isActive = tab.exact ? pathname === tab.href : pathname.startsWith(tab.href);
 
           return (
             <Link
