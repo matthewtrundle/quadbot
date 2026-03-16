@@ -1,9 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  brandCreateSchema,
-  brandUpdateSchema,
-  brandGuardrailsSchema,
-} from '@quadbot/shared';
+import { brandCreateSchema, brandUpdateSchema, brandGuardrailsSchema } from '@quadbot/shared';
 
 /**
  * Tests for brand Zod schemas: create, update, and guardrails.
@@ -59,10 +55,21 @@ describe('Brand Validation Schemas', () => {
       expect(result.success).toBe(false);
     });
 
-    it('rejects invalid mode value', () => {
+    it('accepts auto mode', () => {
       const result = brandCreateSchema.safeParse({
         name: 'Test Brand',
         mode: 'auto',
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.mode).toBe('auto');
+      }
+    });
+
+    it('rejects invalid mode value', () => {
+      const result = brandCreateSchema.safeParse({
+        name: 'Test Brand',
+        mode: 'turbo',
       });
       expect(result.success).toBe(false);
       if (!result.success) {
@@ -72,12 +79,8 @@ describe('Brand Validation Schemas', () => {
     });
 
     it('rejects non-string mode values', () => {
-      expect(
-        brandCreateSchema.safeParse({ name: 'Test', mode: 123 }).success
-      ).toBe(false);
-      expect(
-        brandCreateSchema.safeParse({ name: 'Test', mode: true }).success
-      ).toBe(false);
+      expect(brandCreateSchema.safeParse({ name: 'Test', mode: 123 }).success).toBe(false);
+      expect(brandCreateSchema.safeParse({ name: 'Test', mode: true }).success).toBe(false);
     });
 
     it('accepts modules_enabled as a string array', () => {

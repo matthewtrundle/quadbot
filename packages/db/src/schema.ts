@@ -31,7 +31,7 @@ const vector = customType<{ data: number[]; driverData: string }>({
   },
 });
 
-export const modeEnum = pgEnum('mode', ['observe', 'assist']);
+export const modeEnum = pgEnum('mode', ['observe', 'assist', 'auto']);
 export const jobStatusEnum = pgEnum('job_status', ['queued', 'running', 'succeeded', 'failed']);
 export const priorityEnum = pgEnum('priority', ['low', 'medium', 'high', 'critical']);
 export const actionDraftStatusEnum = pgEnum('action_draft_status', [

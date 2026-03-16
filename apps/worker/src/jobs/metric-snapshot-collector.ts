@@ -2,10 +2,9 @@ import { metricSnapshots, brands, brandIntegrations } from '@quadbot/db';
 import { eq, and } from 'drizzle-orm';
 import type { JobContext } from '../registry.js';
 import { logger } from '../logger.js';
-import { IntegrationType } from '@quadbot/shared';
 import { getValidGa4AccessToken, getGa4Metrics } from '../lib/google-analytics-api.js';
 import { getValidAdsAccessToken, getAdsPerformance } from '../lib/google-ads-api.js';
-import { getValidAccessToken } from '../lib/gsc-api.js';
+import { getValidAccessToken, fetchGscSearchAnalytics } from '../lib/gsc-api.js';
 
 /**
  * Metric Snapshot Collector
@@ -46,8 +45,20 @@ export async function metricSnapshotCollector(ctx: JobContext): Promise<void> {
         snapshots.push(
           { brand_id: brandId, source: 'analytics', metric_key: 'sessions', value: metrics.sessions, dimensions: {} },
           { brand_id: brandId, source: 'analytics', metric_key: 'users', value: metrics.users, dimensions: {} },
-          { brand_id: brandId, source: 'analytics', metric_key: 'bounce_rate', value: metrics.bounce_rate, dimensions: {} },
-          { brand_id: brandId, source: 'analytics', metric_key: 'avg_session_duration', value: metrics.avg_session_duration, dimensions: {} },
+          {
+            brand_id: brandId,
+            source: 'analytics',
+            metric_key: 'bounce_rate',
+            value: metrics.bounce_rate,
+            dimensions: {},
+          },
+          {
+            brand_id: brandId,
+            source: 'analytics',
+            metric_key: 'avg_session_duration',
+            value: metrics.avg_session_duration,
+            dimensions: {},
+          },
         );
         logger.info({ jobId, brandId }, 'Collected Google Analytics metrics');
       }
@@ -65,7 +76,13 @@ export async function metricSnapshotCollector(ctx: JobContext): Promise<void> {
         snapshots.push(
           { brand_id: brandId, source: 'ads', metric_key: 'total_spend', value: adsData.total_spend, dimensions: {} },
           { brand_id: brandId, source: 'ads', metric_key: 'total_clicks', value: adsData.total_clicks, dimensions: {} },
-          { brand_id: brandId, source: 'ads', metric_key: 'total_conversions', value: adsData.total_conversions, dimensions: {} },
+          {
+            brand_id: brandId,
+            source: 'ads',
+            metric_key: 'total_conversions',
+            value: adsData.total_conversions,
+            dimensions: {},
+          },
           { brand_id: brandId, source: 'ads', metric_key: 'avg_cpc', value: adsData.avg_cpc, dimensions: {} },
           { brand_id: brandId, source: 'ads', metric_key: 'avg_roas', value: adsData.avg_roas, dimensions: {} },
         );
@@ -76,13 +93,67 @@ export async function metricSnapshotCollector(ctx: JobContext): Promise<void> {
     }
   }
 
-  // Note: GSC metrics would be collected here if we had a GSC metrics API helper
-  // For now, GSC data comes from the gsc-daily-digest job
+  // Collect Google Search Console metrics
+  const gscAccessToken = await getValidAccessToken(db, brandId);
+  if (gscAccessToken) {
+    // Get site URL from brand integration config
+    const [gscIntegration] = await db
+      .select({ config: brandIntegrations.config })
+      .from(brandIntegrations)
+      .where(and(eq(brandIntegrations.brand_id, brandId), eq(brandIntegrations.type, 'google_search_console')))
+      .limit(1);
+
+    const gscConfig = gscIntegration?.config as Record<string, unknown> | undefined;
+    const siteUrl = (gscConfig?.siteUrl as string) || (gscConfig?.site_url as string) || null;
+
+    if (siteUrl) {
+      try {
+        const rows = await fetchGscSearchAnalytics(gscAccessToken, siteUrl, dateRange.start, dateRange.end);
+        if (rows.length > 0) {
+          const totalClicks = rows.reduce((sum, r) => sum + r.clicks, 0);
+          const totalImpressions = rows.reduce((sum, r) => sum + r.impressions, 0);
+          const avgCtr = totalImpressions > 0 ? totalClicks / totalImpressions : 0;
+          const avgPosition = rows.reduce((sum, r) => sum + r.position * r.impressions, 0) / (totalImpressions || 1);
+
+          snapshots.push(
+            { brand_id: brandId, source: 'gsc', metric_key: 'total_clicks', value: totalClicks, dimensions: {} },
+            {
+              brand_id: brandId,
+              source: 'gsc',
+              metric_key: 'total_impressions',
+              value: totalImpressions,
+              dimensions: {},
+            },
+            {
+              brand_id: brandId,
+              source: 'gsc',
+              metric_key: 'avg_ctr',
+              value: Math.round(avgCtr * 10000) / 10000,
+              dimensions: {},
+            },
+            {
+              brand_id: brandId,
+              source: 'gsc',
+              metric_key: 'avg_position',
+              value: Math.round(avgPosition * 100) / 100,
+              dimensions: {},
+            },
+          );
+          logger.info({ jobId, brandId, totalClicks, totalImpressions }, 'Collected Google Search Console metrics');
+        }
+      } catch (error) {
+        logger.error({ jobId, brandId, error }, 'Failed to collect Google Search Console metrics');
+      }
+    }
+  }
 
   // Insert all snapshots
   if (snapshots.length > 0) {
     await db.insert(metricSnapshots).values(snapshots);
   }
 
-  logger.info({ jobId, brandId, jobType: 'metric_snapshot', snapshotCount: snapshots.length, durationMs: Date.now() - startTime }, 'Metric_Snapshot_Collector completed');
+  logger.info(
+    { jobId, brandId, jobType: 'metric_snapshot', snapshotCount: snapshots.length, durationMs: Date.now() - startTime },
+    'Metric_Snapshot_Collector completed',
+  );
 }

@@ -1,5 +1,5 @@
 import { recommendations, actionDrafts, outcomes, metricSnapshots, signalApplications } from '@quadbot/db';
-import { eq, and, lt, gte, desc } from 'drizzle-orm';
+import { eq, and, lt, gte, desc, inArray } from 'drizzle-orm';
 import type { JobContext } from '../registry.js';
 import { logger } from '../logger.js';
 import { emitEvent } from '../event-emitter.js';
@@ -40,7 +40,7 @@ export async function outcomeCollector(ctx: JobContext): Promise<void> {
       .where(
         and(
           eq(recommendations.brand_id, brandId),
-          eq(actionDrafts.status, 'executed_stub'),
+          inArray(actionDrafts.status, ['executed', 'executed_stub']),
           lt(recommendations.created_at, windowAgo),
           // Only pick up recs that haven't been through this window yet
           // (for 7d window, we don't filter by windowEnd since it's the first pass)
@@ -59,12 +59,7 @@ export async function outcomeCollector(ctx: JobContext): Promise<void> {
       const existing = await db
         .select({ id: outcomes.id })
         .from(outcomes)
-        .where(
-          and(
-            eq(outcomes.recommendation_id, rec.id),
-            eq(outcomes.metric_name, metricName),
-          ),
-        )
+        .where(and(eq(outcomes.recommendation_id, rec.id), eq(outcomes.metric_name, metricName)))
         .limit(1);
 
       if (existing.length > 0) continue;
@@ -101,8 +96,10 @@ export async function outcomeCollector(ctx: JobContext): Promise<void> {
         .limit(1);
 
       if (beforeSnapshot.length === 0 || afterSnapshot.length === 0) {
-        logger.warn({ jobId, recommendationId: rec.id, window: windowDays },
-          'Skipping outcome: missing metric snapshots');
+        logger.warn(
+          { jobId, recommendationId: rec.id, window: windowDays },
+          'Skipping outcome: missing metric snapshots',
+        );
         continue;
       }
 
@@ -154,32 +151,47 @@ export async function outcomeCollector(ctx: JobContext): Promise<void> {
     }
   }
 
-  logger.info({ jobId, brandId, jobType: 'outcome_collector', collected, durationMs: Date.now() - startTime }, 'Outcome_Collector completed');
+  logger.info(
+    { jobId, brandId, jobType: 'outcome_collector', collected, durationMs: Date.now() - startTime },
+    'Outcome_Collector completed',
+  );
 }
 
 function getMetricSource(recSource: string): string {
   switch (recSource) {
-    case 'gsc_daily_digest': return 'gsc';
-    case 'ads_performance_digest': return 'ads';
-    case 'analytics_insights': return 'ga4';
-    default: return 'community';
+    case 'gsc_daily_digest':
+      return 'gsc';
+    case 'ads_performance_digest':
+      return 'ads';
+    case 'analytics_insights':
+      return 'ga4';
+    default:
+      return 'community';
   }
 }
 
 function getMetricKey(recSource: string): string {
   switch (recSource) {
-    case 'gsc_daily_digest': return 'avg_ctr';
-    case 'ads_performance_digest': return 'roas';
-    case 'analytics_insights': return 'sessions';
-    default: return 'spam_rate';
+    case 'gsc_daily_digest':
+      return 'avg_ctr';
+    case 'ads_performance_digest':
+      return 'roas';
+    case 'analytics_insights':
+      return 'sessions';
+    default:
+      return 'spam_rate';
   }
 }
 
 function getMetricName(recSource: string): string {
   switch (recSource) {
-    case 'gsc_daily_digest': return 'position_change';
-    case 'ads_performance_digest': return 'roas_change';
-    case 'analytics_insights': return 'sessions_change';
-    default: return 'engagement_score';
+    case 'gsc_daily_digest':
+      return 'position_change';
+    case 'ads_performance_digest':
+      return 'roas_change';
+    case 'analytics_insights':
+      return 'sessions_change';
+    default:
+      return 'engagement_score';
   }
 }

@@ -35,18 +35,14 @@ export async function validateExecution(
     return { allowed: false, reason: 'Brand not found' };
   }
 
-  // 3. Brand must be in assist mode
-  if (brand.mode !== 'assist') {
-    return { allowed: false, reason: `Brand is in '${brand.mode}' mode, must be 'assist' to execute` };
+  // 3. Brand must be in assist or auto mode
+  if (brand.mode !== 'assist' && brand.mode !== 'auto') {
+    return { allowed: false, reason: `Brand is in '${brand.mode}' mode, must be 'assist' or 'auto' to execute` };
   }
 
   // 4. Check execution rules (only for auto-executed, not manually approved)
   if (!manuallyApproved) {
-    const [rules] = await db
-      .select()
-      .from(executionRules)
-      .where(eq(executionRules.brand_id, draft.brand_id))
-      .limit(1);
+    const [rules] = await db.select().from(executionRules).where(eq(executionRules.brand_id, draft.brand_id)).limit(1);
 
     if (!rules || !rules.auto_execute) {
       return { allowed: false, reason: 'Auto-execute is not enabled for this brand' };
@@ -92,11 +88,7 @@ export async function validateExecution(
 /**
  * Increment the daily execution count for a brand.
  */
-export async function recordExecution(
-  db: Database,
-  brandId: string,
-  spendDeltaCents = 0,
-): Promise<void> {
+export async function recordExecution(db: Database, brandId: string, spendDeltaCents = 0): Promise<void> {
   const today = new Date().toISOString().slice(0, 10);
 
   const [existing] = await db

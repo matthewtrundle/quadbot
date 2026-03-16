@@ -22,10 +22,7 @@ interface GscActionDraft {
  * Check if a recommendation from GSC digest should generate a GSC action,
  * and return the appropriate action draft if so.
  */
-function tryGenerateGscAction(
-  source: string,
-  data: RecommendationData,
-): GscActionDraft | null {
+function tryGenerateGscAction(source: string, data: RecommendationData): GscActionDraft | null {
   if (source !== 'gsc_daily_digest') {
     return null;
   }
@@ -127,27 +124,20 @@ export async function actionDraftGenerator(ctx: JobContext): Promise<void> {
   const brand = await db.select().from(brands).where(eq(brands.id, brandId)).limit(1);
   if (brand.length === 0) throw new Error(`Brand ${brandId} not found`);
 
-  // Only generate action drafts in Assist mode
-  if (brand[0].mode !== 'assist') {
-    logger.info({ jobId, mode: brand[0].mode }, 'Skipping action draft - not in Assist mode');
+  // Only generate action drafts in Assist or Auto mode
+  if (brand[0].mode !== 'assist' && brand[0].mode !== 'auto') {
+    logger.info({ jobId, mode: brand[0].mode }, 'Skipping action draft - not in Assist or Auto mode');
     return;
   }
 
-  const rec = await db
-    .select()
-    .from(recommendations)
-    .where(eq(recommendations.id, recommendationId))
-    .limit(1);
+  const rec = await db.select().from(recommendations).where(eq(recommendations.id, recommendationId)).limit(1);
   if (rec.length === 0) throw new Error(`Recommendation ${recommendationId} not found`);
 
   const recommendation = rec[0];
   const recData = (recommendation.data || {}) as RecommendationData;
 
   // Check if this is a GSC recommendation that can be handled directly
-  const gscAction = tryGenerateGscAction(
-    recommendation.source,
-    recData,
-  );
+  const gscAction = tryGenerateGscAction(recommendation.source, recData);
 
   let actionType: string;
   let actionPayload: Record<string, unknown>;
@@ -197,16 +187,19 @@ export async function actionDraftGenerator(ctx: JobContext): Promise<void> {
     requiresApproval = result.data.requires_approval;
   }
 
-  const [draft] = await db.insert(actionDrafts).values({
-    brand_id: brandId,
-    recommendation_id: recommendationId,
-    type: actionType,
-    payload: actionPayload,
-    risk: actionRisk,
-    guardrails_applied: guardrailsApplied,
-    requires_approval: requiresApproval,
-    status: 'pending',
-  }).returning();
+  const [draft] = await db
+    .insert(actionDrafts)
+    .values({
+      brand_id: brandId,
+      recommendation_id: recommendationId,
+      type: actionType,
+      payload: actionPayload,
+      risk: actionRisk,
+      guardrails_applied: guardrailsApplied,
+      requires_approval: requiresApproval,
+      status: 'pending',
+    })
+    .returning();
 
   // Emit action_draft.created event
   await emitEvent(
@@ -217,25 +210,30 @@ export async function actionDraftGenerator(ctx: JobContext): Promise<void> {
     'action_draft_generator',
   );
 
-  // Check execution rules for auto-approval
-  const [rules] = await db
-    .select()
-    .from(executionRules)
-    .where(eq(executionRules.brand_id, brandId))
-    .limit(1);
+  // Auto-approve logic: check auto mode first, then execution rules
+  const AUTO_APPROVE_TYPES = new Set([
+    'github-publish',
+    'content-publisher',
+    'gsc-index-request',
+    'gsc-inspection',
+    'gsc-sitemap-notify',
+    'update_content',
+    'update_meta',
+    'publish_post',
+  ]);
 
-  if (rules?.auto_execute) {
-    const riskLevels: Record<string, number> = { low: 1, medium: 2, high: 3 };
+  const AUTO_BLOCK_TYPES = new Set(['flag_for_review', 'general']);
+
+  const riskLevels: Record<string, number> = { low: 1, medium: 2, high: 3 };
+
+  // Auto mode: auto-approve safe action types at low/medium risk
+  if (brand[0].mode === 'auto') {
     const draftRiskLevel = riskLevels[actionRisk] ?? 3;
-    const maxRiskLevel = riskLevels[rules.max_risk] ?? 1;
-    const confidence = recommendation.confidence ?? 0;
-    const allowedTypes = (rules.allowed_action_types as string[]) || [];
+    const isSafeType =
+      AUTO_APPROVE_TYPES.has(actionType) && !AUTO_BLOCK_TYPES.has(actionType) && !actionType.startsWith('ads-');
+    const isSafeRisk = draftRiskLevel <= 2; // low or medium
 
-    const meetsConfidence = confidence >= rules.min_confidence;
-    const meetsRisk = draftRiskLevel <= maxRiskLevel;
-    const meetsType = allowedTypes.length === 0 || allowedTypes.includes(actionType);
-
-    if (meetsConfidence && meetsRisk && meetsType) {
+    if (isSafeType && isSafeRisk) {
       await db
         .update(actionDrafts)
         .set({ status: 'approved', updated_at: new Date() })
@@ -244,20 +242,68 @@ export async function actionDraftGenerator(ctx: JobContext): Promise<void> {
       await emitEvent(
         EventType.ACTION_DRAFT_APPROVED,
         brandId,
-        { action_draft_id: draft.id, recommendation_id: recommendationId, auto_approved: true },
+        { action_draft_id: draft.id, recommendation_id: recommendationId, auto_approved: true, mode: 'auto' },
         `auto-approved:${draft.id}`,
         'action_draft_generator',
       );
 
       logger.info(
         { jobId, draftId: draft.id, type: actionType, risk: actionRisk },
-        'Action draft auto-approved by execution rules',
+        'Action draft auto-approved by auto mode',
+      );
+    } else {
+      logger.info(
+        { jobId, draftId: draft.id, type: actionType, risk: actionRisk, isSafeType, isSafeRisk },
+        'Action draft requires manual approval (blocked by auto mode safety)',
       );
     }
   }
 
+  // Assist mode: check execution rules for auto-approval
+  if (brand[0].mode === 'assist') {
+    const [rules] = await db.select().from(executionRules).where(eq(executionRules.brand_id, brandId)).limit(1);
+
+    if (rules?.auto_execute) {
+      const draftRiskLevel = riskLevels[actionRisk] ?? 3;
+      const maxRiskLevel = riskLevels[rules.max_risk] ?? 1;
+      const confidence = recommendation.confidence ?? 0;
+      const allowedTypes = (rules.allowed_action_types as string[]) || [];
+
+      const meetsConfidence = confidence >= rules.min_confidence;
+      const meetsRisk = draftRiskLevel <= maxRiskLevel;
+      const meetsType = allowedTypes.length === 0 || allowedTypes.includes(actionType);
+
+      if (meetsConfidence && meetsRisk && meetsType) {
+        await db
+          .update(actionDrafts)
+          .set({ status: 'approved', updated_at: new Date() })
+          .where(eq(actionDrafts.id, draft.id));
+
+        await emitEvent(
+          EventType.ACTION_DRAFT_APPROVED,
+          brandId,
+          { action_draft_id: draft.id, recommendation_id: recommendationId, auto_approved: true },
+          `auto-approved:${draft.id}`,
+          'action_draft_generator',
+        );
+
+        logger.info(
+          { jobId, draftId: draft.id, type: actionType, risk: actionRisk },
+          'Action draft auto-approved by execution rules',
+        );
+      }
+    }
+  }
+
   logger.info(
-    { jobId, brandId, jobType: 'action_draft_generator', type: actionType, risk: actionRisk, durationMs: Date.now() - startTime },
+    {
+      jobId,
+      brandId,
+      jobType: 'action_draft_generator',
+      type: actionType,
+      risk: actionRisk,
+      durationMs: Date.now() - startTime,
+    },
     'Action_Draft_Generator completed',
   );
 }
