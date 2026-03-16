@@ -87,7 +87,8 @@ function escapeJsx(text: string): string {
 export function markdownToJsx(markdown: string): string {
   const lines = markdown.split('\n');
   const output: string[] = [];
-  let inList = false;
+  let listType: 'ul' | 'ol' | null = null;
+  let inBlockquote = false;
   let paragraphBuffer: string[] = [];
 
   function flushParagraph(): void {
@@ -98,9 +99,18 @@ export function markdownToJsx(markdown: string): string {
   }
 
   function closeList(): void {
-    if (inList) {
+    if (listType === 'ul') {
       output.push('          </ul>');
-      inList = false;
+    } else if (listType === 'ol') {
+      output.push('          </ol>');
+    }
+    listType = null;
+  }
+
+  function closeBlockquote(): void {
+    if (inBlockquote) {
+      output.push('          </blockquote>');
+      inBlockquote = false;
     }
   }
 
@@ -122,6 +132,24 @@ export function markdownToJsx(markdown: string): string {
     if (trimmed === '') {
       flushParagraph();
       closeList();
+      closeBlockquote();
+      continue;
+    }
+
+    // Horizontal rule
+    if (/^(-{3,}|\*{3,}|_{3,})$/.test(trimmed)) {
+      flushParagraph();
+      closeList();
+      closeBlockquote();
+      output.push('          <hr className="my-8 border-charcoal-200" />');
+      continue;
+    }
+
+    // H1 (skip — page already has an h1 in the header)
+    if (trimmed.startsWith('# ') && !trimmed.startsWith('## ')) {
+      flushParagraph();
+      closeList();
+      closeBlockquote();
       continue;
     }
 
@@ -129,8 +157,11 @@ export function markdownToJsx(markdown: string): string {
     if (trimmed.startsWith('## ')) {
       flushParagraph();
       closeList();
+      closeBlockquote();
       const heading = trimmed.slice(3);
-      output.push(`          <h2 className="text-2xl font-bold mt-8 mb-4">${convertInline(heading)}</h2>`);
+      output.push(
+        `          <h2 className="text-2xl font-bold mt-10 mb-4 text-charcoal-900">${convertInline(heading)}</h2>`,
+      );
       continue;
     }
 
@@ -138,29 +169,66 @@ export function markdownToJsx(markdown: string): string {
     if (trimmed.startsWith('### ')) {
       flushParagraph();
       closeList();
+      closeBlockquote();
       const heading = trimmed.slice(4);
-      output.push(`          <h3 className="text-xl font-semibold mt-6 mb-3">${convertInline(heading)}</h3>`);
+      output.push(
+        `          <h3 className="text-xl font-semibold mt-8 mb-3 text-charcoal-800">${convertInline(heading)}</h3>`,
+      );
       continue;
     }
 
-    // List item
-    if (trimmed.startsWith('- ')) {
+    // Blockquote
+    if (trimmed.startsWith('> ')) {
       flushParagraph();
-      if (!inList) {
-        output.push('          <ul className="list-disc pl-6 space-y-2">');
-        inList = true;
+      closeList();
+      if (!inBlockquote) {
+        output.push(
+          '          <blockquote className="border-l-4 border-sunset-500 pl-4 my-6 italic text-charcoal-600">',
+        );
+        inBlockquote = true;
+      }
+      const quoteText = trimmed.slice(2);
+      output.push(`            <p>${convertInline(quoteText)}</p>`);
+      continue;
+    }
+
+    // Unordered list item
+    if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+      flushParagraph();
+      closeBlockquote();
+      if (listType !== 'ul') {
+        closeList();
+        output.push('          <ul className="list-disc pl-6 space-y-2 my-4">');
+        listType = 'ul';
       }
       const itemText = trimmed.slice(2);
       output.push(`            <li>${convertInline(itemText)}</li>`);
       continue;
     }
 
+    // Ordered list item
+    const olMatch = trimmed.match(/^(\d+)[.)]\s+(.+)/);
+    if (olMatch) {
+      flushParagraph();
+      closeBlockquote();
+      if (listType !== 'ol') {
+        closeList();
+        output.push('          <ol className="list-decimal pl-6 space-y-2 my-4">');
+        listType = 'ol';
+      }
+      output.push(`            <li>${convertInline(olMatch[2])}</li>`);
+      continue;
+    }
+
     // Regular text — accumulate into a paragraph
+    closeBlockquote();
+    if (listType) closeList();
     paragraphBuffer.push(trimmed);
   }
 
   flushParagraph();
   closeList();
+  closeBlockquote();
 
   return output.join('\n');
 }

@@ -22,16 +22,12 @@ export async function contentWriter(ctx: JobContext): Promise<void> {
 
   const artifactId = payload.artifact_id as string;
   const platform = (payload.platform as string) || 'blog';
-  const targetWordCount = (payload.target_word_count as number) || 1500;
+  const targetWordCount = (payload.target_word_count as number) || 700;
 
   if (!artifactId) throw new Error('Missing required payload: artifact_id');
 
   // Load the content brief artifact
-  const [artifact] = await db
-    .select()
-    .from(artifacts)
-    .where(eq(artifacts.id, artifactId))
-    .limit(1);
+  const [artifact] = await db.select().from(artifacts).where(eq(artifacts.id, artifactId)).limit(1);
 
   if (!artifact) throw new Error(`Artifact ${artifactId} not found`);
   if (artifact.type !== 'trend_content_brief') {
@@ -39,11 +35,7 @@ export async function contentWriter(ctx: JobContext): Promise<void> {
   }
 
   // Load brand for context
-  const [brand] = await db
-    .select()
-    .from(brands)
-    .where(eq(brands.id, brandId))
-    .limit(1);
+  const [brand] = await db.select().from(brands).where(eq(brands.id, brandId)).limit(1);
 
   if (!brand) throw new Error(`Brand ${brandId} not found`);
 
@@ -91,14 +83,17 @@ export async function contentWriter(ctx: JobContext): Promise<void> {
     })
     .returning();
 
-  logger.info({
-    jobId,
-    brandId,
-    jobType: 'content_writer',
-    artifactId: generatedArtifact.id,
-    title: result.data.title,
-    wordCount: result.data.content_markdown.split(/\s+/).length,
-    platform,
-    durationMs: Date.now() - startTime,
-  }, 'Content_Writer completed');
+  logger.info(
+    {
+      jobId,
+      brandId,
+      jobType: 'content_writer',
+      artifactId: generatedArtifact.id,
+      title: result.data.title,
+      wordCount: result.data.content_markdown.split(/\s+/).length,
+      platform,
+      durationMs: Date.now() - startTime,
+    },
+    'Content_Writer completed',
+  );
 }
