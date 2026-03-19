@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { AlertTriangle } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -47,38 +48,40 @@ function pct(numerator: number, denominator: number): string {
 export default async function OutreachPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const allCampaigns = await db
-    .select()
-    .from(campaigns)
-    .where(eq(campaigns.brand_id, id))
-    .orderBy(desc(campaigns.created_at));
+  let allCampaigns: (typeof campaigns.$inferSelect)[] = [];
+  let opensMap = new Map<string, number>();
+  let repliesMap = new Map<string, number>();
+  let error = false;
 
-  // Aggregate open counts per campaign from outreach_emails
-  const openStats = await db
-    .select({
-      campaign_id: outreachEmails.campaign_id,
-      total_opens: sql<number>`count(*) filter (where ${outreachEmails.opened_at} is not null)`.as(
-        'total_opens'
-      ),
-    })
-    .from(outreachEmails)
-    .where(eq(outreachEmails.brand_id, id))
-    .groupBy(outreachEmails.campaign_id);
+  try {
+    const [campaignResults, openStats, replyStats] = await Promise.all([
+      db.select().from(campaigns).where(eq(campaigns.brand_id, id)).orderBy(desc(campaigns.created_at)),
+      db
+        .select({
+          campaign_id: outreachEmails.campaign_id,
+          total_opens: sql<number>`count(*) filter (where ${outreachEmails.opened_at} is not null)`.as('total_opens'),
+        })
+        .from(outreachEmails)
+        .where(eq(outreachEmails.brand_id, id))
+        .groupBy(outreachEmails.campaign_id),
+      db
+        .select({
+          campaign_id: outreachConversations.campaign_id,
+          total_replies: sql<number>`count(*)`.as('total_replies'),
+        })
+        .from(outreachConversations)
+        .where(eq(outreachConversations.brand_id, id))
+        .groupBy(outreachConversations.campaign_id),
+    ]);
 
-  // Aggregate reply counts per campaign from outreach_conversations
-  const replyStats = await db
-    .select({
-      campaign_id: outreachConversations.campaign_id,
-      total_replies: sql<number>`count(*)`.as('total_replies'),
-    })
-    .from(outreachConversations)
-    .where(eq(outreachConversations.brand_id, id))
-    .groupBy(outreachConversations.campaign_id);
+    allCampaigns = campaignResults;
+    opensMap = new Map(openStats.map((o) => [o.campaign_id, Number(o.total_opens)]));
+    repliesMap = new Map(replyStats.map((r) => [r.campaign_id, Number(r.total_replies)]));
+  } catch (err) {
+    console.error('Outreach page query failed:', err);
+    error = true;
+  }
 
-  const opensMap = new Map(openStats.map((o) => [o.campaign_id, Number(o.total_opens)]));
-  const repliesMap = new Map(replyStats.map((r) => [r.campaign_id, Number(r.total_replies)]));
-
-  // Summary stats
   const totalCampaigns = allCampaigns.length;
   const activeCampaigns = allCampaigns.filter((c) => c.status === 'active').length;
   const totalLeads = allCampaigns.reduce((sum, c) => sum + (c.total_leads || 0), 0);
@@ -86,8 +89,15 @@ export default async function OutreachPage({ params }: { params: Promise<{ id: s
 
   return (
     <div className="space-y-6">
+      {error && (
+        <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+          <p>Failed to load outreach data. Please try refreshing.</p>
+        </div>
+      )}
+
       {/* Summary stats row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <div className="rounded-lg border bg-card p-4">
           <p className="text-sm text-muted-foreground">Total Campaigns</p>
           <p className="text-2xl font-semibold">{totalCampaigns}</p>
@@ -163,9 +173,7 @@ export default async function OutreachPage({ params }: { params: Promise<{ id: s
                       </div>
                     )}
 
-                    {c.description && (
-                      <p className="text-sm text-muted-foreground truncate">{c.description}</p>
-                    )}
+                    {c.description && <p className="text-sm text-muted-foreground truncate">{c.description}</p>}
 
                     <p className="text-xs text-muted-foreground">{daysAgo(c.created_at)}</p>
                   </CardContent>

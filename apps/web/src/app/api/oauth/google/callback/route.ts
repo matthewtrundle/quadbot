@@ -4,21 +4,45 @@ import { brandIntegrations, sharedCredentials } from '@quadbot/db';
 import { encrypt } from '@quadbot/db';
 import { eq, and } from 'drizzle-orm';
 import { exchangeCodeForTokens, listGscSites, getGoogleUserInfo } from '@/lib/google-api';
+import { cookies } from 'next/headers';
 
 /**
  * GET /api/oauth/google/callback
  *
  * Handles OAuth callback for GSC connect flow:
- * 1. Exchanges authorization code for real tokens
- * 2. Verifies tokens by fetching GSC sites
- * 3. Stores tokens in shared_credentials
- * 4. Updates or creates brand_integration linking to the credential
- * 5. Redirects back to brands page
+ * 1. Validates CSRF state parameter
+ * 2. Exchanges authorization code for real tokens
+ * 3. Verifies tokens by fetching GSC sites
+ * 4. Stores tokens in shared_credentials
+ * 5. Updates or creates brand_integration linking to the credential
+ * 6. Redirects back to brands page
  */
 export async function GET(req: NextRequest) {
   const code = req.nextUrl.searchParams.get('code');
-  const brandId = req.nextUrl.searchParams.get('state');
+  const stateParam = req.nextUrl.searchParams.get('state');
   const error = req.nextUrl.searchParams.get('error');
+
+  // Parse and validate CSRF state
+  let brandId: string | null = null;
+  if (stateParam) {
+    try {
+      const parsed = JSON.parse(Buffer.from(stateParam, 'base64url').toString());
+      const cookieStore = await cookies();
+      const storedNonce = cookieStore.get('oauth_state_nonce')?.value;
+      cookieStore.delete('oauth_state_nonce');
+
+      if (!storedNonce || storedNonce !== parsed.nonce) {
+        const errorUrl = new URL('/brands', req.url);
+        errorUrl.searchParams.set('error', 'Invalid OAuth state — please try again');
+        return NextResponse.redirect(errorUrl);
+      }
+      brandId = parsed.brandId || null;
+    } catch {
+      const errorUrl = new URL('/brands', req.url);
+      errorUrl.searchParams.set('error', 'Invalid OAuth state');
+      return NextResponse.redirect(errorUrl);
+    }
+  }
 
   if (error) {
     const errorUrl = new URL('/brands', req.url);

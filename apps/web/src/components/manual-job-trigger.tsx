@@ -24,18 +24,24 @@ export function ManualJobTrigger() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
 
-  useEffect(() => {
-    // Fetch brands
-    fetch('/api/brands')
-      .then(res => res.json())
-      .then(data => setBrands(data.brands || []))
-      .catch(console.error);
+  const [initError, setInitError] = useState(false);
 
-    // Fetch job types
-    fetch('/api/jobs/trigger')
-      .then(res => res.json())
-      .then(data => setJobTypes(data.availableJobTypes || []))
-      .catch(console.error);
+  useEffect(() => {
+    Promise.all([
+      fetch('/api/brands').then((r) => {
+        if (!r.ok) throw new Error();
+        return r.json();
+      }),
+      fetch('/api/jobs/trigger').then((r) => {
+        if (!r.ok) throw new Error();
+        return r.json();
+      }),
+    ])
+      .then(([brandsData, jobsData]) => {
+        setBrands(brandsData.brands || []);
+        setJobTypes(jobsData.availableJobTypes || []);
+      })
+      .catch(() => setInitError(true));
   }, []);
 
   async function triggerJob() {
@@ -75,11 +81,15 @@ export function ManualJobTrigger() {
           <Play className="h-5 w-5" />
           Manual Job Trigger
         </CardTitle>
-        <CardDescription>
-          Manually trigger jobs for testing. Jobs run in the background worker.
-        </CardDescription>
+        <CardDescription>Manually trigger jobs for testing. Jobs run in the background worker.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {initError && (
+          <div className="flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <AlertCircle className="h-4 w-4 flex-shrink-0" />
+            Failed to load brands or job types. Please refresh.
+          </div>
+        )}
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <label className="text-sm font-medium">Brand</label>
@@ -88,7 +98,7 @@ export function ManualJobTrigger() {
                 <SelectValue placeholder="Select a brand" />
               </SelectTrigger>
               <SelectContent>
-                {brands.map(brand => (
+                {brands.map((brand) => (
                   <SelectItem key={brand.id} value={brand.id}>
                     {brand.name}
                   </SelectItem>
@@ -104,7 +114,7 @@ export function ManualJobTrigger() {
                 <SelectValue placeholder="Select a job type" />
               </SelectTrigger>
               <SelectContent>
-                {jobTypes.map(job => (
+                {jobTypes.map((job) => (
                   <SelectItem key={job.type} value={job.type}>
                     {job.description}
                   </SelectItem>
@@ -114,11 +124,7 @@ export function ManualJobTrigger() {
           </div>
         </div>
 
-        <Button
-          onClick={triggerJob}
-          disabled={!selectedBrand || !selectedJob || loading}
-          className="w-full"
-        >
+        <Button onClick={triggerJob} disabled={!selectedBrand || !selectedJob || loading} className="w-full">
           {loading ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -140,11 +146,7 @@ export function ManualJobTrigger() {
                 : 'bg-red-50 text-red-800 dark:bg-red-950 dark:text-red-200'
             }`}
           >
-            {result.success ? (
-              <CheckCircle className="h-5 w-5" />
-            ) : (
-              <AlertCircle className="h-5 w-5" />
-            )}
+            {result.success ? <CheckCircle className="h-5 w-5" /> : <AlertCircle className="h-5 w-5" />}
             <span>{result.message}</span>
           </div>
         )}

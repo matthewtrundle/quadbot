@@ -75,11 +75,16 @@ export default function BenchmarksPage() {
   const [data, setData] = useState<BenchmarksData | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const [error, setError] = useState(false);
+
   useEffect(() => {
     fetch('/api/dashboard/benchmarks')
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error('Failed to load benchmarks');
+        return r.json();
+      })
       .then((d) => setData(d))
-      .catch(console.error)
+      .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, []);
 
@@ -87,6 +92,14 @@ export default function BenchmarksPage() {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+        <span>Failed to load benchmarks. Please try refreshing.</span>
       </div>
     );
   }

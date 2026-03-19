@@ -12,7 +12,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       {showNav && <Nav />}
-      <main className={`min-h-screen p-8 ${showNav ? 'ml-64' : ''}`}>{children}</main>
+      <main className={`min-h-screen px-4 py-6 sm:px-6 sm:py-8 ${showNav ? 'lg:ml-64 pt-16 lg:pt-8' : ''}`}>
+        {children}
+      </main>
     </>
   );
 }

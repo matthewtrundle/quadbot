@@ -5,8 +5,12 @@ import { Toaster } from 'sonner';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Quadbot',
-  description: 'AI-powered brand management dashboard',
+  title: 'QuadBot — AI Marketing Autopilot',
+  description: 'AI-powered marketing automation that observes, recommends, and acts on your behalf.',
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
+  viewport: { width: 'device-width', initialScale: 1 },
+  themeColor: '#0f0f14',
+  icons: { icon: '/favicon.ico' },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

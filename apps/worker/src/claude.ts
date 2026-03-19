@@ -6,6 +6,16 @@ import { recordLlmUsage } from './lib/llm-usage-tracker.js';
 
 let client: Anthropic | null = null;
 
+// Cache compiled Handlebars templates by prompt version ID to avoid recompilation
+const templateCache = new Map<string, HandlebarsTemplateDelegate>();
+function getCompiledTemplate(prompt: { id: string; user_prompt_template: string }): HandlebarsTemplateDelegate {
+  const cached = templateCache.get(prompt.id);
+  if (cached) return cached;
+  const compiled = Handlebars.compile(prompt.user_prompt_template);
+  templateCache.set(prompt.id, compiled);
+  return compiled;
+}
+
 function getClient(): Anthropic {
   if (!client) {
     client = new Anthropic();
@@ -115,7 +125,7 @@ export async function callClaude<T>(
   const retries = options.retries ?? 2;
 
   const anthropic = getClient();
-  const template = Handlebars.compile(prompt.user_prompt_template);
+  const template = getCompiledTemplate(prompt);
   const userMessage = template(variables);
 
   // Build system prompt with optional signal and playbook context
@@ -245,7 +255,7 @@ export async function callClaudeWithTools<T>(
   const MAX_TOOL_ROUNDS = 3;
   const retries = options.retries ?? 2;
   const anthropic = getClient();
-  const template = Handlebars.compile(prompt.user_prompt_template);
+  const template = getCompiledTemplate(prompt);
   const userMessage = template(variables);
 
   let systemPrompt = prompt.system_prompt;

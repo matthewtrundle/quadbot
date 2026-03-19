@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { ChevronDown } from 'lucide-react';
 
 type ExecutionRulesConfig = {
   auto_execute: boolean;
@@ -234,6 +235,40 @@ function parseGuardrails(guardrails: Record<string, unknown>): BrandProfile {
   };
 }
 
+function ModuleCategorySection({
+  category,
+  enabledCount,
+  totalCount,
+  children,
+}: {
+  category: string;
+  enabledCount: number;
+  totalCount: number;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(enabledCount > 0);
+
+  return (
+    <div className="rounded-lg border border-border/50">
+      <button
+        onClick={() => setOpen((prev) => !prev)}
+        className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-secondary/30 transition-colors rounded-lg"
+      >
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm font-semibold text-foreground">{category}</h3>
+          <span className="text-xs text-muted-foreground">
+            {enabledCount}/{totalCount} enabled
+          </span>
+        </div>
+        <ChevronDown
+          className={`h-4 w-4 text-muted-foreground transition-transform ${open ? 'rotate-0' : '-rotate-90'}`}
+        />
+      </button>
+      {open && <div className="px-3 pb-3">{children}</div>}
+    </div>
+  );
+}
+
 export function SettingsForm({
   brandId,
   mode,
@@ -367,29 +402,31 @@ export function SettingsForm({
             Enable or disable modules to control what Quadbot monitors and automates for this brand.
           </p>
         </CardHeader>
-        <CardContent className="space-y-6">
-          {MODULE_CATEGORIES.map((category) => (
-            <div key={category} className="space-y-3">
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm font-semibold text-foreground">{category}</h3>
-                <span className="text-xs text-muted-foreground">
-                  ({AVAILABLE_MODULES.filter((m) => m.category === category && modules.includes(m.id)).length}/
-                  {AVAILABLE_MODULES.filter((m) => m.category === category).length})
-                </span>
-              </div>
-              <div className="space-y-2 pl-1">
-                {AVAILABLE_MODULES.filter((m) => m.category === category).map((mod) => (
-                  <div key={mod.id} className="flex items-center justify-between rounded-md border px-3 py-2">
-                    <div className="space-y-0.5">
-                      <Label className="text-sm font-medium">{mod.label}</Label>
-                      <p className="text-xs text-muted-foreground">{mod.description}</p>
+        <CardContent className="space-y-3">
+          {MODULE_CATEGORIES.map((category) => {
+            const categoryModules = AVAILABLE_MODULES.filter((m) => m.category === category);
+            const enabledCount = categoryModules.filter((m) => modules.includes(m.id)).length;
+            return (
+              <ModuleCategorySection
+                key={category}
+                category={category}
+                enabledCount={enabledCount}
+                totalCount={categoryModules.length}
+              >
+                <div className="space-y-2 pl-1">
+                  {categoryModules.map((mod) => (
+                    <div key={mod.id} className="flex items-center justify-between rounded-md border px-3 py-2">
+                      <div className="space-y-0.5 mr-3">
+                        <Label className="text-sm font-medium">{mod.label}</Label>
+                        <p className="text-xs text-muted-foreground">{mod.description}</p>
+                      </div>
+                      <Switch checked={modules.includes(mod.id)} onCheckedChange={() => toggleModule(mod.id)} />
                     </div>
-                    <Switch checked={modules.includes(mod.id)} onCheckedChange={() => toggleModule(mod.id)} />
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
+                  ))}
+                </div>
+              </ModuleCategorySection>
+            );
+          })}
         </CardContent>
       </Card>
 
@@ -578,11 +615,11 @@ export function SettingsForm({
         </CardContent>
       </Card>
 
-      <Separator />
-
-      <Button onClick={handleSave} disabled={saving}>
-        {saving ? 'Saving...' : 'Save Settings'}
-      </Button>
+      <div className="sticky bottom-0 -mx-4 border-t border-border/50 bg-background/95 backdrop-blur-sm px-4 py-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+        <Button onClick={handleSave} disabled={saving} className="w-full sm:w-auto">
+          {saving ? 'Saving...' : 'Save All Settings'}
+        </Button>
+      </div>
     </div>
   );
 }

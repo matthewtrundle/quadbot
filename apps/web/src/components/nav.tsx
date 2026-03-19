@@ -1,9 +1,21 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Building2, LayoutDashboard, CalendarClock, ChevronDown, Download, DollarSign, Settings, Sparkles, LogOut } from 'lucide-react';
+import {
+  Building2,
+  LayoutDashboard,
+  CalendarClock,
+  ChevronDown,
+  Download,
+  DollarSign,
+  Settings,
+  Sparkles,
+  LogOut,
+  Menu,
+  X,
+} from 'lucide-react';
 import { useSession, signOut } from '@/lib/auth-client';
 import { NotificationBell } from './notification-bell';
 import { ThemeToggle } from './theme-toggle';
@@ -104,9 +116,7 @@ function NavGroup({ item, pathname }: { item: NavItem; pathname: string }) {
           }`}
           aria-label={open ? 'Collapse' : 'Expand'}
         >
-          <ChevronDown
-            className={`h-4 w-4 transition-transform ${open ? 'rotate-0' : '-rotate-90'}`}
-          />
+          <ChevronDown className={`h-4 w-4 transition-transform ${open ? 'rotate-0' : '-rotate-90'}`} />
         </button>
       </div>
       {open && item.children && (
@@ -120,91 +130,156 @@ function NavGroup({ item, pathname }: { item: NavItem; pathname: string }) {
   );
 }
 
+function NavContent({
+  pathname,
+  session,
+}: {
+  pathname: string;
+  session: { user: { name: string; email: string; image?: string | null } } | null;
+}) {
+  return (
+    <div className="flex h-full flex-col">
+      {/* Logo area with geometric cubes */}
+      <div className="flex h-16 items-center gap-3 border-b border-border/50 px-6">
+        <div className="relative">
+          <div className="grid grid-cols-2 gap-0.5">
+            <div className="h-2.5 w-2.5 rounded-sm bg-quad-cyan" />
+            <div className="h-2.5 w-2.5 rounded-sm bg-quad-purple" />
+            <div className="h-2.5 w-2.5 rounded-sm bg-quad-blue" />
+            <div className="h-2.5 w-2.5 rounded-sm bg-quad-pink" />
+          </div>
+        </div>
+        <span className="text-lg font-bold tracking-tight holographic">QuadBot</span>
+        <div className="ml-auto">
+          <NotificationBell brandId={(session?.user as ClientUserWithBrand | undefined)?.brandId || null} />
+        </div>
+      </div>
+
+      {/* Navigation */}
+      <nav className="flex-1 space-y-1 overflow-y-auto p-4">
+        <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Core</p>
+        {coreItems.map((item) =>
+          item.children ? (
+            <NavGroup key={item.href} item={item} pathname={pathname} />
+          ) : (
+            <NavLink key={item.href} item={item} pathname={pathname} />
+          ),
+        )}
+
+        <div className="my-4 mx-3 border-t border-border/30" />
+        <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Setup</p>
+        {setupItems.map((item) => (
+          <NavLink key={item.href} item={item} pathname={pathname} />
+        ))}
+      </nav>
+
+      {/* Footer with user + version */}
+      <div className="border-t border-border/50 p-4 space-y-3">
+        {session?.user && (
+          <div className="flex items-center justify-between rounded-lg p-2 -mx-2 transition-colors hover:bg-secondary/50">
+            <div className="flex items-center gap-2 min-w-0">
+              {session.user.image ? (
+                <img
+                  src={session.user.image}
+                  alt=""
+                  className="h-7 w-7 rounded-full flex-shrink-0 ring-1 ring-border/50"
+                />
+              ) : (
+                <div className="h-7 w-7 rounded-full bg-quad-cyan/20 flex items-center justify-center flex-shrink-0 ring-1 ring-border/50">
+                  <span className="text-xs font-medium text-quad-cyan">{session.user.name?.charAt(0) || '?'}</span>
+                </div>
+              )}
+              <span className="text-xs text-muted-foreground truncate">{session.user.name || session.user.email}</span>
+            </div>
+            <button
+              onClick={() =>
+                signOut({
+                  fetchOptions: {
+                    onSuccess: () => {
+                      window.location.href = '/login';
+                    },
+                  },
+                })
+              }
+              className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+              title="Sign out"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Sparkles className="h-3 w-3 text-quad-cyan" />
+            <span>QuadBot v2</span>
+          </div>
+          <ThemeToggle />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function Nav() {
   const pathname = usePathname();
   const { data: session } = useSession();
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Close mobile nav on route change
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
+
+  // Prevent body scroll when mobile nav is open
+  useEffect(() => {
+    if (mobileOpen) {
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = '';
+      };
+    }
+  }, [mobileOpen]);
 
   return (
-    <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r border-border/50 bg-card/80 backdrop-blur-sm">
-      <div className="flex h-full flex-col">
-        {/* Logo area with geometric cubes */}
-        <div className="flex h-16 items-center gap-3 border-b border-border/50 px-6">
-          <div className="relative">
-            <div className="grid grid-cols-2 gap-0.5">
-              <div className="h-2.5 w-2.5 rounded-sm bg-quad-cyan" />
-              <div className="h-2.5 w-2.5 rounded-sm bg-quad-purple" />
-              <div className="h-2.5 w-2.5 rounded-sm bg-quad-blue" />
-              <div className="h-2.5 w-2.5 rounded-sm bg-quad-pink" />
-            </div>
-          </div>
-          <span className="text-lg font-bold tracking-tight holographic">QuadBot</span>
-          <div className="ml-auto">
-            <NotificationBell brandId={(session?.user as ClientUserWithBrand | undefined)?.brandId || null} />
-          </div>
-        </div>
+    <>
+      {/* Mobile hamburger button */}
+      <button
+        onClick={() => setMobileOpen(true)}
+        className="fixed left-4 top-4 z-50 rounded-md border border-border/50 bg-card/90 p-2 backdrop-blur-sm lg:hidden"
+        aria-label="Open navigation"
+      >
+        <Menu className="h-5 w-5 text-foreground" />
+      </button>
 
-        {/* Navigation */}
-        <nav className="flex-1 space-y-1 p-4">
-          <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Core
-          </p>
-          {coreItems.map((item) =>
-            item.children ? (
-              <NavGroup key={item.href} item={item} pathname={pathname} />
-            ) : (
-              <NavLink key={item.href} item={item} pathname={pathname} />
-            )
-          )}
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
+          onClick={() => setMobileOpen(false)}
+          aria-hidden="true"
+        />
+      )}
 
-          <div className="my-4 mx-3 border-t border-border/30" />
-          <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Setup
-          </p>
-          {setupItems.map((item) => (
-            <NavLink key={item.href} item={item} pathname={pathname} />
-          ))}
-        </nav>
+      {/* Mobile sidebar */}
+      <aside
+        className={`fixed left-0 top-0 z-50 h-screen w-72 border-r border-border/50 bg-card/95 backdrop-blur-md transition-transform duration-200 ease-out lg:hidden ${
+          mobileOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        <button
+          onClick={() => setMobileOpen(false)}
+          className="absolute right-3 top-4 rounded-md p-1.5 text-muted-foreground hover:text-foreground"
+          aria-label="Close navigation"
+        >
+          <X className="h-5 w-5" />
+        </button>
+        <NavContent pathname={pathname} session={session} />
+      </aside>
 
-        {/* Footer with user + version */}
-        <div className="border-t border-border/50 p-4 space-y-3">
-          {session?.user && (
-            <div className="flex items-center justify-between rounded-lg p-2 -mx-2 transition-colors hover:bg-secondary/50">
-              <div className="flex items-center gap-2 min-w-0">
-                {session.user.image ? (
-                  <img
-                    src={session.user.image}
-                    alt=""
-                    className="h-7 w-7 rounded-full flex-shrink-0 ring-1 ring-border/50"
-                  />
-                ) : (
-                  <div className="h-7 w-7 rounded-full bg-quad-cyan/20 flex items-center justify-center flex-shrink-0 ring-1 ring-border/50">
-                    <span className="text-xs font-medium text-quad-cyan">
-                      {session.user.name?.charAt(0) || '?'}
-                    </span>
-                  </div>
-                )}
-                <span className="text-xs text-muted-foreground truncate">
-                  {session.user.name || session.user.email}
-                </span>
-              </div>
-              <button
-                onClick={() => signOut({ fetchOptions: { onSuccess: () => { window.location.href = '/login'; } } })}
-                className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
-                title="Sign out"
-              >
-                <LogOut className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          )}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Sparkles className="h-3 w-3 text-quad-cyan" />
-              <span>QuadBot v2 — Intelligence Layer</span>
-            </div>
-            <ThemeToggle />
-          </div>
-        </div>
-      </div>
-    </aside>
+      {/* Desktop sidebar */}
+      <aside className="fixed left-0 top-0 z-40 hidden h-screen w-64 border-r border-border/50 bg-card/80 backdrop-blur-sm lg:block">
+        <NavContent pathname={pathname} session={session} />
+      </aside>
+    </>
   );
 }

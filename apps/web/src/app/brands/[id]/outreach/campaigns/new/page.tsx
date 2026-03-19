@@ -2,17 +2,22 @@
 
 import { useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ArrowLeft, ArrowRight, Check } from 'lucide-react';
+
+const STEPS = ['Details', 'Schedule', 'Sequence'] as const;
 
 export default function NewCampaignPage() {
   const router = useRouter();
   const { id: brandId } = useParams<{ id: string }>();
   const [saving, setSaving] = useState(false);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [error, setError] = useState('');
 
   const [form, setForm] = useState({
     name: '',
@@ -34,13 +39,16 @@ export default function NewCampaignPage() {
   ]);
 
   const addStep = () => {
-    setSteps([...steps, {
-      step_order: steps.length + 1,
-      delay_days: 3,
-      subject_template: '',
-      body_template: '',
-      is_reply_to_previous: true,
-    }]);
+    setSteps([
+      ...steps,
+      {
+        step_order: steps.length + 1,
+        delay_days: 3,
+        subject_template: '',
+        body_template: '',
+        is_reply_to_previous: true,
+      },
+    ]);
   };
 
   const removeStep = (idx: number) => {
@@ -48,32 +56,42 @@ export default function NewCampaignPage() {
     setSteps(steps.filter((_, i) => i !== idx).map((s, i) => ({ ...s, step_order: i + 1 })));
   };
 
-  const updateStep = (idx: number, field: string, value: any) => {
-    setSteps(steps.map((s, i) => i === idx ? { ...s, [field]: value } : s));
+  const updateStep = (idx: number, field: string, value: string | number | boolean) => {
+    setSteps(steps.map((s, i) => (i === idx ? { ...s, [field]: value } : s)));
   };
 
   const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   const toggleDay = (day: number) => {
-    setForm(f => ({
+    setForm((f) => ({
       ...f,
-      send_days: f.send_days.includes(day)
-        ? f.send_days.filter(d => d !== day)
-        : [...f.send_days, day].sort(),
+      send_days: f.send_days.includes(day) ? f.send_days.filter((d) => d !== day) : [...f.send_days, day].sort(),
     }));
+  };
+
+  const canAdvance = () => {
+    if (currentStep === 0) return form.name.trim().length > 0;
+    if (currentStep === 1) return form.send_days.length > 0;
+    if (currentStep === 2)
+      return steps[0].subject_template.trim().length > 0 && steps[0].body_template.trim().length > 0;
+    return true;
   };
 
   const handleSubmit = async () => {
     setSaving(true);
+    setError('');
     try {
       const res = await fetch(`/api/outreach/campaigns?brandId=${brandId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       });
-      if (!res.ok) { setSaving(false); return; }
+      if (!res.ok) {
+        setError('Failed to create campaign. Please try again.');
+        setSaving(false);
+        return;
+      }
       const campaign = await res.json();
 
-      // Save steps
       await fetch(`/api/outreach/campaigns/${campaign.id}/steps`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -82,134 +100,269 @@ export default function NewCampaignPage() {
 
       router.push(`/brands/${brandId}/outreach/campaigns/${campaign.id}`);
     } catch {
+      setError('Something went wrong. Please try again.');
       setSaving(false);
     }
   };
 
   return (
-    <div className="space-y-6 max-w-3xl">
-      <Card>
-        <CardHeader>
-          <CardTitle>Campaign Details</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <Label>Name</Label>
-            <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Q1 Outreach" />
+    <div className="max-w-3xl space-y-6">
+      {/* Step indicator */}
+      <div className="flex items-center gap-2">
+        {STEPS.map((step, i) => (
+          <div key={step} className="flex items-center gap-2">
+            <button
+              onClick={() => i < currentStep && setCurrentStep(i)}
+              className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium transition-colors ${
+                i < currentStep
+                  ? 'bg-primary text-primary-foreground cursor-pointer'
+                  : i === currentStep
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-secondary text-muted-foreground'
+              }`}
+              disabled={i >= currentStep}
+            >
+              {i < currentStep ? <Check className="h-4 w-4" /> : i + 1}
+            </button>
+            <span className={`text-sm font-medium ${i === currentStep ? 'text-foreground' : 'text-muted-foreground'}`}>
+              {step}
+            </span>
+            {i < STEPS.length - 1 && <div className="mx-2 h-px w-8 bg-border" />}
           </div>
-          <div>
-            <Label>Description</Label>
-            <Textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Optional description" />
-          </div>
-          <div>
-            <Label>Reply Mode</Label>
-            <Select value={form.reply_mode} onValueChange={v => setForm(f => ({ ...f, reply_mode: v }))}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="manual">Manual</SelectItem>
-                <SelectItem value="ai_draft_approve">AI Draft + Approve</SelectItem>
-                <SelectItem value="ai_auto_reply">AI Auto-Reply</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          {form.reply_mode !== 'manual' && (
-            <div>
-              <Label>AI Reply Context</Label>
-              <Textarea value={form.ai_reply_context} onChange={e => setForm(f => ({ ...f, ai_reply_context: e.target.value }))} placeholder="Describe your product/goal for AI context..." />
-            </div>
-          )}
-        </CardContent>
-      </Card>
+        ))}
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Schedule</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <Label>Send Days</Label>
-            <div className="flex gap-2 mt-1">
-              {dayNames.map((name, i) => (
-                <button
-                  key={i}
-                  onClick={() => toggleDay(i + 1)}
-                  className={`px-3 py-1 rounded text-sm border ${form.send_days.includes(i + 1) ? 'bg-primary text-primary-foreground' : 'bg-background'}`}
-                >
-                  {name}
-                </button>
-              ))}
+      {/* Step 1: Details */}
+      {currentStep === 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Campaign Details</CardTitle>
+            <CardDescription>Name your campaign and set the reply handling mode.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Campaign Name *</Label>
+              <Input
+                value={form.name}
+                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                placeholder="Q1 Partner Outreach"
+                autoFocus
+              />
             </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Window Start</Label>
-              <Input type="time" value={form.send_window_start} onChange={e => setForm(f => ({ ...f, send_window_start: e.target.value }))} />
+            <div className="space-y-2">
+              <Label>Description</Label>
+              <Textarea
+                value={form.description}
+                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                placeholder="What is this campaign about?"
+                rows={2}
+              />
             </div>
-            <div>
-              <Label>Window End</Label>
-              <Input type="time" value={form.send_window_end} onChange={e => setForm(f => ({ ...f, send_window_end: e.target.value }))} />
+            <div className="space-y-2">
+              <Label>Reply Mode</Label>
+              <Select value={form.reply_mode} onValueChange={(v) => setForm((f) => ({ ...f, reply_mode: v }))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="manual">Manual — Handle all replies yourself</SelectItem>
+                  <SelectItem value="ai_draft_approve">AI Draft — AI drafts replies for your approval</SelectItem>
+                  <SelectItem value="ai_auto_reply">AI Auto — AI replies automatically</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-          </div>
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <Label>Daily Limit</Label>
-              <Input type="number" value={form.daily_send_limit} onChange={e => setForm(f => ({ ...f, daily_send_limit: parseInt(e.target.value) || 50 }))} />
-            </div>
-            <div>
-              <Label>Min Spacing (s)</Label>
-              <Input type="number" value={form.min_spacing_seconds} onChange={e => setForm(f => ({ ...f, min_spacing_seconds: parseInt(e.target.value) || 60 }))} />
-            </div>
-            <div>
-              <Label>Max Spacing (s)</Label>
-              <Input type="number" value={form.max_spacing_seconds} onChange={e => setForm(f => ({ ...f, max_spacing_seconds: parseInt(e.target.value) || 300 }))} />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Sequence Steps</CardTitle>
-            <Button size="sm" variant="outline" onClick={addStep}>Add Step</Button>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {steps.map((step, idx) => (
-            <div key={idx} className="border rounded-lg p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="font-medium text-sm">Step {step.step_order}</span>
-                {idx > 0 && (
-                  <Button size="sm" variant="ghost" onClick={() => removeStep(idx)}>Remove</Button>
-                )}
+            {form.reply_mode !== 'manual' && (
+              <div className="space-y-2">
+                <Label>AI Context</Label>
+                <Textarea
+                  value={form.ai_reply_context}
+                  onChange={(e) => setForm((f) => ({ ...f, ai_reply_context: e.target.value }))}
+                  placeholder="Describe your product/service so the AI can craft relevant replies..."
+                  rows={3}
+                />
               </div>
-              {idx > 0 && (
-                <div>
-                  <Label>Delay (days after previous)</Label>
-                  <Input type="number" value={step.delay_days} onChange={e => updateStep(idx, 'delay_days', parseInt(e.target.value) || 0)} />
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Step 2: Schedule */}
+      {currentStep === 1 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Schedule</CardTitle>
+            <CardDescription>Choose when emails are sent and how they are paced.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-2">
+              <Label>Send Days</Label>
+              <div className="flex flex-wrap gap-2">
+                {dayNames.map((name, i) => (
+                  <button
+                    key={i}
+                    onClick={() => toggleDay(i + 1)}
+                    className={`rounded-md border px-3 py-1.5 text-sm font-medium transition-colors ${
+                      form.send_days.includes(i + 1)
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-background text-muted-foreground hover:border-foreground/30'
+                    }`}
+                  >
+                    {name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Window Start</Label>
+                <Input
+                  type="time"
+                  value={form.send_window_start}
+                  onChange={(e) => setForm((f) => ({ ...f, send_window_start: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Window End</Label>
+                <Input
+                  type="time"
+                  value={form.send_window_end}
+                  onChange={(e) => setForm((f) => ({ ...f, send_window_end: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <div className="space-y-2">
+                <Label>Daily Limit</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={500}
+                  value={form.daily_send_limit}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, daily_send_limit: Math.max(1, parseInt(e.target.value) || 50) }))
+                  }
+                />
+                <p className="text-xs text-muted-foreground">Max emails per day</p>
+              </div>
+              <div className="space-y-2">
+                <Label>Min Gap (sec)</Label>
+                <Input
+                  type="number"
+                  min={10}
+                  value={form.min_spacing_seconds}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, min_spacing_seconds: Math.max(10, parseInt(e.target.value) || 60) }))
+                  }
+                />
+                <p className="text-xs text-muted-foreground">Between sends</p>
+              </div>
+              <div className="space-y-2">
+                <Label>Max Gap (sec)</Label>
+                <Input
+                  type="number"
+                  min={10}
+                  value={form.max_spacing_seconds}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, max_spacing_seconds: Math.max(10, parseInt(e.target.value) || 300) }))
+                  }
+                />
+                <p className="text-xs text-muted-foreground">Random range</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Step 3: Sequence */}
+      {currentStep === 2 && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Email Sequence</CardTitle>
+                <CardDescription>Define the emails that will be sent to each lead.</CardDescription>
+              </div>
+              <Button size="sm" variant="outline" onClick={addStep}>
+                Add Step
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {steps.map((step, idx) => (
+              <div key={idx} className="rounded-lg border border-border/50 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-secondary text-xs font-medium">
+                      {step.step_order}
+                    </span>
+                    <span className="text-sm font-medium">{idx === 0 ? 'Initial Email' : `Follow-up ${idx}`}</span>
+                  </div>
+                  {idx > 0 && (
+                    <Button size="sm" variant="ghost" className="text-muted-foreground" onClick={() => removeStep(idx)}>
+                      Remove
+                    </Button>
+                  )}
                 </div>
-              )}
-              <div>
-                <Label>Subject</Label>
-                <Input value={step.subject_template} onChange={e => updateStep(idx, 'subject_template', e.target.value)} placeholder="{{first_name}}, quick question about {{company}}" />
+                {idx > 0 && (
+                  <div className="space-y-2">
+                    <Label>Delay (days after previous)</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      value={step.delay_days}
+                      onChange={(e) => updateStep(idx, 'delay_days', Math.max(1, parseInt(e.target.value) || 1))}
+                      className="max-w-[120px]"
+                    />
+                  </div>
+                )}
+                <div className="space-y-2">
+                  <Label>Subject {idx === 0 && '*'}</Label>
+                  <Input
+                    value={step.subject_template}
+                    onChange={(e) => updateStep(idx, 'subject_template', e.target.value)}
+                    placeholder="{{first_name}}, quick question about {{company}}"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Body {idx === 0 && '*'}</Label>
+                  <Textarea
+                    rows={4}
+                    value={step.body_template}
+                    onChange={(e) => updateStep(idx, 'body_template', e.target.value)}
+                    placeholder="Hi {{first_name}},&#10;&#10;I noticed..."
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Variables: {'{{first_name}}'} {'{{last_name}}'} {'{{company}}'} {'{{title}}'} {'{{industry}}'}
+                </p>
               </div>
-              <div>
-                <Label>Body</Label>
-                <Textarea rows={4} value={step.body_template} onChange={e => updateStep(idx, 'body_template', e.target.value)} placeholder="Hi {{first_name}},\n\nI noticed..." />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Available variables: {'{{first_name}}'} {'{{last_name}}'} {'{{company}}'} {'{{title}}'} {'{{industry}}'}
-              </p>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
-      <div className="flex justify-end gap-2">
-        <Button variant="outline" onClick={() => router.back()}>Cancel</Button>
-        <Button onClick={handleSubmit} disabled={saving || !form.name}>
-          {saving ? 'Creating...' : 'Create Campaign'}
+      {/* Error message */}
+      {error && <p className="text-sm text-destructive">{error}</p>}
+
+      {/* Navigation */}
+      <div className="flex items-center justify-between">
+        <Button variant="outline" onClick={() => (currentStep === 0 ? router.back() : setCurrentStep((s) => s - 1))}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          {currentStep === 0 ? 'Cancel' : 'Back'}
         </Button>
+
+        {currentStep < STEPS.length - 1 ? (
+          <Button onClick={() => setCurrentStep((s) => s + 1)} disabled={!canAdvance()}>
+            Next
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
+        ) : (
+          <Button onClick={handleSubmit} disabled={saving || !canAdvance()}>
+            {saving ? 'Creating...' : 'Create Campaign'}
+          </Button>
+        )}
       </div>
     </div>
   );

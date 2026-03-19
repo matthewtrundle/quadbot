@@ -2,17 +2,17 @@ import { db } from '@/lib/db';
 import { recommendations } from '@quadbot/db';
 import { eq, desc, asc, sql } from 'drizzle-orm';
 import { RecommendationList } from '@/components/recommendation-list';
+import { AlertTriangle } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
 export default async function InboxPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let recs: any[];
+  let recs: (typeof recommendations.$inferSelect)[];
+  let error = false;
+
   try {
-    // Sort by priority_rank (ascending, lower = higher priority) when available,
-    // then by created_at DESC for unranked. Exclude dropped recs (priority_rank = -1).
     recs = await db
       .select()
       .from(recommendations)
@@ -25,11 +25,18 @@ export default async function InboxPage({ params }: { params: Promise<{ id: stri
   } catch (err) {
     console.error('Inbox page DB query failed:', err);
     recs = [];
+    error = true;
   }
 
   return (
     <div className="space-y-4">
       <h2 className="text-xl font-semibold">Inbox</h2>
+      {error && (
+        <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+          <p>Failed to load recommendations. Please try refreshing the page.</p>
+        </div>
+      )}
       <RecommendationList recommendations={recs} />
     </div>
   );

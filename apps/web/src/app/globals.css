@@ -126,7 +126,10 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .animate-fade-in-up {
+    .animate-fade-in-up,
+    .float,
+    .pulse-glow,
+    .holographic {
       animation: none !important;
     }
   }

@@ -57,21 +57,14 @@ export async function checkRateLimit(
  * Uses IP address as the identifier for rate limiting.
  */
 function getClientIdentifier(req: NextRequest): string {
-  return (
-    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-    req.headers.get('x-real-ip') ||
-    'unknown'
-  );
+  return req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || req.headers.get('x-real-ip') || 'unknown';
 }
 
 /** Context object passed to Next.js route handlers (e.g. dynamic route params). */
 type RouteContext = { params: Promise<Record<string, string>> };
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- RouteHandler must accept varied param shapes from Next.js dynamic routes */
-type RouteHandler = (
-  req: NextRequest,
-  context: any,
-) => Promise<NextResponse> | NextResponse;
+type RouteHandler = (req: NextRequest, context: any) => Promise<NextResponse> | NextResponse;
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
 /**
@@ -111,9 +104,14 @@ export function withRateLimit<T extends RouteHandler>(
 
       const response = await handler(req, context);
       return response;
-    } catch {
-      // If rate limiting fails (Redis down), allow the request through
-      return handler(req, context);
+    } catch (err) {
+      // If rate limiting fails (Redis down), fail closed for safety.
+      // Log the error for monitoring but block the request.
+      console.error('[rate-limit] Redis unavailable, failing closed:', err);
+      return NextResponse.json(
+        { error: 'Service temporarily unavailable' },
+        { status: 503, headers: { 'Retry-After': '5' } },
+      );
     }
   };
 

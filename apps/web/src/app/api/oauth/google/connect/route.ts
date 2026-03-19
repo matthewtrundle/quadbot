@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { randomBytes } from 'crypto';
+import { cookies } from 'next/headers';
 
 /**
  * GET /api/oauth/google/connect?brandId=xxx
  *
  * Initiates OAuth flow to connect GSC for a specific brand.
- * Passes brandId in the state parameter so the callback can link the integration.
+ * Uses a CSRF nonce in the state parameter for security.
  */
 export async function GET(req: NextRequest) {
   const clientId = process.env.GOOGLE_CLIENT_ID;
@@ -19,6 +21,20 @@ export async function GET(req: NextRequest) {
 
   const brandId = req.nextUrl.searchParams.get('brandId') || '';
 
+  // Generate CSRF nonce and encode brandId + nonce into state
+  const nonce = randomBytes(16).toString('hex');
+  const state = Buffer.from(JSON.stringify({ brandId, nonce })).toString('base64url');
+
+  // Store nonce in a short-lived cookie for callback verification
+  const cookieStore = await cookies();
+  cookieStore.set('oauth_state_nonce', nonce, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 600, // 10 minutes
+    path: '/api/oauth/google/callback',
+  });
+
   const params = new URLSearchParams({
     client_id: clientId,
     redirect_uri: redirectUri,
@@ -26,7 +42,7 @@ export async function GET(req: NextRequest) {
     scope: 'https://www.googleapis.com/auth/webmasters.readonly https://www.googleapis.com/auth/userinfo.email',
     access_type: 'offline',
     prompt: 'consent',
-    state: brandId,
+    state,
   });
 
   return NextResponse.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`);

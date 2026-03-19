@@ -22,7 +22,7 @@ export async function contentWriter(ctx: JobContext): Promise<void> {
 
   const artifactId = payload.artifact_id as string;
   const platform = (payload.platform as string) || 'blog';
-  const targetWordCount = (payload.target_word_count as number) || 700;
+  const targetWordCount = (payload.target_word_count as number) || 1500;
 
   if (!artifactId) throw new Error('Missing required payload: artifact_id');
 

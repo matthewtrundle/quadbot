@@ -10,7 +10,7 @@ import { Switch } from '@/components/ui/switch';
 type BrandCardProps = {
   id: string;
   name: string;
-  mode: string;
+  mode: 'observe' | 'assist' | 'auto';
   modulesEnabled: string[];
   isActive: boolean;
 };
@@ -32,12 +32,11 @@ export function BrandCard({ id, name, mode, modulesEnabled, isActive: initialAct
         body: JSON.stringify({ isActive: !isActive }),
       });
 
-      if (response.ok) {
-        setIsActive(!isActive);
-        router.refresh();
-      }
-    } catch (error) {
-      console.error('Failed to toggle brand:', error);
+      if (!response.ok) throw new Error('Toggle failed');
+      setIsActive(!isActive);
+      router.refresh();
+    } catch {
+      // revert on failure — no-op since state wasn't changed optimistically
     } finally {
       setIsUpdating(false);
     }
@@ -54,9 +53,7 @@ export function BrandCard({ id, name, mode, modulesEnabled, isActive: initialAct
             </div>
           </div>
           <CardDescription>
-            {modulesEnabled.length > 0
-              ? `Modules: ${modulesEnabled.join(', ')}`
-              : 'No modules enabled'}
+            {modulesEnabled.length > 0 ? `Modules: ${modulesEnabled.join(', ')}` : 'No modules enabled'}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -64,18 +61,9 @@ export function BrandCard({ id, name, mode, modulesEnabled, isActive: initialAct
             <p className="text-sm text-muted-foreground">
               {isActive ? 'Bot will process this brand' : 'Bot paused for this brand'}
             </p>
-            <div
-              className="flex items-center gap-2"
-              onClick={handleToggle}
-            >
-              <span className="text-xs text-muted-foreground">
-                {isActive ? 'Active' : 'Paused'}
-              </span>
-              <Switch
-                checked={isActive}
-                disabled={isUpdating}
-                className="pointer-events-none"
-              />
+            <div className="flex items-center gap-2" onClick={handleToggle}>
+              <span className="text-xs text-muted-foreground">{isActive ? 'Active' : 'Paused'}</span>
+              <Switch checked={isActive} disabled={isUpdating} className="pointer-events-none" />
             </div>
           </div>
         </CardContent>
