@@ -8,6 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
     "@quadbot/db": "workspace:*",
     "@quadbot/shared": "workspace:*",
     "@radix-ui/react-alert-dialog": "^1.1.15",

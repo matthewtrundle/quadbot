@@ -6,6 +6,7 @@ import { eq } from 'drizzle-orm';
 import { notFound } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { BrandNav } from '@/components/brand-nav';
+import { ChatProvider } from '@/components/chat/chat-provider';
 
 export default async function BrandLayout({
   children,
@@ -30,14 +31,16 @@ export default async function BrandLayout({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <h1 className="text-3xl font-bold">{b.name}</h1>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+        <h1 className="text-2xl font-bold sm:text-3xl">{b.name}</h1>
         <Badge variant={b.mode === 'assist' ? 'default' : 'secondary'}>{b.mode}</Badge>
       </div>
 
       <BrandNav brandId={id} />
 
       {children}
+
+      <ChatProvider brandId={b.id} brandName={b.name} />
     </div>
   );
 }

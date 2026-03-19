@@ -904,6 +904,48 @@ export const competitorSnapshots = pgTable(
   ],
 );
 
+// === AI Chat ===
+
+export const chatMessageRoleEnum = pgEnum('chat_message_role', ['user', 'assistant', 'system']);
+
+export const chatConversations = pgTable(
+  'chat_conversations',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    brand_id: uuid('brand_id')
+      .notNull()
+      .references(() => brands.id, { onDelete: 'cascade' }),
+    user_id: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    title: text('title'),
+    created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index('idx_chat_conversations_brand').on(table.brand_id),
+    index('idx_chat_conversations_user').on(table.user_id),
+  ],
+);
+
+export const chatMessages = pgTable(
+  'chat_messages',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    conversation_id: uuid('conversation_id')
+      .notNull()
+      .references(() => chatConversations.id, { onDelete: 'cascade' }),
+    role: chatMessageRoleEnum('role').notNull(),
+    content: text('content').notNull(),
+    tool_calls: jsonb('tool_calls').$type<Record<string, unknown>[]>(),
+    tool_results: jsonb('tool_results').$type<Record<string, unknown>[]>(),
+    tokens_used: integer('tokens_used'),
+    duration_ms: integer('duration_ms'),
+    created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index('idx_chat_messages_conversation').on(table.conversation_id)],
+);
+
 // === CMS / Publishing Configuration ===
 
 export const contentPublishConfigs = pgTable(
