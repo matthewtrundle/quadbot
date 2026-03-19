@@ -946,6 +946,52 @@ export const chatMessages = pgTable(
   (table) => [index('idx_chat_messages_conversation').on(table.conversation_id)],
 );
 
+// === Client Reports ===
+
+export const reportStatusEnum = pgEnum('report_status', ['generating', 'completed', 'failed']);
+export const reportFrequencyEnum = pgEnum('report_frequency', ['weekly', 'monthly']);
+
+export const clientReports = pgTable(
+  'client_reports',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    brand_id: uuid('brand_id')
+      .notNull()
+      .references(() => brands.id, { onDelete: 'cascade' }),
+    title: varchar('title', { length: 500 }).notNull(),
+    period_start: timestamp('period_start', { withTimezone: true }).notNull(),
+    period_end: timestamp('period_end', { withTimezone: true }).notNull(),
+    status: reportStatusEnum('status').notNull().default('generating'),
+    report_data: jsonb('report_data').$type<Record<string, unknown>>(),
+    executive_summary: text('executive_summary'),
+    pdf_base64: text('pdf_base64'),
+    recipient_emails: jsonb('recipient_emails').$type<string[]>(),
+    generated_by: text('generated_by'),
+    sent_at: timestamp('sent_at', { withTimezone: true }),
+    completed_at: timestamp('completed_at', { withTimezone: true }),
+    error_message: text('error_message'),
+    created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index('idx_client_reports_brand').on(table.brand_id)],
+);
+
+export const reportSchedules = pgTable(
+  'report_schedules',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    brand_id: uuid('brand_id')
+      .notNull()
+      .references(() => brands.id, { onDelete: 'cascade' }),
+    frequency: reportFrequencyEnum('frequency').notNull(),
+    recipient_emails: jsonb('recipient_emails').$type<string[]>().notNull(),
+    next_run_at: timestamp('next_run_at', { withTimezone: true }).notNull(),
+    is_active: boolean('is_active').default(true).notNull(),
+    created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index('idx_report_schedules_brand').on(table.brand_id)],
+);
+
 // === CMS / Publishing Configuration ===
 
 export const contentPublishConfigs = pgTable(

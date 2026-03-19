@@ -13,6 +13,7 @@ const NAV_ITEMS = [
   { label: 'Playbooks', segment: 'playbooks' },
   { label: 'Executions', segment: 'executions' },
   { label: 'Evaluation', segment: 'evaluation' },
+  { label: 'Reports', segment: 'reports' },
   { label: 'Settings', segment: 'settings' },
 ];
 
@@ -20,10 +21,7 @@ export function BrandNav({ brandId }: { brandId: string }) {
   const pathname = usePathname();
 
   return (
-    <nav
-      className="flex gap-1 border-b overflow-x-auto scrollbar-none -mx-1 px-1"
-      aria-label="Brand navigation"
-    >
+    <nav className="flex gap-1 border-b overflow-x-auto scrollbar-none -mx-1 px-1" aria-label="Brand navigation">
       {NAV_ITEMS.map(({ label, segment }) => {
         const href = `/brands/${brandId}/${segment}`;
         const isActive = pathname === href || pathname.startsWith(`${href}/`);

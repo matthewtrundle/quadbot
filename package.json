@@ -49,5 +49,9 @@
     "*.{json,md,yml,yaml}": [
       "prettier --write"
     ]
+  },
+  "dependencies": {
+    "@types/pdfkit": "^0.17.5",
+    "pdfkit": "^0.18.0"
   }
 }

@@ -21,6 +21,7 @@ const triggerSchema = z.object({
     'analytics_insights',
     'cross_channel_correlator',
     'brand_profiler',
+    'generate_client_report',
   ]),
 });
 
@@ -37,11 +38,7 @@ const _POST = async function POST(req: NextRequest) {
     const { brandId, jobType } = triggerSchema.parse(body);
 
     // Verify brand exists
-    const [brand] = await db
-      .select()
-      .from(brands)
-      .where(eq(brands.id, brandId))
-      .limit(1);
+    const [brand] = await db.select().from(brands).where(eq(brands.id, brandId)).limit(1);
 
     if (!brand) {
       return NextResponse.json({ error: 'Brand not found' }, { status: 404 });
@@ -108,6 +105,7 @@ export async function GET() {
       { type: 'analytics_insights', description: 'Analytics Insights - Analyze GA4 data' },
       { type: 'cross_channel_correlator', description: 'Cross-Channel - Find correlations' },
       { type: 'brand_profiler', description: 'Brand Profiler - Auto-detect brand profile from website' },
+      { type: 'generate_client_report', description: 'Client Report - Generate and email a client performance report' },
     ],
   });
 }
