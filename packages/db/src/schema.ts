@@ -851,6 +851,29 @@ export const webhooks = pgTable(
   (table) => [index('idx_webhooks_brand').on(table.brand_id)],
 );
 
+// Integration Hub: Webhook Delivery Log
+export const webhookDeliveries = pgTable(
+  'webhook_deliveries',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    webhook_id: uuid('webhook_id')
+      .notNull()
+      .references(() => webhooks.id, { onDelete: 'cascade' }),
+    event_type: varchar('event_type', { length: 100 }).notNull(),
+    payload: jsonb('payload').$type<Record<string, unknown>>(),
+    status_code: integer('status_code'),
+    response_body: text('response_body'),
+    duration_ms: integer('duration_ms'),
+    success: boolean('success').notNull(),
+    error: text('error'),
+    created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index('idx_webhook_deliveries_webhook').on(table.webhook_id),
+    index('idx_webhook_deliveries_created').on(table.created_at),
+  ],
+);
+
 // Phase 2: Next-Level Features — Embeddings (pgvector)
 export const embeddings = pgTable(
   'embeddings',

@@ -14,6 +14,7 @@ const NAV_ITEMS = [
   { label: 'Executions', segment: 'executions' },
   { label: 'Evaluation', segment: 'evaluation' },
   { label: 'Reports', segment: 'reports' },
+  { label: 'Integrations', segment: 'integrations' },
   { label: 'Settings', segment: 'settings' },
 ];
 
