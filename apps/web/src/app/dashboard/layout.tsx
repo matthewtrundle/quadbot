@@ -6,6 +6,7 @@ import { Activity } from 'lucide-react';
 
 const tabs = [
   { href: '/dashboard', label: 'Overview', exact: true },
+  { href: '/dashboard/compare', label: 'Compare' },
   { href: '/dashboard/daily-diff', label: 'Daily Diff' },
   { href: '/dashboard/improvements', label: 'Improvements' },
   { href: '/dashboard/usage', label: 'Usage & Costs' },
