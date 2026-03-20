@@ -367,6 +367,60 @@ export const evaluationRuns = pgTable('evaluation_runs', {
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
+// Predictive Analytics Engine
+
+export const predictions = pgTable(
+  'predictions',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    brand_id: uuid('brand_id')
+      .notNull()
+      .references(() => brands.id, { onDelete: 'cascade' }),
+    metric_key: varchar('metric_key', { length: 100 }).notNull(),
+    source: varchar('source', { length: 50 }).notNull(),
+    predicted_value: real('predicted_value').notNull(),
+    confidence: real('confidence').notNull(),
+    prediction_date: timestamp('prediction_date', { withTimezone: true }).notNull(),
+    actual_value: real('actual_value'),
+    accuracy: real('accuracy'),
+    context: jsonb('context').$type<Record<string, unknown>>().default({}),
+    model_version: varchar('model_version', { length: 50 }),
+    created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    idx_predictions_brand: index('idx_predictions_brand').on(table.brand_id),
+    idx_predictions_brand_metric: index('idx_predictions_brand_metric').on(table.brand_id, table.metric_key),
+    idx_predictions_date: index('idx_predictions_date').on(table.prediction_date),
+  }),
+);
+
+export const anomalyAlerts = pgTable(
+  'anomaly_alerts',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    brand_id: uuid('brand_id')
+      .notNull()
+      .references(() => brands.id, { onDelete: 'cascade' }),
+    metric_key: varchar('metric_key', { length: 100 }).notNull(),
+    source: varchar('source', { length: 50 }).notNull(),
+    alert_type: varchar('alert_type', { length: 50 }).notNull(),
+    severity: varchar('severity', { length: 20 }).notNull().default('medium'),
+    current_value: real('current_value').notNull(),
+    expected_value: real('expected_value').notNull(),
+    deviation_pct: real('deviation_pct').notNull(),
+    description: text('description').notNull(),
+    is_acknowledged: boolean('is_acknowledged').notNull().default(false),
+    acknowledged_at: timestamp('acknowledged_at', { withTimezone: true }),
+    context: jsonb('context').$type<Record<string, unknown>>().default({}),
+    detected_at: timestamp('detected_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    idx_anomalies_brand: index('idx_anomalies_brand').on(table.brand_id),
+    idx_anomalies_severity: index('idx_anomalies_severity').on(table.severity),
+    idx_anomalies_brand_unacked: index('idx_anomalies_brand_unacked').on(table.brand_id, table.is_acknowledged),
+  }),
+);
+
 // Phase 5: Learning Loop Enhancement Tables
 
 export const promptPerformance = pgTable('prompt_performance', {

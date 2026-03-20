@@ -13,6 +13,7 @@ const NAV_ITEMS = [
   { label: 'Playbooks', segment: 'playbooks' },
   { label: 'Executions', segment: 'executions' },
   { label: 'Evaluation', segment: 'evaluation' },
+  { label: 'Predictions', segment: 'predictions' },
   { label: 'Reports', segment: 'reports' },
   { label: 'Integrations', segment: 'integrations' },
   { label: 'Settings', segment: 'settings' },
