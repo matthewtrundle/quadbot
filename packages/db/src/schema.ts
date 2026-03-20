@@ -265,6 +265,7 @@ export const artifacts = pgTable('artifacts', {
   version: integer('version').notNull().default(1),
   parent_artifact_id: uuid('parent_artifact_id'),
   status: varchar('status', { length: 50 }).notNull().default('draft'),
+  scheduled_publish_at: timestamp('scheduled_publish_at', { withTimezone: true }),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
