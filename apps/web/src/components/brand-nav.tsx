@@ -18,6 +18,7 @@ const NAV_ITEMS = [
   { label: 'Content Gaps', segment: 'content-gaps' },
   { label: 'GBP', segment: 'gbp' },
   { label: 'SEO Intel', segment: 'seo-intelligence' },
+  { label: 'Seasonal', segment: 'seasonal' },
   { label: 'Reports', segment: 'reports' },
   { label: 'Integrations', segment: 'integrations' },
   { label: 'Branding', segment: 'settings/branding' },

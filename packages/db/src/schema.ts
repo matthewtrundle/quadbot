@@ -1349,3 +1349,38 @@ export const gbpReviews = pgTable(
     uniqueIndex('idx_gbp_reviews_external').on(table.brand_id, table.review_id),
   ],
 );
+
+// === Seasonal Content Planning ===
+
+export const seasonalTopics = pgTable(
+  'seasonal_topics',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    brand_id: uuid('brand_id')
+      .notNull()
+      .references(() => brands.id, { onDelete: 'cascade' }),
+    topic: varchar('topic', { length: 500 }).notNull(),
+    category: varchar('category', { length: 100 }), // 'holiday', 'seasonal', 'industry_event', 'trending'
+    peak_month: integer('peak_month').notNull(), // 1-12
+    peak_start_week: integer('peak_start_week'), // week of year (1-52) when interest starts rising
+    peak_end_week: integer('peak_end_week'), // week of year when interest drops
+    historical_volume: integer('historical_volume'), // estimated search volume during peak
+    yoy_growth: real('yoy_growth'), // year-over-year growth percentage
+    recommended_publish_weeks_before: integer('recommended_publish_weeks_before').notNull().default(4),
+    content_suggestions: jsonb('content_suggestions').$type<string[]>().default([]),
+    target_keywords: jsonb('target_keywords').$type<string[]>().default([]),
+    competitor_coverage: jsonb('competitor_coverage')
+      .$type<{ domain: string; url?: string; title?: string }[]>()
+      .default([]),
+    status: varchar('status', { length: 20 }).notNull().default('upcoming'), // 'upcoming', 'in_progress', 'published', 'skipped'
+    priority_score: real('priority_score'), // 0-100 computed score
+    source: varchar('source', { length: 50 }).notNull().default('auto'), // 'auto', 'manual', 'gsc_historical'
+    created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index('idx_seasonal_topics_brand').on(table.brand_id),
+    index('idx_seasonal_topics_peak').on(table.brand_id, table.peak_month),
+    index('idx_seasonal_topics_status').on(table.brand_id, table.status),
+  ],
+);

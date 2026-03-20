@@ -80,6 +80,8 @@ import { gbpMonitor } from './jobs/gbp-monitor.js';
 import { algorithmUpdateDetector } from './jobs/algorithm-update-detector.js';
 import { searchQueryMiner } from './jobs/search-query-miner.js';
 import { autoRedirectManager } from './jobs/auto-redirect-manager.js';
+// Seasonal Content Planning
+import { seasonalContentPlanner } from './jobs/seasonal-content-planner.js';
 
 // Register job handlers
 registerHandler(JobType.COMMUNITY_MODERATE_POST, communityModeratePost);
@@ -146,6 +148,8 @@ registerHandler(JobType.GBP_MONITOR, gbpMonitor);
 registerHandler(JobType.ALGORITHM_UPDATE_DETECTOR, algorithmUpdateDetector);
 registerHandler(JobType.SEARCH_QUERY_MINER, searchQueryMiner);
 registerHandler(JobType.AUTO_REDIRECT_MANAGER, autoRedirectManager);
+// Seasonal Content Planning
+registerHandler(JobType.SEASONAL_CONTENT_PLANNER, seasonalContentPlanner);
 
 async function handleMessage(message: string): Promise<void> {
   let parsed;

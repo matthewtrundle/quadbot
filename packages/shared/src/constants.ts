@@ -64,6 +64,8 @@ export const JobType = {
   ALGORITHM_UPDATE_DETECTOR: 'algorithm_update_detector',
   SEARCH_QUERY_MINER: 'search_query_miner',
   AUTO_REDIRECT_MANAGER: 'auto_redirect_manager',
+  // Seasonal Content Planning
+  SEASONAL_CONTENT_PLANNER: 'seasonal_content_planner',
 } as const;
 export type JobType = (typeof JobType)[keyof typeof JobType];
 
@@ -137,6 +139,8 @@ export const EventType = {
   ALGORITHM_UPDATE_DETECTED: 'algorithm.update.detected',
   SEARCH_QUERY_OPPORTUNITY: 'search_query.opportunity',
   REDIRECT_SUGGESTED: 'redirect.suggested',
+  // Seasonal Content Planning
+  SEASONAL_TOPIC_DETECTED: 'seasonal.topic.detected',
 } as const;
 export type EventType = (typeof EventType)[keyof typeof EventType];
 
