@@ -66,6 +66,36 @@ export const brands = pgTable('brands', {
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
+export const brandWhitelabel = pgTable(
+  'brand_whitelabel',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    brand_id: uuid('brand_id')
+      .notNull()
+      .unique()
+      .references(() => brands.id, { onDelete: 'cascade' }),
+    logo_url: text('logo_url'),
+    favicon_url: text('favicon_url'),
+    primary_color: varchar('primary_color', { length: 20 }),
+    secondary_color: varchar('secondary_color', { length: 20 }),
+    accent_color: varchar('accent_color', { length: 20 }),
+    background_color: varchar('background_color', { length: 20 }),
+    foreground_color: varchar('foreground_color', { length: 20 }),
+    font_family: varchar('font_family', { length: 100 }),
+    custom_domain: varchar('custom_domain', { length: 255 }),
+    app_name: varchar('app_name', { length: 100 }),
+    app_tagline: varchar('app_tagline', { length: 255 }),
+    footer_text: text('footer_text'),
+    hide_powered_by: boolean('hide_powered_by').notNull().default(false),
+    custom_css: text('custom_css'),
+    email_from_name: varchar('email_from_name', { length: 100 }),
+    email_from_address: varchar('email_from_address', { length: 255 }),
+    created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [uniqueIndex('idx_brand_whitelabel_brand_id').on(table.brand_id)],
+);
+
 export const brandIntegrations = pgTable(
   'brand_integrations',
   {

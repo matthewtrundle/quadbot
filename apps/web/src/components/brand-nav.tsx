@@ -16,6 +16,7 @@ const NAV_ITEMS = [
   { label: 'Reports', segment: 'reports' },
   { label: 'Integrations', segment: 'integrations' },
   { label: 'Settings', segment: 'settings' },
+  { label: 'Branding', segment: 'settings/branding' },
 ];
 
 export function BrandNav({ brandId }: { brandId: string }) {
