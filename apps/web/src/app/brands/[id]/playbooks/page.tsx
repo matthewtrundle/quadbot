@@ -1,8 +1,10 @@
 import { db } from '@/lib/db';
 import { playbooks } from '@quadbot/db';
 import { eq, desc } from 'drizzle-orm';
+import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
+import { PlaybookActions } from '@/components/playbooks/playbook-actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +21,17 @@ export default async function PlaybooksPage({ params }: { params: Promise<{ id: 
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold">Playbooks</h2>
-        <span className="text-sm text-muted-foreground">{allPlaybooks.length} playbook{allPlaybooks.length !== 1 ? 's' : ''}</span>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-muted-foreground">
+            {allPlaybooks.length} playbook{allPlaybooks.length !== 1 ? 's' : ''}
+          </span>
+          <Link
+            href={`/brands/${brandId}/playbooks/marketplace`}
+            className="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 border border-border bg-transparent hover:bg-secondary hover:border-primary/50 transition-all duration-200"
+          >
+            Browse Marketplace
+          </Link>
+        </div>
       </div>
 
       {allPlaybooks.length === 0 ? (
@@ -61,13 +73,27 @@ export default async function PlaybooksPage({ params }: { params: Promise<{ id: 
                         </p>
                       )}
                     </div>
-                    <div className="text-right">
-                      <p className="text-xs text-muted-foreground">{actions.length} action{actions.length !== 1 ? 's' : ''}</p>
-                      {actions.map((a, i) => (
-                        <Badge key={i} variant="secondary" className="text-[10px] ml-1">
-                          {a.type || a.description || 'action'}
-                        </Badge>
-                      ))}
+                    <div className="flex items-start gap-2">
+                      <div className="text-right">
+                        <p className="text-xs text-muted-foreground">
+                          {actions.length} action{actions.length !== 1 ? 's' : ''}
+                        </p>
+                        {actions.map((a, i) => (
+                          <Badge key={i} variant="secondary" className="text-[10px] ml-1">
+                            {a.type || a.description || 'action'}
+                          </Badge>
+                        ))}
+                      </div>
+                      <PlaybookActions
+                        playbook={{
+                          id: pb.id,
+                          name: pb.name,
+                          trigger_type: pb.trigger_type,
+                          trigger_conditions: pb.trigger_conditions,
+                          actions: pb.actions,
+                        }}
+                        brandId={brandId}
+                      />
                     </div>
                   </div>
                 </CardContent>

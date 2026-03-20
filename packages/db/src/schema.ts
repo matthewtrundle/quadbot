@@ -832,6 +832,59 @@ export const playbooks = pgTable(
   (table) => [index('idx_playbooks_brand').on(table.brand_id)],
 );
 
+// Phase 9: Playbook Marketplace
+export const playbookTemplates = pgTable(
+  'playbook_templates',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    slug: varchar('slug', { length: 255 }).notNull().unique(),
+    name: varchar('name', { length: 255 }).notNull(),
+    description: text('description').notNull(),
+    category: varchar('category', { length: 100 }).notNull(),
+    vertical: varchar('vertical', { length: 100 }),
+    trigger_type: varchar('trigger_type', { length: 100 }).notNull(),
+    trigger_conditions: jsonb('trigger_conditions').$type<Record<string, unknown>>().notNull().default({}),
+    actions: jsonb('actions').$type<Record<string, unknown>[]>().notNull().default([]),
+    tags: jsonb('tags').$type<string[]>().notNull().default([]),
+    author_brand_id: uuid('author_brand_id').references(() => brands.id, { onDelete: 'set null' }),
+    author_name: varchar('author_name', { length: 255 }),
+    is_official: boolean('is_official').notNull().default(false),
+    install_count: integer('install_count').notNull().default(0),
+    rating_sum: integer('rating_sum').notNull().default(0),
+    rating_count: integer('rating_count').notNull().default(0),
+    is_published: boolean('is_published').notNull().default(true),
+    version: integer('version').notNull().default(1),
+    created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index('idx_templates_category').on(table.category),
+    uniqueIndex('idx_templates_slug').on(table.slug),
+    index('idx_templates_vertical').on(table.vertical),
+  ],
+);
+
+export const playbookInstalls = pgTable(
+  'playbook_installs',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    template_id: uuid('template_id')
+      .notNull()
+      .references(() => playbookTemplates.id, { onDelete: 'cascade' }),
+    brand_id: uuid('brand_id')
+      .notNull()
+      .references(() => brands.id, { onDelete: 'cascade' }),
+    playbook_id: uuid('playbook_id').references(() => playbooks.id, { onDelete: 'set null' }),
+    rating: integer('rating'),
+    installed_at: timestamp('installed_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index('idx_installs_template').on(table.template_id),
+    index('idx_installs_brand').on(table.brand_id),
+    uniqueIndex('idx_installs_template_brand').on(table.template_id, table.brand_id),
+  ],
+);
+
 // Phase 8C: Outgoing Webhooks
 export const webhooks = pgTable(
   'webhooks',
