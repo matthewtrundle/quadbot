@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Sparkles, LayoutTemplate } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -118,9 +118,23 @@ export default async function OutreachPage({ params }: { params: Promise<{ id: s
 
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">{allCampaigns.length} campaigns</p>
-        <Link href={`/brands/${id}/outreach/campaigns/new`}>
-          <Button size="sm">New Campaign</Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href={`/brands/${id}/outreach/campaigns/builder`}>
+            <Button size="sm" variant="outline">
+              <Sparkles className="mr-2 h-4 w-4" />
+              AI Builder
+            </Button>
+          </Link>
+          <Link href={`/brands/${id}/outreach/campaigns/templates`}>
+            <Button size="sm" variant="outline">
+              <LayoutTemplate className="mr-2 h-4 w-4" />
+              Templates
+            </Button>
+          </Link>
+          <Link href={`/brands/${id}/outreach/campaigns/new`}>
+            <Button size="sm">New Campaign</Button>
+          </Link>
+        </div>
       </div>
 
       {allCampaigns.length === 0 ? (

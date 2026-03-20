@@ -800,6 +800,77 @@ export const outreachConversations = pgTable(
   ],
 );
 
+// === Autonomous Campaign Builder ===
+
+export const campaignTemplates = pgTable(
+  'campaign_templates',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    name: varchar('name', { length: 255 }).notNull(),
+    description: text('description').notNull(),
+    category: varchar('category', { length: 100 }).notNull(),
+    vertical: varchar('vertical', { length: 100 }),
+    default_steps: jsonb('default_steps')
+      .$type<
+        {
+          step_order: number;
+          delay_days: number;
+          subject_template: string;
+          body_template: string;
+          is_reply_to_previous: boolean;
+        }[]
+      >()
+      .notNull()
+      .default([]),
+    default_schedule: jsonb('default_schedule')
+      .$type<{
+        send_days?: number[];
+        send_window_start?: string;
+        send_window_end?: string;
+        daily_send_limit?: number;
+        timezone?: string;
+      }>()
+      .notNull()
+      .default({}),
+    suggested_send_days: integer('suggested_send_days').notNull().default(5),
+    tags: jsonb('tags').$type<string[]>().notNull().default([]),
+    is_system: boolean('is_system').notNull().default(false),
+    created_by_brand_id: uuid('created_by_brand_id').references(() => brands.id, { onDelete: 'set null' }),
+    install_count: integer('install_count').notNull().default(0),
+    created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index('idx_campaign_templates_category').on(table.category)],
+);
+
+export const campaignAbTests = pgTable(
+  'campaign_ab_tests',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    campaign_id: uuid('campaign_id')
+      .notNull()
+      .references(() => campaigns.id, { onDelete: 'cascade' }),
+    name: varchar('name', { length: 255 }).notNull(),
+    test_type: varchar('test_type', { length: 50 }).notNull(),
+    variant_a: jsonb('variant_a').$type<Record<string, unknown>>().notNull(),
+    variant_b: jsonb('variant_b').$type<Record<string, unknown>>().notNull(),
+    split_percentage: integer('split_percentage').notNull().default(50),
+    status: varchar('status', { length: 20 }).notNull().default('active'),
+    winner: varchar('winner', { length: 10 }),
+    variant_a_stats: jsonb('variant_a_stats')
+      .$type<{ sent?: number; opened?: number; clicked?: number; replied?: number }>()
+      .default({}),
+    variant_b_stats: jsonb('variant_b_stats')
+      .$type<{ sent?: number; opened?: number; clicked?: number; replied?: number }>()
+      .default({}),
+    started_at: timestamp('started_at', { withTimezone: true }),
+    completed_at: timestamp('completed_at', { withTimezone: true }),
+    created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index('idx_ab_tests_campaign').on(table.campaign_id)],
+);
+
 export const outreachMessages = pgTable(
   'outreach_messages',
   {
