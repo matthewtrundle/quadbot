@@ -76,6 +76,10 @@ import { geoVisibilityTracker } from './jobs/geo-visibility-tracker.js';
 import { contentGapAnalyzer } from './jobs/content-gap-analyzer.js';
 // Google Business Profile Monitor
 import { gbpMonitor } from './jobs/gbp-monitor.js';
+// Algorithm & Query Intelligence
+import { algorithmUpdateDetector } from './jobs/algorithm-update-detector.js';
+import { searchQueryMiner } from './jobs/search-query-miner.js';
+import { autoRedirectManager } from './jobs/auto-redirect-manager.js';
 
 // Register job handlers
 registerHandler(JobType.COMMUNITY_MODERATE_POST, communityModeratePost);
@@ -138,6 +142,10 @@ registerHandler(JobType.GEO_VISIBILITY_TRACKER, geoVisibilityTracker);
 registerHandler(JobType.CONTENT_GAP_ANALYZER, contentGapAnalyzer);
 // Google Business Profile Monitor
 registerHandler(JobType.GBP_MONITOR, gbpMonitor);
+// Algorithm & Query Intelligence
+registerHandler(JobType.ALGORITHM_UPDATE_DETECTOR, algorithmUpdateDetector);
+registerHandler(JobType.SEARCH_QUERY_MINER, searchQueryMiner);
+registerHandler(JobType.AUTO_REDIRECT_MANAGER, autoRedirectManager);
 
 async function handleMessage(message: string): Promise<void> {
   let parsed;
