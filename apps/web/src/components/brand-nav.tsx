@@ -14,10 +14,13 @@ const NAV_ITEMS = [
   { label: 'Executions', segment: 'executions' },
   { label: 'Evaluation', segment: 'evaluation' },
   { label: 'Predictions', segment: 'predictions' },
+  { label: 'GEO', segment: 'geo' },
+  { label: 'Content Gaps', segment: 'content-gaps' },
+  { label: 'GBP', segment: 'gbp' },
   { label: 'Reports', segment: 'reports' },
   { label: 'Integrations', segment: 'integrations' },
-  { label: 'Settings', segment: 'settings' },
   { label: 'Branding', segment: 'settings/branding' },
+  { label: 'Settings', segment: 'settings' },
 ];
 
 export function BrandNav({ brandId }: { brandId: string }) {

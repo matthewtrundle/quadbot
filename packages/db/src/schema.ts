@@ -1255,3 +1255,97 @@ export const contentPublishConfigs = pgTable(
   },
   (table) => [index('idx_content_publish_configs_brand').on(table.brand_id)],
 );
+
+// === GEO / AI Search Visibility ===
+
+export const geoVisibilityScores = pgTable(
+  'geo_visibility_scores',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    brand_id: uuid('brand_id')
+      .notNull()
+      .references(() => brands.id, { onDelete: 'cascade' }),
+    query: text('query').notNull(),
+    platform: varchar('platform', { length: 50 }).notNull(), // 'perplexity', 'chatgpt', 'google_aio', 'claude'
+    is_mentioned: boolean('is_mentioned').notNull(),
+    is_cited: boolean('is_cited').notNull().default(false),
+    position: integer('position'),
+    snippet: text('snippet'),
+    competitor_mentions: jsonb('competitor_mentions').$type<string[]>().default([]),
+    raw_response: text('raw_response'),
+    checked_at: timestamp('checked_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index('idx_geo_brand').on(table.brand_id),
+    index('idx_geo_brand_platform').on(table.brand_id, table.platform),
+  ],
+);
+
+export const contentGaps = pgTable(
+  'content_gaps',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    brand_id: uuid('brand_id')
+      .notNull()
+      .references(() => brands.id, { onDelete: 'cascade' }),
+    topic: varchar('topic', { length: 255 }).notNull(),
+    competitor_url: text('competitor_url'),
+    competitor_domain: varchar('competitor_domain', { length: 255 }),
+    estimated_volume: integer('estimated_volume'),
+    difficulty: varchar('difficulty', { length: 20 }), // 'easy', 'medium', 'hard'
+    opportunity_score: real('opportunity_score').notNull(), // 0-100
+    status: varchar('status', { length: 20 }).notNull().default('open'), // 'open', 'planned', 'created', 'dismissed'
+    brief_artifact_id: uuid('brief_artifact_id').references(() => artifacts.id, { onDelete: 'set null' }),
+    detected_at: timestamp('detected_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index('idx_content_gaps_brand').on(table.brand_id),
+    index('idx_content_gaps_score').on(table.opportunity_score),
+  ],
+);
+
+export const gbpMetrics = pgTable(
+  'gbp_metrics',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    brand_id: uuid('brand_id')
+      .notNull()
+      .references(() => brands.id, { onDelete: 'cascade' }),
+    total_reviews: integer('total_reviews').notNull().default(0),
+    average_rating: real('average_rating'),
+    new_reviews_count: integer('new_reviews_count').notNull().default(0),
+    direction_requests: integer('direction_requests'),
+    phone_calls: integer('phone_calls'),
+    website_clicks: integer('website_clicks'),
+    photo_views: integer('photo_views'),
+    search_impressions: integer('search_impressions'),
+    response_rate: real('response_rate'),
+    captured_at: timestamp('captured_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index('idx_gbp_brand').on(table.brand_id)],
+);
+
+export const gbpReviews = pgTable(
+  'gbp_reviews',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    brand_id: uuid('brand_id')
+      .notNull()
+      .references(() => brands.id, { onDelete: 'cascade' }),
+    review_id: varchar('review_id', { length: 255 }).notNull(),
+    author_name: varchar('author_name', { length: 255 }),
+    rating: integer('rating').notNull(), // 1-5 stars
+    text: text('text'),
+    reply_text: text('reply_text'),
+    reply_status: varchar('reply_status', { length: 20 }).notNull().default('pending'), // 'pending', 'draft', 'published', 'skipped'
+    ai_draft_reply: text('ai_draft_reply'),
+    sentiment: varchar('sentiment', { length: 20 }), // 'positive', 'neutral', 'negative'
+    published_at: timestamp('published_at', { withTimezone: true }),
+    replied_at: timestamp('replied_at', { withTimezone: true }),
+    created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index('idx_gbp_reviews_brand').on(table.brand_id),
+    uniqueIndex('idx_gbp_reviews_external').on(table.brand_id, table.review_id),
+  ],
+);

@@ -56,6 +56,10 @@ export const JobType = {
   COMPETITOR_MONITOR: 'competitor_monitor',
   SCHEMA_ORG_ANALYZER: 'schema_org_analyzer',
   PAGESPEED_MONITOR: 'pagespeed_monitor',
+  // GEO / AI Search Visibility
+  GEO_VISIBILITY_TRACKER: 'geo_visibility_tracker',
+  CONTENT_GAP_ANALYZER: 'content_gap_analyzer',
+  GBP_MONITOR: 'gbp_monitor',
 } as const;
 export type JobType = (typeof JobType)[keyof typeof JobType];
 
@@ -121,6 +125,10 @@ export const EventType = {
   JOB_COMPLETED: 'job.completed',
   ANOMALY_DETECTED: 'anomaly.detected',
   CONTENT_DECAY_DETECTED: 'content_decay.detected',
+  // GEO / AI Search Visibility
+  GEO_VISIBILITY_CHECKED: 'geo.visibility.checked',
+  CONTENT_GAP_DETECTED: 'content_gap.detected',
+  GBP_REVIEW_RECEIVED: 'gbp.review.received',
 } as const;
 export type EventType = (typeof EventType)[keyof typeof EventType];
 
