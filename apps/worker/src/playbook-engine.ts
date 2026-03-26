@@ -2,6 +2,7 @@ import { playbooks, recommendations, actionDrafts } from '@quadbot/db';
 import type { Database } from '@quadbot/db';
 import { eq, and } from 'drizzle-orm';
 import { logger } from './logger.js';
+import { tryAutoApprove } from './lib/auto-approve.js';
 
 type Playbook = typeof playbooks.$inferSelect;
 
@@ -98,14 +99,30 @@ export async function executePlaybook(
   }[];
 
   for (const action of actions) {
-    await db.insert(actionDrafts).values({
-      brand_id: brandId,
-      recommendation_id: recommendationId,
-      type: action.type || 'flag_for_review',
-      payload: action.payload || {},
-      risk: (action.risk as 'low' | 'medium' | 'high') || 'low',
-      status: 'pending',
-      guardrails_applied: { playbook_id: playbook.id, playbook_name: playbook.name },
+    const actionType = action.type || 'flag_for_review';
+    const actionRisk = (action.risk as 'low' | 'medium' | 'high') || 'low';
+
+    const [draft] = await db
+      .insert(actionDrafts)
+      .values({
+        brand_id: brandId,
+        recommendation_id: recommendationId,
+        type: actionType,
+        payload: action.payload || {},
+        risk: actionRisk,
+        status: 'pending',
+        guardrails_applied: { playbook_id: playbook.id, playbook_name: playbook.name },
+      })
+      .returning();
+
+    // Auto-approve if brand is in auto mode
+    await tryAutoApprove(db, {
+      draftId: draft.id,
+      brandId,
+      actionType,
+      actionRisk,
+      recommendationId,
+      source: 'playbook_engine',
     });
   }
 
@@ -119,10 +136,13 @@ export async function executePlaybook(
     })
     .where(eq(playbooks.id, playbook.id));
 
-  logger.info({
-    playbookId: playbook.id,
-    playbookName: playbook.name,
-    recommendationId,
-    actionsCreated: actions.length,
-  }, 'Playbook executed');
+  logger.info(
+    {
+      playbookId: playbook.id,
+      playbookName: playbook.name,
+      recommendationId,
+      actionsCreated: actions.length,
+    },
+    'Playbook executed',
+  );
 }

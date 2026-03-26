@@ -5,6 +5,7 @@ import type { JobContext } from '../registry.js';
 import { logger } from '../logger.js';
 import { emitEvent } from '../event-emitter.js';
 import { contentWriter } from './content-writer.js';
+import { tryAutoApprove } from '../lib/auto-approve.js';
 
 /**
  * Content Automation Orchestrator
@@ -102,16 +103,19 @@ export async function contentAutomation(ctx: JobContext): Promise<void> {
           ? { artifact_id: generated.id, publish_config_id: githubConfig.id }
           : { artifact_id: generated.id };
 
-        await db.insert(actionDrafts).values({
-          brand_id: brandId,
-          recommendation_id: brief.recommendation_id,
-          type: executorType,
-          payload: publishPayload,
-          risk: 'medium',
-          guardrails_applied: {},
-          requires_approval: true,
-          status: 'pending',
-        });
+        const [publishDraft] = await db
+          .insert(actionDrafts)
+          .values({
+            brand_id: brandId,
+            recommendation_id: brief.recommendation_id,
+            type: executorType,
+            payload: publishPayload,
+            risk: 'medium',
+            guardrails_applied: {},
+            requires_approval: true,
+            status: 'pending',
+          })
+          .returning();
 
         await emitEvent(
           EventType.ACTION_DRAFT_CREATED,
@@ -124,6 +128,16 @@ export async function contentAutomation(ctx: JobContext): Promise<void> {
           `content-draft:${generated.id}`,
           'content_automation',
         );
+
+        // Auto-approve if brand is in auto mode
+        await tryAutoApprove(db, {
+          draftId: publishDraft.id,
+          brandId,
+          actionType: executorType,
+          actionRisk: 'medium',
+          recommendationId: brief.recommendation_id,
+          source: 'content_automation',
+        });
       }
 
       logger.info(

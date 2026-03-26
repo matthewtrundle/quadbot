@@ -7,6 +7,7 @@ import { loadActivePrompt } from '../prompt-loader.js';
 import { logger } from '../logger.js';
 import { emitEvent } from '../event-emitter.js';
 import { EventType } from '@quadbot/shared';
+import { tryAutoApprove } from '../lib/auto-approve.js';
 
 type RecommendationData = Record<string, unknown>;
 
@@ -210,62 +211,24 @@ export async function actionDraftGenerator(ctx: JobContext): Promise<void> {
     'action_draft_generator',
   );
 
-  // Auto-approve logic: check auto mode first, then execution rules
-  const AUTO_APPROVE_TYPES = new Set([
-    'github-publish',
-    'content-publisher',
-    'gsc-index-request',
-    'gsc-inspection',
-    'gsc-sitemap-notify',
-    'update_content',
-    'update_meta',
-    'publish_post',
-  ]);
-
-  const AUTO_BLOCK_TYPES = new Set(['flag_for_review', 'general']);
-
-  const riskLevels: Record<string, number> = { low: 1, medium: 2, high: 3 };
-
-  // Auto mode: auto-approve safe action types at low/medium risk
-  if (brand[0].mode === 'auto') {
-    const draftRiskLevel = riskLevels[actionRisk] ?? 3;
-    const isSafeType =
-      AUTO_APPROVE_TYPES.has(actionType) && !AUTO_BLOCK_TYPES.has(actionType) && !actionType.startsWith('ads-');
-    const isSafeRisk = draftRiskLevel <= 2; // low or medium
-
-    if (isSafeType && isSafeRisk) {
-      await db
-        .update(actionDrafts)
-        .set({ status: 'approved', updated_at: new Date() })
-        .where(eq(actionDrafts.id, draft.id));
-
-      await emitEvent(
-        EventType.ACTION_DRAFT_APPROVED,
-        brandId,
-        { action_draft_id: draft.id, recommendation_id: recommendationId, auto_approved: true, mode: 'auto' },
-        `auto-approved:${draft.id}`,
-        'action_draft_generator',
-      );
-
-      logger.info(
-        { jobId, draftId: draft.id, type: actionType, risk: actionRisk },
-        'Action draft auto-approved by auto mode',
-      );
-    } else {
-      logger.info(
-        { jobId, draftId: draft.id, type: actionType, risk: actionRisk, isSafeType, isSafeRisk },
-        'Action draft requires manual approval (blocked by auto mode safety)',
-      );
-    }
-  }
+  // Auto mode: use shared auto-approve logic
+  await tryAutoApprove(db, {
+    draftId: draft.id,
+    brandId,
+    actionType,
+    actionRisk,
+    recommendationId,
+    source: 'action_draft_generator',
+  });
 
   // Assist mode: check execution rules for auto-approval
   if (brand[0].mode === 'assist') {
     const [rules] = await db.select().from(executionRules).where(eq(executionRules.brand_id, brandId)).limit(1);
 
     if (rules?.auto_execute) {
-      const draftRiskLevel = riskLevels[actionRisk] ?? 3;
-      const maxRiskLevel = riskLevels[rules.max_risk] ?? 1;
+      const assistRiskLevels: Record<string, number> = { low: 1, medium: 2, high: 3 };
+      const draftRiskLevel = assistRiskLevels[actionRisk] ?? 3;
+      const maxRiskLevel = assistRiskLevels[rules.max_risk] ?? 1;
       const confidence = recommendation.confidence ?? 0;
       const allowedTypes = (rules.allowed_action_types as string[]) || [];
 
