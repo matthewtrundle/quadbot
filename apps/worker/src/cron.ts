@@ -106,8 +106,8 @@ export function startCronScheduler(redis: Redis): void {
     await enqueueForAllBrands(redis, JobType.BENCHMARK_GENERATOR);
   });
 
-  // Content Automation - daily at 9:00 AM (picks up trend briefs from daily trend scan)
-  cron.schedule('0 9 * * *', async () => {
+  // Content Automation - daily at 9:30 AM (after trend scan at 9:00 AM produces briefs)
+  cron.schedule('30 9 * * *', async () => {
     logger.info('Cron: triggering content automation for all brands');
     await enqueueForAllBrands(redis, JobType.CONTENT_AUTOMATION);
   });

@@ -403,6 +403,12 @@ export const contentWriterOutputSchema = z.object({
       linkedin: z.string().max(700).optional(),
     })
     .optional(),
+  image_prompt: z
+    .string()
+    .min(20)
+    .max(500)
+    .describe('Descriptive prompt for AI hero image generation (no text/logos/faces)')
+    .optional(),
 });
 
 export type ContentWriterOutput = z.infer<typeof contentWriterOutputSchema>;

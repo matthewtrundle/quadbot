@@ -237,6 +237,7 @@ export function markdownToJsx(markdown: string): string {
  * Generate MDX content for a blog post.
  */
 export function generateMdxContent(post: BlogPostContent, siteUrl: string, brandName: string): string {
+  const mdxHeroImage = post.heroImage ?? `/images/blog/${post.slug}-hero.webp`;
   return `---
 title: "${post.title}"
 description: "${post.description}"
@@ -250,8 +251,10 @@ openGraph:
   description: "${post.description}"
   type: article
   images:
-    - "${post.heroImage ?? `/images/blog/${post.slug}-hero.webp`}"
+    - "${mdxHeroImage}"
 ---
+
+![${post.title}](${mdxHeroImage})
 
 ${post.body}
 `;
@@ -261,6 +264,7 @@ ${post.body}
  * Generate plain Markdown content for a blog post.
  */
 export function generateMarkdownContent(post: BlogPostContent, siteUrl: string, brandName: string): string {
+  const mdHeroImage = post.heroImage ?? `/images/blog/${post.slug}-hero.webp`;
   return `---
 title: "${post.title}"
 description: "${post.description}"
@@ -270,10 +274,12 @@ category: "${post.category}"
 readTime: "${post.readTime}"
 canonical: "${siteUrl}/blog/${post.slug}"
 brand: "${brandName}"
-image: "${post.heroImage ?? `/images/blog/${post.slug}-hero.webp`}"
+image: "${mdHeroImage}"
 ---
 
 # ${post.title}
+
+![${post.title}](${mdHeroImage})
 
 ${post.body}
 `;
@@ -294,6 +300,7 @@ export function generateNextJsPage(post: BlogPostContent, siteUrl: string, brand
   const jsxBody = markdownToJsx(post.body);
 
   return `import type { Metadata } from 'next';
+import Image from 'next/image';
 import Link from 'next/link';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { LastUpdated } from '@/components/seo/LastUpdated';
@@ -380,6 +387,16 @@ export default function ${componentName}() {
             </div>
           </div>
         </header>
+        <div className="container mx-auto px-6 max-w-4xl -mt-6">
+          <Image
+            src="${heroImage}"
+            alt="${escapeForTemplate(post.title)}"
+            width={1536}
+            height={1024}
+            className="w-full h-auto rounded-xl shadow-lg"
+            priority
+          />
+        </div>
         <article className="container mx-auto px-6 py-12 max-w-3xl">
           <LastUpdated date="${post.publishDate}" />
           <div className="prose prose-lg max-w-none">
@@ -413,6 +430,7 @@ export async function createBlogPostPR(
   post: BlogPostContent,
   brandName: string,
   siteUrl: string,
+  imageFile?: { base64: string; path: string },
 ): Promise<CreatePRResult> {
   const octokit = new Octokit({ auth: token });
   const { owner, repo } = config;
@@ -472,6 +490,24 @@ export async function createBlogPostPR(
   });
 
   logger.info({ filePath }, 'Created blog post file');
+
+  // 4b. Upload hero image if provided
+  if (imageFile) {
+    try {
+      await octokit.rest.repos.createOrUpdateFileContents({
+        owner,
+        repo,
+        path: imageFile.path,
+        message: `feat(blog): add hero image for "${post.title}"`,
+        content: imageFile.base64,
+        branch: branchName,
+      });
+      logger.info({ imagePath: imageFile.path }, 'Uploaded hero image');
+    } catch (imgErr) {
+      // Non-fatal — the post will use the fallback placeholder
+      logger.warn({ imagePath: imageFile.path, err: imgErr }, 'Failed to upload hero image');
+    }
+  }
 
   // 5. Create the Pull Request
   const { data: pr } = await octokit.rest.pulls.create({

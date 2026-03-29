@@ -734,7 +734,8 @@ Return a JSON object with:
 - tags: string[] (1-10 relevant tags)
 - estimated_read_time_minutes: number (integer, min 1)
 - seo_keywords: array of { keyword (string), usage_count (integer) }
-- social_snippets: optional { twitter (max 280 chars), linkedin (max 700 chars) }`,
+- social_snippets: optional { twitter (max 280 chars), linkedin (max 700 chars) }
+- image_prompt: string (20-500 chars) — a descriptive prompt for generating an AI hero image. Describe the visual scene, mood, colors, and composition. Do NOT include text, logos, brand names, or human faces. Focus on abstract concepts, landscapes, food photography, textures, or symbolic imagery that matches the article theme. Example: "Warm overhead shot of fresh corn tortillas on a rustic wooden cutting board with scattered cilantro leaves and lime wedges, soft natural lighting, shallow depth of field"`,
     is_active: true,
   },
   // Phase 2: Content Decay Analyzer

@@ -15,6 +15,8 @@ const envSchema = z.object({
   // Phase 2: GrowthBook (optional)
   GROWTHBOOK_API_HOST: z.string().optional(),
   GROWTHBOOK_CLIENT_KEY: z.string().optional(),
+  // Image generation via OpenRouter (optional)
+  OPENROUTER_API_KEY: z.string().optional(),
 });
 
 export const config = envSchema.parse(process.env);

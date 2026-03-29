@@ -6,6 +6,7 @@ import { logger } from '../logger.js';
 import { emitEvent } from '../event-emitter.js';
 import { contentWriter } from './content-writer.js';
 import { tryAutoApprove } from '../lib/auto-approve.js';
+import { generateHeroImage } from '../lib/image-generator.js';
 
 /**
  * Content Automation Orchestrator
@@ -81,6 +82,34 @@ export async function contentAutomation(ctx: JobContext): Promise<void> {
       if (!generated) {
         logger.warn({ briefId: brief.id }, 'Content generation completed but artifact not found');
         continue;
+      }
+
+      // Generate hero image if the content writer produced an image_prompt
+      const generatedContent = generated.content as Record<string, unknown>;
+      const imagePrompt = generatedContent.image_prompt as string | undefined;
+      if (imagePrompt) {
+        try {
+          const heroImage = await generateHeroImage(imagePrompt);
+          if (heroImage) {
+            // Store the base64 image data on the artifact for the publisher to upload
+            await db
+              .update(artifacts)
+              .set({
+                content: {
+                  ...generatedContent,
+                  hero_image_base64: heroImage.base64,
+                  hero_image_extension: heroImage.extension,
+                  hero_image_mime_type: heroImage.mimeType,
+                },
+                updated_at: new Date(),
+              })
+              .where(eq(artifacts.id, generated.id));
+            logger.info({ briefId: brief.id, generatedId: generated.id }, 'Hero image generated and stored');
+          }
+        } catch (imgErr) {
+          // Non-fatal — publish without image
+          logger.warn({ briefId: brief.id, error: imgErr }, 'Hero image generation failed, continuing without');
+        }
       }
 
       // Create publish action draft (only if we have a recommendation_id)

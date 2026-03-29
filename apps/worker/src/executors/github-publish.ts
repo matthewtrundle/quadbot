@@ -135,6 +135,11 @@ export const githubPublishExecutor: Executor = {
 
     // 6. Build the post and CMS config objects
     const now = new Date();
+    // Check for generated hero image
+    const heroImageBase64 = content.hero_image_base64 as string | undefined;
+    const heroImageExt = (content.hero_image_extension as string) || 'png';
+    const heroImagePath = heroImageBase64 ? `/images/blog/${slug}-hero.${heroImageExt}` : undefined;
+
     const blogPost: BlogPostContent = {
       slug,
       title,
@@ -145,6 +150,7 @@ export const githubPublishExecutor: Executor = {
       readTime: `${readMinutes} min read`,
       excerpt: excerpt || '',
       body: markdown,
+      heroImage: heroImagePath,
     };
 
     const cmsConfig: GitHubCmsConfig = {
@@ -158,9 +164,10 @@ export const githubPublishExecutor: Executor = {
 
     const siteUrl = config.site_url || '';
 
-    // 7. Create the PR
+    // 7. Create the PR (with optional hero image)
     try {
-      const result = await createBlogPostPR(token, cmsConfig, blogPost, brandName, siteUrl);
+      const imageFile = heroImageBase64 ? { base64: heroImageBase64, path: `public${heroImagePath}` } : undefined;
+      const result = await createBlogPostPR(token, cmsConfig, blogPost, brandName, siteUrl, imageFile);
 
       // 8. Update artifact status to published
       await db
