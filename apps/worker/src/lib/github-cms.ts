@@ -469,15 +469,31 @@ export async function createBlogPostPR(
 
   logger.debug({ baseBranch, baseSha }, 'Resolved base branch SHA');
 
-  // 3. Create the feature branch
-  await octokit.rest.git.createRef({
-    owner,
-    repo,
-    ref: `refs/heads/${branchName}`,
-    sha: baseSha,
-  });
-
-  logger.info({ branch: branchName }, 'Created feature branch');
+  // 3. Create the feature branch (or reuse if it already exists from a failed attempt)
+  try {
+    await octokit.rest.git.createRef({
+      owner,
+      repo,
+      ref: `refs/heads/${branchName}`,
+      sha: baseSha,
+    });
+    logger.info({ branch: branchName }, 'Created feature branch');
+  } catch (branchErr: unknown) {
+    const msg = branchErr instanceof Error ? branchErr.message : '';
+    if (msg.includes('Reference already exists')) {
+      // Branch exists from a previous failed attempt — delete and recreate
+      await octokit.rest.git.deleteRef({ owner, repo, ref: `heads/${branchName}` });
+      await octokit.rest.git.createRef({
+        owner,
+        repo,
+        ref: `refs/heads/${branchName}`,
+        sha: baseSha,
+      });
+      logger.info({ branch: branchName }, 'Recreated feature branch (previous attempt existed)');
+    } else {
+      throw branchErr;
+    }
+  }
 
   // 4. Create the file on the new branch
   await octokit.rest.repos.createOrUpdateFileContents({
