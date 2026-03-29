@@ -137,8 +137,8 @@ export const githubPublishExecutor: Executor = {
     const now = new Date();
     // Check for generated hero image
     const heroImageBase64 = content.hero_image_base64 as string | undefined;
-    const heroImageExt = (content.hero_image_extension as string) || 'png';
-    const heroImagePath = heroImageBase64 ? `/images/blog/${slug}-hero.${heroImageExt}` : undefined;
+    // Always use .webp extension to match the fallback pattern in templates
+    const heroImagePath = heroImageBase64 ? `/images/blog/${slug}-hero.webp` : undefined;
 
     const blogPost: BlogPostContent = {
       slug,
