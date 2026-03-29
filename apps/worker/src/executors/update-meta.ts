@@ -8,7 +8,7 @@ import { logger } from '../logger.js';
  * Phase 2 will integrate with CMS APIs (WordPress, Shopify, etc.)
  */
 export const updateMetaExecutor: Executor = {
-  type: 'update-meta',
+  type: 'update_meta',
 
   async execute(context: ExecutorContext): Promise<ExecutorResult> {
     const { db, brandId, actionDraftId, payload } = context;
