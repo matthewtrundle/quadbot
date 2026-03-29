@@ -11,9 +11,7 @@ const AUTO_APPROVE_TYPES = new Set([
   'gsc-index-request',
   'gsc-inspection',
   'gsc-sitemap-notify',
-  'update_content',
   'update_meta',
-  'publish_post',
 ]);
 
 const AUTO_BLOCK_TYPES = new Set(['flag_for_review', 'general']);

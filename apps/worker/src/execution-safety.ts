@@ -3,7 +3,7 @@ import type { Database } from '@quadbot/db';
 import { eq, and } from 'drizzle-orm';
 import { logger } from './logger.js';
 
-const MAX_DAILY_EXECUTIONS = 10;
+const MAX_DAILY_EXECUTIONS = 20;
 const MAX_DAILY_SPEND_DELTA_CENTS = 5000; // $50
 
 export interface SafetyCheckResult {

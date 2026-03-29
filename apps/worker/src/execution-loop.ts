@@ -15,10 +15,7 @@ export function startExecutionLoop(db: Database, intervalMs = 30000): NodeJS.Tim
 
   return setInterval(async () => {
     try {
-      const approved = await db
-        .select()
-        .from(actionDrafts)
-        .where(eq(actionDrafts.status, 'approved'));
+      const approved = await db.select().from(actionDrafts).where(eq(actionDrafts.status, 'approved'));
 
       for (const draft of approved) {
         logger.info(
@@ -55,21 +52,21 @@ export function startExecutionLoop(db: Database, intervalMs = 30000): NodeJS.Tim
 
         if (!executor) {
           // No executor registered for this type - use stub behavior
-          logger.warn(
-            { draftId: draft.id, type: draft.type },
-            'No executor registered for action type, using stub',
-          );
+          logger.warn({ draftId: draft.id, type: draft.type }, 'No executor registered for action type, using stub');
 
           await db
             .update(actionDrafts)
             .set({ status: 'executed_stub', updated_at: new Date() })
             .where(eq(actionDrafts.id, draft.id));
 
-          const [execution] = await db.insert(actionExecutions).values({
-            action_draft_id: draft.id,
-            status: 'stubbed',
-            result: { message: `No executor for ${draft.type}`, executed_at: new Date().toISOString() },
-          }).returning();
+          const [execution] = await db
+            .insert(actionExecutions)
+            .values({
+              action_draft_id: draft.id,
+              status: 'stubbed',
+              result: { message: `No executor for ${draft.type}`, executed_at: new Date().toISOString() },
+            })
+            .returning();
 
           await emitEvent(
             EventType.ACTION_EXECUTED,
@@ -79,7 +76,7 @@ export function startExecutionLoop(db: Database, intervalMs = 30000): NodeJS.Tim
             'execution_loop',
           );
 
-          await recordExecution(db, draft.brand_id);
+          // Don't count stub executions against the daily budget — stubs do no real work
           continue;
         }
 
@@ -101,14 +98,17 @@ export function startExecutionLoop(db: Database, intervalMs = 30000): NodeJS.Tim
               .set({ status: 'executed', updated_at: new Date() })
               .where(eq(actionDrafts.id, draft.id));
 
-            const [execution] = await db.insert(actionExecutions).values({
-              action_draft_id: draft.id,
-              status: 'success',
-              result: {
-                ...result.result,
-                executed_at: new Date().toISOString(),
-              },
-            }).returning();
+            const [execution] = await db
+              .insert(actionExecutions)
+              .values({
+                action_draft_id: draft.id,
+                status: 'success',
+                result: {
+                  ...result.result,
+                  executed_at: new Date().toISOString(),
+                },
+              })
+              .returning();
 
             await emitEvent(
               EventType.ACTION_EXECUTED,
@@ -135,19 +135,28 @@ export function startExecutionLoop(db: Database, intervalMs = 30000): NodeJS.Tim
               .set({ status: 'executed', updated_at: new Date() })
               .where(eq(actionDrafts.id, draft.id));
 
-            const [execution] = await db.insert(actionExecutions).values({
-              action_draft_id: draft.id,
-              status: 'failed',
-              result: {
-                error: result.error,
-                executed_at: new Date().toISOString(),
-              },
-            }).returning();
+            const [execution] = await db
+              .insert(actionExecutions)
+              .values({
+                action_draft_id: draft.id,
+                status: 'failed',
+                result: {
+                  error: result.error,
+                  executed_at: new Date().toISOString(),
+                },
+              })
+              .returning();
 
             await emitEvent(
               EventType.ACTION_EXECUTED,
               draft.brand_id,
-              { action_draft_id: draft.id, execution_id: execution.id, type: draft.type, success: false, error: result.error },
+              {
+                action_draft_id: draft.id,
+                execution_id: execution.id,
+                type: draft.type,
+                success: false,
+                error: result.error,
+              },
               `exec:${execution.id}`,
               'execution_loop',
             );
@@ -172,19 +181,28 @@ export function startExecutionLoop(db: Database, intervalMs = 30000): NodeJS.Tim
             .set({ status: 'executed', updated_at: new Date() })
             .where(eq(actionDrafts.id, draft.id));
 
-          const [execution] = await db.insert(actionExecutions).values({
-            action_draft_id: draft.id,
-            status: 'failed',
-            result: {
-              error: errorMessage,
-              executed_at: new Date().toISOString(),
-            },
-          }).returning();
+          const [execution] = await db
+            .insert(actionExecutions)
+            .values({
+              action_draft_id: draft.id,
+              status: 'failed',
+              result: {
+                error: errorMessage,
+                executed_at: new Date().toISOString(),
+              },
+            })
+            .returning();
 
           await emitEvent(
             EventType.ACTION_EXECUTED,
             draft.brand_id,
-            { action_draft_id: draft.id, execution_id: execution.id, type: draft.type, success: false, error: errorMessage },
+            {
+              action_draft_id: draft.id,
+              execution_id: execution.id,
+              type: draft.type,
+              success: false,
+              error: errorMessage,
+            },
             `exec:${execution.id}`,
             'execution_loop',
           );
@@ -200,7 +218,9 @@ export function startExecutionLoop(db: Database, intervalMs = 30000): NodeJS.Tim
           });
 
           logger.error({ draftId: draft.id, type: draft.type, err: executorError }, 'Executor threw exception');
-          Sentry.captureException(executorError, { extra: { draftId: draft.id, type: draft.type, brandId: draft.brand_id } });
+          Sentry.captureException(executorError, {
+            extra: { draftId: draft.id, type: draft.type, brandId: draft.brand_id },
+          });
         }
       }
     } catch (err) {

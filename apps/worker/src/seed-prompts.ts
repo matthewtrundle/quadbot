@@ -253,7 +253,7 @@ Guardrails: {{brand_guardrails}}
 {{/if}}
 
 Return a JSON object with:
-- type: string action type (one of: "gsc-index-request", "gsc-inspection", "gsc-sitemap-notify", "flag_for_review", "update_meta", "update_content", "publish_post", "send_reply", "general")
+- type: string action type (one of: "gsc-index-request", "gsc-inspection", "gsc-sitemap-notify", "flag_for_review", "update_meta")
 - payload: object with action-specific data (1-20 keys)
 - risk: "low" | "medium" | "high"
 - guardrails_applied: object showing which guardrails were checked

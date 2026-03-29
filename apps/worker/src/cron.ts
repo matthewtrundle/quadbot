@@ -106,8 +106,8 @@ export function startCronScheduler(redis: Redis): void {
     await enqueueForAllBrands(redis, JobType.BENCHMARK_GENERATOR);
   });
 
-  // Content Automation - weekly on Wednesdays at 9:00 AM
-  cron.schedule('0 9 * * 3', async () => {
+  // Content Automation - daily at 9:00 AM (picks up trend briefs from daily trend scan)
+  cron.schedule('0 9 * * *', async () => {
     logger.info('Cron: triggering content automation for all brands');
     await enqueueForAllBrands(redis, JobType.CONTENT_AUTOMATION);
   });
@@ -118,8 +118,8 @@ export function startCronScheduler(redis: Redis): void {
     await enqueueForAllBrands(redis, JobType.CAPABILITY_GAP_ANALYZER);
   });
 
-  // Outreach: Campaign Scheduler - every 2 minutes
-  cron.schedule('*/2 * * * *', async () => {
+  // Outreach: Campaign Scheduler - every 15 minutes
+  cron.schedule('*/15 * * * *', async () => {
     logger.info('Cron: triggering outreach campaign scheduler for all brands');
     await enqueueForAllBrands(redis, JobType.OUTREACH_CAMPAIGN_SCHEDULER);
   });

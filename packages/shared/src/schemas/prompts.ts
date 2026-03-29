@@ -52,10 +52,6 @@ export const actionTypeEnum = z.enum([
   'ads-adjust-budget',
   'flag_for_review',
   'update_meta',
-  'update_content',
-  'publish_post',
-  'send_reply',
-  'general',
 ]);
 
 export const communityModerationOutputSchema = z.object({
@@ -82,16 +78,26 @@ export const enrichedRecommendationFields = z.object({
   description: z.string().min(50).max(5000),
   confidence: z.number().min(0).max(1).optional(),
   impact_summary: z.string().max(500).optional(),
-  evidence: z.array(z.object({
-    metric: z.string(),
-    value: z.string(),
-    context: z.string().optional(),
-  })).max(20).optional(),
-  next_steps: z.array(z.object({
-    action: z.string(),
-    details: z.string().optional(),
-    effort: z.enum(['minutes', 'hours', 'days']).optional(),
-  })).max(10).optional(),
+  evidence: z
+    .array(
+      z.object({
+        metric: z.string(),
+        value: z.string(),
+        context: z.string().optional(),
+      }),
+    )
+    .max(20)
+    .optional(),
+  next_steps: z
+    .array(
+      z.object({
+        action: z.string(),
+        details: z.string().optional(),
+        effort: z.enum(['minutes', 'hours', 'days']).optional(),
+      }),
+    )
+    .max(10)
+    .optional(),
 });
 
 export const gscRecommendationSchema = enrichedRecommendationFields.extend({
@@ -120,13 +126,15 @@ export const actionDraftGeneratorOutputSchema = z.object({
 });
 
 export const strategicPrioritizerOutputSchema = z.object({
-  adjustments: z.array(z.object({
-    recommendation_id: z.string(),
-    delta_rank: z.number().min(-2).max(2),
-    effort_estimate: z.enum(['minutes', 'hours', 'days']),
-    reasoning: z.string(),
-    drop: z.boolean().optional(),
-  })),
+  adjustments: z.array(
+    z.object({
+      recommendation_id: z.string(),
+      delta_rank: z.number().min(-2).max(2),
+      effort_estimate: z.enum(['minutes', 'hours', 'days']),
+      reasoning: z.string(),
+      drop: z.boolean().optional(),
+    }),
+  ),
 });
 
 // Phase 6: Content Optimizer Output
@@ -146,14 +154,18 @@ export const contentBriefSchema = z.object({
   target_keyword: z.string(),
   search_intent: z.enum(['informational', 'navigational', 'transactional', 'commercial']),
   recommended_word_count: z.number(),
-  outline: z.array(z.object({
-    heading: z.string(),
-    points: z.array(z.string()),
-  })),
-  internal_link_opportunities: z.array(z.object({
-    anchor_text: z.string(),
-    target_url: z.string(),
-  })),
+  outline: z.array(
+    z.object({
+      heading: z.string(),
+      points: z.array(z.string()),
+    }),
+  ),
+  internal_link_opportunities: z.array(
+    z.object({
+      anchor_text: z.string(),
+      target_url: z.string(),
+    }),
+  ),
 });
 
 export const contentOptimizerOutputSchema = z.object({
@@ -169,16 +181,20 @@ export const contentOptimizerOutputSchema = z.object({
 // Phase 7: Multi-Source Intelligence Outputs
 export const adsPerformanceOutputSchema = z.object({
   summary: z.string(),
-  top_campaigns: z.array(z.object({
-    campaign_name: z.string(),
-    spend: z.number(),
-    conversions: z.number(),
-    roas: z.number(),
-    trend: z.enum(['up', 'down', 'stable']),
-  })),
-  recommendations: z.array(enrichedRecommendationFields.extend({
-    affected_campaigns: z.array(z.string()).optional(),
-  })),
+  top_campaigns: z.array(
+    z.object({
+      campaign_name: z.string(),
+      spend: z.number(),
+      conversions: z.number(),
+      roas: z.number(),
+      trend: z.enum(['up', 'down', 'stable']),
+    }),
+  ),
+  recommendations: z.array(
+    enrichedRecommendationFields.extend({
+      affected_campaigns: z.array(z.string()).optional(),
+    }),
+  ),
 });
 
 export const analyticsInsightsOutputSchema = z.object({
@@ -190,29 +206,37 @@ export const analyticsInsightsOutputSchema = z.object({
     avg_session_duration: z.number(),
     conversions: z.number(),
   }),
-  top_pages: z.array(z.object({
-    page_path: z.string(),
-    pageviews: z.number(),
-    avg_time_on_page: z.number(),
-    exit_rate: z.number(),
-  })),
-  recommendations: z.array(enrichedRecommendationFields.extend({
-    affected_pages: z.array(z.string()).optional(),
-  })),
+  top_pages: z.array(
+    z.object({
+      page_path: z.string(),
+      pageviews: z.number(),
+      avg_time_on_page: z.number(),
+      exit_rate: z.number(),
+    }),
+  ),
+  recommendations: z.array(
+    enrichedRecommendationFields.extend({
+      affected_pages: z.array(z.string()).optional(),
+    }),
+  ),
 });
 
 export const crossChannelCorrelationSchema = z.object({
   summary: z.string(),
-  correlations: z.array(z.object({
-    channel_a: z.string(),
-    channel_b: z.string(),
-    correlation_type: z.enum(['positive', 'negative', 'neutral']),
-    insight: z.string(),
-    confidence: z.number().min(0).max(1),
-  })),
-  unified_recommendations: z.array(enrichedRecommendationFields.extend({
-    affected_channels: z.array(z.string()),
-  })),
+  correlations: z.array(
+    z.object({
+      channel_a: z.string(),
+      channel_b: z.string(),
+      correlation_type: z.enum(['positive', 'negative', 'neutral']),
+      insight: z.string(),
+      confidence: z.number().min(0).max(1),
+    }),
+  ),
+  unified_recommendations: z.array(
+    enrichedRecommendationFields.extend({
+      affected_channels: z.array(z.string()),
+    }),
+  ),
 });
 
 export type EnrichedRecommendation = z.infer<typeof enrichedRecommendationFields>;
@@ -222,28 +246,34 @@ export type GscDigestOutput = z.infer<typeof gscDigestOutputSchema>;
 export type ActionDraftGeneratorOutput = z.infer<typeof actionDraftGeneratorOutputSchema>;
 // Phase 8: Self-Improvement Engine
 export const capabilityGapOutputSchema = z.object({
-  current_capabilities: z.array(z.object({
-    name: z.string(),
-    data_sources: z.array(z.string()),
-    quality_score: z.number().min(0).max(1),
-    limitations: z.array(z.string()),
-  })),
-  improvement_suggestions: z.array(z.object({
-    category: z.enum(['integration', 'data_source', 'feature', 'analysis', 'automation']),
-    title: z.string(),
-    description: z.string(),
-    rationale: z.string(),
-    expected_impact: z.string(),
-    implementation_effort: z.enum(['low', 'medium', 'high']),
-    priority: z.enum(['low', 'medium', 'high', 'critical']),
-    prerequisites: z.array(z.string()).optional(),
-    example_use_case: z.string(),
-  })),
-  meta_observations: z.array(z.object({
-    observation: z.string(),
-    implication: z.string(),
-    suggested_action: z.string(),
-  })),
+  current_capabilities: z.array(
+    z.object({
+      name: z.string(),
+      data_sources: z.array(z.string()),
+      quality_score: z.number().min(0).max(1),
+      limitations: z.array(z.string()),
+    }),
+  ),
+  improvement_suggestions: z.array(
+    z.object({
+      category: z.enum(['integration', 'data_source', 'feature', 'analysis', 'automation']),
+      title: z.string(),
+      description: z.string(),
+      rationale: z.string(),
+      expected_impact: z.string(),
+      implementation_effort: z.enum(['low', 'medium', 'high']),
+      priority: z.enum(['low', 'medium', 'high', 'critical']),
+      prerequisites: z.array(z.string()).optional(),
+      example_use_case: z.string(),
+    }),
+  ),
+  meta_observations: z.array(
+    z.object({
+      observation: z.string(),
+      implication: z.string(),
+      suggested_action: z.string(),
+    }),
+  ),
 });
 
 // Brand Profile auto-detection output
@@ -277,42 +307,57 @@ export type TrendFilterItem = z.infer<typeof trendFilterItemSchema>;
 
 // Trend Content Brief (multi-platform enrichment for trend scan recommendations)
 export const trendContentBriefSchema = z.object({
-  headline_options: z.array(z.object({
-    headline: z.string(),
-    platform: z.enum(['blog', 'twitter', 'linkedin', 'email', 'general']),
-    hook_type: z.enum(['question', 'statistic', 'bold_claim', 'how_to', 'news_peg', 'contrarian']),
-  })).min(2).max(5),
+  headline_options: z
+    .array(
+      z.object({
+        headline: z.string(),
+        platform: z.enum(['blog', 'twitter', 'linkedin', 'email', 'general']),
+        hook_type: z.enum(['question', 'statistic', 'bold_claim', 'how_to', 'news_peg', 'contrarian']),
+      }),
+    )
+    .min(2)
+    .max(5),
 
-  content_outline: z.array(z.object({
-    heading: z.string(),
-    key_points: z.array(z.string()),
-    estimated_word_count: z.number(),
-  })),
+  content_outline: z.array(
+    z.object({
+      heading: z.string(),
+      key_points: z.array(z.string()),
+      estimated_word_count: z.number(),
+    }),
+  ),
 
   platform_angles: z.object({
-    blog: z.object({
-      format: z.string(),
-      word_count: z.number(),
-      seo_title: z.string(),
-      meta_description: z.string(),
-    }).optional(),
-    social: z.object({
-      twitter_hook: z.string(),
-      linkedin_angle: z.string(),
-      instagram_caption: z.string().optional(),
-    }).optional(),
-    email: z.object({
-      subject_lines: z.array(z.string()).min(1).max(3),
-      preview_text: z.string(),
-      newsletter_angle: z.string(),
-    }).optional(),
+    blog: z
+      .object({
+        format: z.string(),
+        word_count: z.number(),
+        seo_title: z.string(),
+        meta_description: z.string(),
+      })
+      .optional(),
+    social: z
+      .object({
+        twitter_hook: z.string(),
+        linkedin_angle: z.string(),
+        instagram_caption: z.string().optional(),
+      })
+      .optional(),
+    email: z
+      .object({
+        subject_lines: z.array(z.string()).min(1).max(3),
+        preview_text: z.string(),
+        newsletter_angle: z.string(),
+      })
+      .optional(),
   }),
 
-  suggested_keywords: z.array(z.object({
-    keyword: z.string(),
-    intent: z.enum(['informational', 'navigational', 'transactional', 'commercial']),
-    priority: z.enum(['primary', 'secondary', 'long_tail']),
-  })),
+  suggested_keywords: z.array(
+    z.object({
+      keyword: z.string(),
+      intent: z.enum(['informational', 'navigational', 'transactional', 'commercial']),
+      priority: z.enum(['primary', 'secondary', 'long_tail']),
+    }),
+  ),
 
   tone_guidance: z.object({
     recommended_tone: z.string(),
@@ -344,14 +389,18 @@ export const contentWriterOutputSchema = z.object({
   excerpt: z.string().min(50).max(300).describe('Short excerpt for previews/social'),
   tags: z.array(z.string()).min(1).max(10),
   estimated_read_time_minutes: z.number().int().min(1),
-  seo_keywords: z.array(z.object({
-    keyword: z.string(),
-    usage_count: z.number().int().describe('How many times used in content'),
-  })),
-  social_snippets: z.object({
-    twitter: z.string().max(280).optional(),
-    linkedin: z.string().max(700).optional(),
-  }).optional(),
+  seo_keywords: z.array(
+    z.object({
+      keyword: z.string(),
+      usage_count: z.number().int().describe('How many times used in content'),
+    }),
+  ),
+  social_snippets: z
+    .object({
+      twitter: z.string().max(280).optional(),
+      linkedin: z.string().max(700).optional(),
+    })
+    .optional(),
 });
 
 export type ContentWriterOutput = z.infer<typeof contentWriterOutputSchema>;
