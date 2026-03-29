@@ -83,9 +83,7 @@ function analyzeNewsForContent(
 /**
  * Analyze Reddit for content ideas
  */
-function analyzeRedditForContent(
-  postsBySubreddit: Map<string, RedditPost[]>,
-): Array<{
+function analyzeRedditForContent(postsBySubreddit: Map<string, RedditPost[]>): Array<{
   title: string;
   description: string;
   subreddit: string;
@@ -170,6 +168,7 @@ async function filterTrendsWithLLM(
     body: string;
     priority: 'low' | 'medium' | 'high' | 'critical';
     data: Record<string, unknown>;
+    confidence?: number;
   }>,
   guardrails: BrandGuardrails,
   brandName: string,
@@ -232,12 +231,13 @@ async function filterTrendsWithLLM(
       return verdict.relevance_confidence >= threshold;
     });
 
-    // Update priorities based on LLM assessment
+    // Update priorities and confidence based on LLM assessment
     for (const rec of filtered) {
       const idx = allRecommendations.indexOf(rec);
       const verdict = filterMap.get(idx);
       if (verdict) {
         rec.priority = verdict.priority;
+        rec.confidence = verdict.relevance_confidence;
         if (verdict.suggested_angle) {
           rec.body += `\n\nSuggested angle: ${verdict.suggested_angle}`;
         }
@@ -455,6 +455,7 @@ export async function trendScanIndustry(ctx: JobContext): Promise<void> {
     body: string;
     priority: 'low' | 'medium' | 'high' | 'critical';
     data: Record<string, unknown>;
+    confidence?: number;
   }> = [];
 
   // 1. Industry News Headlines
@@ -613,6 +614,7 @@ export async function trendScanIndustry(ctx: JobContext): Promise<void> {
           priority: rec.priority,
           title: rec.title,
           body: rec.body,
+          confidence: rec.confidence ?? null,
           data: { ...rec.data, has_content_brief: !!briefContent },
           model_meta: filterMeta,
         })

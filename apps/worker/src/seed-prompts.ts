@@ -203,7 +203,7 @@ Return a JSON object with:
     **What happened:** Specific data points, metrics, and deltas from the input data.
     **Why it matters:** Business impact and strategic significance for this brand.
     **What to do:** 2-3 concrete actions with specifics (exact queries, pages, targets).
-  - confidence: number 0-1 (how confident you are in this recommendation)
+  - confidence: number 0-1 (how confident acting on this will produce measurable improvement). Calibration: 0.9+ = near-certain with strong data; 0.7-0.9 = likely with clear trends; 0.5-0.7 = plausible but limited evidence; below 0.5 = speculative. Most recommendations should be 0.5-0.75.
   - impact_summary: 1-2 sentence business impact with numbers (e.g. "Fixing CTR on these 3 queries could recover ~200 clicks/week")
   - evidence: array of { metric (string), value (string), context (optional string) } — specific data points supporting this recommendation
   - next_steps: array of { action (string), details (optional string), effort ("minutes"|"hours"|"days") }
@@ -496,7 +496,7 @@ Return a JSON object with:
     **What happened:** Specific campaign data, spend changes, ROAS shifts, conversion deltas.
     **Why it matters:** Business impact — wasted budget, missed conversions, scaling opportunities.
     **What to do:** 2-3 concrete actions with specifics (exact campaigns, budget amounts, bid adjustments).
-  - confidence: number 0-1 (how confident you are in this recommendation)
+  - confidence: number 0-1 (how confident acting on this will produce measurable improvement). Calibration: 0.9+ = near-certain with strong data; 0.7-0.9 = likely with clear trends; 0.5-0.7 = plausible but limited evidence; below 0.5 = speculative. Most recommendations should be 0.5-0.75.
   - impact_summary: 1-2 sentence business impact with numbers (e.g. "Pausing this campaign could save $500/week while losing only 2 conversions")
   - evidence: array of { metric (string), value (string), context (optional string) } — specific data points supporting this recommendation
   - next_steps: array of { action (string), details (optional string), effort ("minutes"|"hours"|"days") }
@@ -546,7 +546,7 @@ Return a JSON object with:
     **What happened:** Specific traffic data, user behavior changes, conversion shifts from the input.
     **Why it matters:** Business impact — lost conversions, engagement drops, growth opportunities.
     **What to do:** 2-3 concrete actions with specifics (exact pages, UX changes, content updates).
-  - confidence: number 0-1 (how confident you are in this recommendation)
+  - confidence: number 0-1 (how confident acting on this will produce measurable improvement). Calibration: 0.9+ = near-certain with strong data; 0.7-0.9 = likely with clear trends; 0.5-0.7 = plausible but limited evidence; below 0.5 = speculative. Most recommendations should be 0.5-0.75.
   - impact_summary: 1-2 sentence business impact with numbers (e.g. "Reducing bounce rate on /pricing from 72% to 50% could add ~30 conversions/week")
   - evidence: array of { metric (string), value (string), context (optional string) } — specific data points supporting this recommendation
   - next_steps: array of { action (string), details (optional string), effort ("minutes"|"hours"|"days") }
@@ -630,7 +630,7 @@ Return a JSON object with:
     **What happened:** Specific cross-channel data points, overlaps, or conflicts from the input.
     **Why it matters:** Business impact — wasted spend, missed synergies, attribution gaps.
     **What to do:** 2-3 concrete actions with specifics (exact keywords, budget shifts, channel strategies).
-  - confidence: number 0-1 (how confident you are in this recommendation)
+  - confidence: number 0-1 (how confident acting on this will produce measurable improvement). Calibration: 0.9+ = near-certain with strong data; 0.7-0.9 = likely with clear trends; 0.5-0.7 = plausible but limited evidence; below 0.5 = speculative. Most recommendations should be 0.5-0.75.
   - impact_summary: 1-2 sentence business impact with numbers (e.g. "Pausing ads on 5 branded keywords could save $1,200/week with no organic traffic loss")
   - evidence: array of { metric (string), value (string), context (optional string) } — specific data points supporting this recommendation
   - next_steps: array of { action (string), details (optional string), effort ("minutes"|"hours"|"days") }
