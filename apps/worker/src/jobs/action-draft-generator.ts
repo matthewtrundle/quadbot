@@ -198,6 +198,7 @@ export async function actionDraftGenerator(ctx: JobContext): Promise<void> {
       risk: actionRisk,
       guardrails_applied: guardrailsApplied,
       requires_approval: requiresApproval,
+      predicted_impact: recommendation.confidence ?? null,
       status: 'pending',
     })
     .returning();

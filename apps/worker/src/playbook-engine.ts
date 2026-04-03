@@ -91,6 +91,13 @@ export async function executePlaybook(
   recommendationId: string,
   playbook: Playbook,
 ): Promise<void> {
+  // Load recommendation confidence for predicted_impact
+  const [rec] = await db
+    .select({ confidence: recommendations.confidence })
+    .from(recommendations)
+    .where(eq(recommendations.id, recommendationId))
+    .limit(1);
+
   const actions = playbook.actions as {
     type: string;
     payload?: Record<string, unknown>;
@@ -110,6 +117,7 @@ export async function executePlaybook(
         type: actionType,
         payload: action.payload || {},
         risk: actionRisk,
+        predicted_impact: rec?.confidence ?? null,
         status: 'pending',
         guardrails_applied: { playbook_id: playbook.id, playbook_name: playbook.name },
       })

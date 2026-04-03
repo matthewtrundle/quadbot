@@ -1,4 +1,4 @@
-import { artifacts, actionDrafts, contentPublishConfigs } from '@quadbot/db';
+import { artifacts, actionDrafts, contentPublishConfigs, recommendations } from '@quadbot/db';
 import { eq, and, sql } from 'drizzle-orm';
 import { EventType } from '@quadbot/shared';
 import type { JobContext } from '../registry.js';
@@ -132,6 +132,17 @@ export async function contentAutomation(ctx: JobContext): Promise<void> {
           ? { artifact_id: generated.id, publish_config_id: githubConfig.id }
           : { artifact_id: generated.id };
 
+        // Load recommendation confidence for predicted_impact
+        let predictedImpact: number | null = null;
+        if (brief.recommendation_id) {
+          const [rec] = await db
+            .select({ confidence: recommendations.confidence })
+            .from(recommendations)
+            .where(eq(recommendations.id, brief.recommendation_id))
+            .limit(1);
+          predictedImpact = rec?.confidence ?? null;
+        }
+
         const [publishDraft] = await db
           .insert(actionDrafts)
           .values({
@@ -142,6 +153,7 @@ export async function contentAutomation(ctx: JobContext): Promise<void> {
             risk: 'medium',
             guardrails_applied: {},
             requires_approval: true,
+            predicted_impact: predictedImpact,
             status: 'pending',
           })
           .returning();

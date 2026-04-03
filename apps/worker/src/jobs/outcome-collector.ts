@@ -117,6 +117,23 @@ export async function outcomeCollector(ctx: JobContext): Promise<void> {
 
       // Emit event for 7d window (primary measurement)
       if (windowDays === 7) {
+        // Write actual_impact back to the action draft(s) for this recommendation
+        const recDrafts = await db
+          .select({ id: actionDrafts.id })
+          .from(actionDrafts)
+          .where(
+            and(
+              eq(actionDrafts.recommendation_id, rec.id),
+              inArray(actionDrafts.status, ['executed', 'executed_stub']),
+            ),
+          );
+        for (const d of recDrafts) {
+          await db
+            .update(actionDrafts)
+            .set({ actual_impact: Math.round(delta * 100) / 100, updated_at: new Date() })
+            .where(eq(actionDrafts.id, d.id));
+        }
+
         await emitEvent(
           EventType.OUTCOME_COLLECTED,
           brandId,
