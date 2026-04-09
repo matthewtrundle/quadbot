@@ -12,6 +12,7 @@
 import { brands, brandIntegrations, gbpMetrics, gbpReviews, metricSnapshots, recommendations } from '@quadbot/db';
 import { eq, and, isNull } from 'drizzle-orm';
 import Anthropic from '@anthropic-ai/sdk';
+import { trackDirectApiCall } from '../claude.js';
 import type { JobContext } from '../registry.js';
 import { logger } from '../logger.js';
 import { emitEvent } from '../event-emitter.js';
@@ -88,11 +89,13 @@ async function generateAiReplyDraft(
   brandName: string,
   industry: string,
   review: { author_name: string | null; rating: number; text: string | null },
+  trackCtx?: { db: import('@quadbot/db').Database; brandId: string; jobId: string },
 ): Promise<string> {
   const anthropic = new Anthropic();
 
+  const callStart = Date.now();
   const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-20250514',
+    model: 'claude-haiku-3-5-20241022',
     max_tokens: 500,
     messages: [
       {
@@ -114,6 +117,8 @@ Guidelines:
       },
     ],
   });
+
+  if (trackCtx) trackDirectApiCall(response, trackCtx, callStart);
 
   const textBlock = response.content.find((block) => block.type === 'text');
   return textBlock?.text || 'Thank you for your review! We appreciate your feedback.';
@@ -248,11 +253,16 @@ export async function gbpMonitor(ctx: JobContext): Promise<void> {
 
     for (const review of pendingReviews) {
       try {
-        const draftReply = await generateAiReplyDraft(brandName, industry, {
-          author_name: review.author_name,
-          rating: review.rating,
-          text: review.text,
-        });
+        const draftReply = await generateAiReplyDraft(
+          brandName,
+          industry,
+          {
+            author_name: review.author_name,
+            rating: review.rating,
+            text: review.text,
+          },
+          { db, brandId, jobId },
+        );
 
         const sentiment = determineSentiment(review.rating);
 

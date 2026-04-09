@@ -89,6 +89,10 @@ const HAIKU_ELIGIBLE_PROMPTS = new Set([
   'community_moderation_classifier_v1',
   'trend_relevance_filter_v1',
   'content_optimizer_v1',
+  'action_draft_generator_v1',
+  'signal_extractor_v1',
+  'cross_channel_correlator_v1',
+  'trend_brief_enricher_v1',
 ]);
 
 const OPUS_ELIGIBLE_PROMPTS = new Set(['strategic_prioritizer_v1', 'capability_gap_analyzer_v1']);
@@ -225,6 +229,27 @@ export async function callClaude<T>(
   throw new Error('Unreachable');
 }
 
+/**
+ * Track usage from a direct anthropic.messages.create() call.
+ * Use this for jobs that don't go through callClaude() to ensure all API spend is visible.
+ */
+export function trackDirectApiCall(
+  response: { model: string; usage: { input_tokens: number; output_tokens: number } },
+  context: { db: import('@quadbot/db').Database; brandId: string; jobId: string },
+  startTime: number,
+): void {
+  const costCents = calculateCostCents(response.model, response.usage.input_tokens, response.usage.output_tokens);
+  const meta = {
+    prompt_version_id: 'inline', // Not from a DB prompt version
+    model: response.model,
+    input_tokens: response.usage.input_tokens,
+    output_tokens: response.usage.output_tokens,
+    cost_cents: Math.round(costCents * 100) / 100,
+    latency_ms: Date.now() - startTime,
+  };
+  recordLlmUsage(context.db, context.brandId, context.jobId, meta).catch(() => {});
+}
+
 function isRateLimitError(err: unknown): boolean {
   if (err && typeof err === 'object' && 'status' in err) {
     return (err as { status: number }).status === 429;
@@ -252,7 +277,7 @@ export async function callClaudeWithTools<T>(
   toolExecutor: (name: string, input: Record<string, unknown>) => Promise<{ content: string; is_error?: boolean }>,
   options: CallClaudeOptions<T> = {},
 ): Promise<ClaudeResult<T>> {
-  const MAX_TOOL_ROUNDS = 3;
+  const MAX_TOOL_ROUNDS = 5;
   const retries = options.retries ?? 2;
   const anthropic = getClient();
   const template = getCompiledTemplate(prompt);

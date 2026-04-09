@@ -153,8 +153,14 @@ export async function gscDailyDigest(ctx: JobContext): Promise<void> {
       fetchGscSearchAnalytics(accessToken, siteUrl, fmt(lastWeekStart), fmt(lastWeekEnd)),
     ]);
 
-    gscThisWeek = JSON.stringify(thisWeekData);
-    gscLastWeek = JSON.stringify(lastWeekData);
+    // Cap data sent to Claude: top 50 rows by impressions per week.
+    // Raw data had 500 rows → 74K tokens. This reduces to ~10K tokens.
+    const MAX_GSC_ROWS = 50;
+    const topRows = (rows: typeof thisWeekData) =>
+      [...rows].sort((a, b) => b.impressions - a.impressions).slice(0, MAX_GSC_ROWS);
+
+    gscThisWeek = JSON.stringify(topRows(thisWeekData));
+    gscLastWeek = JSON.stringify(topRows(lastWeekData));
     logger.info(
       {
         jobId,

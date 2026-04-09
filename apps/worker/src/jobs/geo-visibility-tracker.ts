@@ -5,6 +5,7 @@ import { logger } from '../logger.js';
 import { emitEvent } from '../event-emitter.js';
 import { EventType } from '@quadbot/shared';
 import Anthropic from '@anthropic-ai/sdk';
+import { trackDirectApiCall } from '../claude.js';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -112,10 +113,14 @@ async function queryPerplexity(query: string): Promise<{ text: string; platform:
   return { text, platform: 'perplexity' };
 }
 
-async function queryClaude(query: string): Promise<{ text: string; platform: string }> {
+async function queryClaude(
+  query: string,
+  trackCtx?: { db: import('@quadbot/db').Database; brandId: string; jobId: string },
+): Promise<{ text: string; platform: string }> {
   const anthropic = new Anthropic();
+  const callStart = Date.now();
   const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-20250514',
+    model: 'claude-haiku-3-5-20241022',
     max_tokens: 1000,
     messages: [
       {
@@ -124,6 +129,7 @@ async function queryClaude(query: string): Promise<{ text: string; platform: str
       },
     ],
   });
+  if (trackCtx) trackDirectApiCall(response, trackCtx, callStart);
 
   const text = response.content
     .filter((block): block is Anthropic.TextBlock => block.type === 'text')
@@ -180,7 +186,9 @@ export async function geoVisibilityTracker(ctx: JobContext): Promise<void> {
 
   for (const query of queriesToRun) {
     try {
-      const { text, platform } = usePerplexity ? await queryPerplexity(query) : await queryClaude(query);
+      const { text, platform } = usePerplexity
+        ? await queryPerplexity(query)
+        : await queryClaude(query, { db, brandId, jobId });
 
       const analysis = analyzeResponse(text, brand.name, brandDomain as string | null, competitors);
 

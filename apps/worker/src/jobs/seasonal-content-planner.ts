@@ -12,6 +12,7 @@
 import { brands, brandIntegrations, metricSnapshots, recommendations, seasonalTopics } from '@quadbot/db';
 import { eq, and } from 'drizzle-orm';
 import Anthropic from '@anthropic-ai/sdk';
+import { trackDirectApiCall } from '../claude.js';
 import type { JobContext } from '../registry.js';
 import { logger } from '../logger.js';
 import { emitEvent } from '../event-emitter.js';
@@ -205,6 +206,7 @@ async function analyzeWithClaude(
   industry: string,
   patterns: SeasonalPattern[],
   currentMonth: number,
+  trackCtx?: { db: import('@quadbot/db').Database; brandId: string; jobId: string },
 ): Promise<ClaudeSeasonalInsight[]> {
   const anthropic = new Anthropic();
 
@@ -219,8 +221,9 @@ async function analyzeWithClaude(
     })
     .join('\n');
 
+  const callStart = Date.now();
   const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-20250514',
+    model: 'claude-haiku-3-5-20241022',
     max_tokens: 4000,
     messages: [
       {
@@ -253,6 +256,8 @@ Return ONLY the JSON array, no other text.`,
       },
     ],
   });
+
+  if (trackCtx) trackDirectApiCall(response, trackCtx, callStart);
 
   const textBlock = response.content.find((block) => block.type === 'text');
   if (!textBlock || textBlock.type !== 'text') return [];
@@ -357,7 +362,7 @@ export async function seasonalContentPlanner(ctx: JobContext): Promise<void> {
     return;
   }
 
-  const insights = await analyzeWithClaude(brand.name, industry, patterns, currentMonth);
+  const insights = await analyzeWithClaude(brand.name, industry, patterns, currentMonth, { db, brandId, jobId });
   logger.info({ jobId, brandId, insightsCount: insights.length }, 'Claude seasonal insights generated');
 
   // 5. Store seasonal topics

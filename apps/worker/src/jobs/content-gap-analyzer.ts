@@ -5,6 +5,7 @@ import { logger } from '../logger.js';
 import { emitEvent } from '../event-emitter.js';
 import { EventType } from '@quadbot/shared';
 import Anthropic from '@anthropic-ai/sdk';
+import { trackDirectApiCall } from '../claude.js';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -118,11 +119,14 @@ Respond with ONLY the JSON array, no markdown fences or other text.`;
   let gaps: ContentGapItem[] = [];
 
   try {
+    const callStart = Date.now();
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-haiku-3-5-20241022',
       max_tokens: 4096,
       messages: [{ role: 'user', content: prompt }],
     });
+
+    trackDirectApiCall(response, { db, brandId, jobId }, callStart);
 
     // Extract text from the response
     const textBlock = response.content.find((block) => block.type === 'text');

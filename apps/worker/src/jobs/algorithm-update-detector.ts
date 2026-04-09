@@ -5,6 +5,7 @@ import { logger } from '../logger.js';
 import { emitEvent } from '../event-emitter.js';
 import { EventType } from '@quadbot/shared';
 import Anthropic from '@anthropic-ai/sdk';
+import { trackDirectApiCall } from '../claude.js';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -145,11 +146,13 @@ Return JSON only (no markdown fences):
   "recovery_actions": ["Action 1", "Action 2", ...]
 }`;
 
+    const callStart = Date.now();
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-haiku-3-5-20241022',
       max_tokens: 2048,
       messages: [{ role: 'user', content: prompt }],
     });
+    trackDirectApiCall(response, { db, brandId, jobId }, callStart);
 
     const textBlock = response.content.find((block) => block.type === 'text');
     if (!textBlock || textBlock.type !== 'text') {

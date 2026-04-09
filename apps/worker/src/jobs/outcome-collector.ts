@@ -190,7 +190,7 @@ function getMetricSource(recSource: string): string {
 function getMetricKey(recSource: string): string {
   switch (recSource) {
     case 'gsc_daily_digest':
-      return 'avg_ctr';
+      return 'avg_position';
     case 'ads_performance_digest':
       return 'roas';
     case 'analytics_insights':

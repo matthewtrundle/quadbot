@@ -238,7 +238,7 @@ export async function fetchGscSearchAnalytics(
         startDate,
         endDate,
         dimensions: [dimension],
-        rowLimit: 500,
+        rowLimit: 100,
       }),
     },
   );

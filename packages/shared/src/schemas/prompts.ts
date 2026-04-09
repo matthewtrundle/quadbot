@@ -52,8 +52,11 @@ export const actionTypeEnum = z.enum([
   'ads-adjust-budget',
   'flag_for_review',
   'update_meta',
+  'update_content',
+  'publish_post',
   'content-publisher',
   'github-publish',
+  'general',
 ]);
 
 export const communityModerationOutputSchema = z.object({

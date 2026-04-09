@@ -10,10 +10,10 @@
  * Higher thresholds for sources that tend to produce more noise.
  */
 export const MIN_CONFIDENCE_BY_SOURCE: Record<string, number> = {
-  trend_scan: 0.65,
-  gsc_daily_digest: 0.5,
-  anomaly_detector: 0.7,
-  default: 0.5,
+  trend_scan: 0.75,
+  gsc_daily_digest: 0.7,
+  anomaly_detector: 0.8,
+  default: 0.7,
 };
 
 /**
@@ -21,10 +21,10 @@ export const MIN_CONFIDENCE_BY_SOURCE: Record<string, number> = {
  * Content opportunities require higher confidence to avoid stretch recommendations.
  */
 export const MIN_CONFIDENCE_BY_TYPE: Record<string, number> = {
-  content_opportunity: 0.75,
-  brand_monitoring: 0.6,
-  industry_awareness: 0.6,
-  default: 0.6,
+  content_opportunity: 0.8,
+  brand_monitoring: 0.7,
+  industry_awareness: 0.7,
+  default: 0.7,
 };
 
 /**

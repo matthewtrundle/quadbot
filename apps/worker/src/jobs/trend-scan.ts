@@ -10,6 +10,8 @@ import type { JobContext } from '../registry.js';
 import { callClaude } from '../claude.js';
 import { loadActivePrompt } from '../prompt-loader.js';
 import { logger } from '../logger.js';
+import { emitEvent } from '../event-emitter.js';
+import { EventType } from '@quadbot/shared';
 import { searchNews, getTopHeadlines, searchBrandMentions, type NewsArticle } from '../lib/news-api.js';
 import { getTrendingFromSubreddits, searchReddit, INDUSTRY_SUBREDDITS, type RedditPost } from '../lib/reddit-api.js';
 import { brandProfiler } from './brand-profiler.js';
@@ -619,6 +621,17 @@ export async function trendScanIndustry(ctx: JobContext): Promise<void> {
           model_meta: filterMeta,
         })
         .returning({ id: recommendations.id });
+
+      // Emit event so action_draft_generator can create drafts for trend recs
+      if (inserted) {
+        await emitEvent(
+          EventType.RECOMMENDATION_CREATED,
+          brandId,
+          { recommendation_id: inserted.id, source: 'trend_scan', priority: rec.priority },
+          `rec:${inserted.id}`,
+          'trend_scan',
+        );
+      }
 
       // Store brief as an artifact linked to the recommendation
       if (briefContent && inserted) {

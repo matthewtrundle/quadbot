@@ -123,13 +123,17 @@ export async function strategicPrioritizer(ctx: JobContext): Promise<void> {
   const toolContext = { db, brandId };
   const toolExecutor = (name: string, input: Record<string, unknown>) => executeTool(name, input, toolContext);
 
+  // Cap recommendations sent to Claude to control input tokens
+  const MAX_RECS_FOR_CLAUDE = 30;
+  const recsToSend = recsForClaude.slice(0, MAX_RECS_FOR_CLAUDE);
+
   const result = await callClaudeWithTools(
     prompt,
     {
       brand_name: brand[0].name,
       brand_mode: brand[0].mode,
       brand_modules: JSON.stringify(brand[0].modules_enabled),
-      recommendations_json: JSON.stringify(recsForClaude),
+      recommendations_json: JSON.stringify(recsToSend),
       signal_context: signalContext || undefined,
       playbook_context: playbookContext || undefined,
       time_budget: brand[0].time_budget_minutes_per_day || 30,

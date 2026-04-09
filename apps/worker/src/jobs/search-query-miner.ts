@@ -5,6 +5,7 @@ import { logger } from '../logger.js';
 import { emitEvent } from '../event-emitter.js';
 import { EventType } from '@quadbot/shared';
 import Anthropic from '@anthropic-ai/sdk';
+import { trackDirectApiCall } from '../claude.js';
 import { loadGscCredentials, refreshAccessToken, fetchGscSearchAnalytics } from '../lib/gsc-api.js';
 import { persistRefreshedTokens } from '../lib/token-persistence.js';
 import { brandIntegrations } from '@quadbot/db';
@@ -197,11 +198,13 @@ Return JSON only (no markdown fences):
   let analysis: MinerAnalysis;
 
   try {
+    const callStart = Date.now();
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-haiku-3-5-20241022',
       max_tokens: 4096,
       messages: [{ role: 'user', content: prompt }],
     });
+    trackDirectApiCall(response, { db, brandId, jobId }, callStart);
 
     const textBlock = response.content.find((block) => block.type === 'text');
     if (!textBlock || textBlock.type !== 'text') {
